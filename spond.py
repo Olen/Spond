@@ -1,7 +1,8 @@
-
+#!/usr/bin/env python3
 
 import asyncio
 import aiohttp
+from datetime import datetime, timedelta
 
 class Spond():
     def __init__(self, username, password):
@@ -10,37 +11,65 @@ class Spond():
         self.apiurl = "https://spond.com/api/2.1/"
         self.clientsession = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar())
         self.cookie = None
+        self.groups = None
+        self.events = None
 
 
     async def login(self):
         url = self.apiurl + "login"
         data = { 'email': self.username, 'password': self.password }
         async with self.clientsession.post(url, json=data) as r:
-            print('JSON', await r.json())
-            print('HEAD', r.headers)
-            print('COOK', r.cookies['auth'])
             self.cookie = r.cookies['auth']
-                # cookies = s.cookie_jar.filter_cookies('https://spond.com/api')
-                # for key, cookie in cookies.items():
-                #     print('Key: "%s", Value: "%s"' % (cookie.key, cookie.value))
 
-    async def getEvents(self):
+    async def getGroups(self):
         if not self.cookie:
             await self.login()
-        url = self.apiurl + "sponds/?max=100&minEndTimestamp=2020-12-15T23:00:00.000Z&order=asc&scheduled=true"
+        url = self.apiurl + "groups/"
         async with self.clientsession.get(url) as r:
-            print('JSON', await r.json())
-            print('HEAD', r.headers)
+            self.groups = await r.json()
+            return self.groups
 
-        pass
+    async def getGroup(self, uid):
+        if not self.cookie:
+            await self.login()
 
-async def main():
-    spond = Spond(username="xx", password="yy")
-    # await spond.login()
-    await spond.getEvents()
-    await spond.clientsession.close()
+    async def getPerson(self, uid):
+        if not self.cookie:
+            await self.login()
+        if not self.groups:
+            await self.getGroups()
+        for group in self.groups:
+            for member in group['members']:
+                if member['id'] == uid:
+                    return member
+                if 'guardians' in member:
+                    for guardian in member['guardians']:
+                        if guardian['id'] == uid:
+                            return guardian
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
+    async def getMessages(self):
+        if not self.cookie:
+            await self.login()
+        url = self.apiurl + "chats/?max=10"
+        async with self.clientsession.get(url) as r:
+            return await r.json()
 
-# https://spond.com/api/2.1/sponds?addProfileInfo=true&excludeRepeating=false&includeComments=false&includeHidden=false&max=100&minEndTimestamp=2020-12-15T23:00:00.000Z&order=asc&scheduled=true
+
+    async def getEvents(self, end_time = None):
+        if not self.cookie:
+            await self.login()
+        if not end_time:
+            end_time = datetime.now() - timedelta(days=14)
+        url = self.apiurl + "sponds/?max=100&minEndTimestamp={}&order=asc&scheduled=true".format(end_time.strftime("%Y-%m-%dT00:00:00.000Z"))
+        async with self.clientsession.get(url) as r:
+            self.events = await r.json()
+            return self.events
+
+    async def getEvent(self, uid):
+        if not self.cookie:
+            await self.login()
+        if not self.events:
+            await self.getEvents()
+        for event in self.events:
+            if event['id'] == uid:
+                return event
