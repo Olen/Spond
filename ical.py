@@ -1,5 +1,5 @@
 import asyncio
-import spond
+from spond import Spond
 from ics import Calendar, Event
 from config import username, password
 
@@ -7,8 +7,9 @@ ics_file = 'spond.ics'
 
 
 async def main():
-    s = spond.Spond(username=username, password=password)
+    s = Spond(username=username, password=password)
     c = Calendar()
+    c.method = 'PUBLISH'
     events = await s.getEvents()
     for event in events:
         e = Event()
@@ -17,6 +18,9 @@ async def main():
         e.description = event['description']
         e.begin = event['startTimestamp']
         e.end = event['endTimestamp']
+        e.sequence = event['updated']
+        if 'cancelled' in event and event['cancelled']:
+            e.status = 'Cancelled'
         if 'location' in event:
             e.location = "{}, {}".format(event['location']['feature'], event['location']['address'])
         c.events.add(e)
