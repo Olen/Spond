@@ -71,8 +71,9 @@ class Spond():
     async def getMessages(self):
         if not self.cookie:
             await self.login()
-        url = self.apiurl + "chats/?max=10"
-        async with self.clientsession.get(url) as r:
+        url = self.chaturl + "/chats/?max=10"
+        headers = { 'auth': self.auth }
+        async with self.clientsession.get(url, headers=headers) as r:
             return await r.json()
 
 
