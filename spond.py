@@ -53,6 +53,11 @@ class Spond():
     async def getGroup(self, uid):
         if not self.cookie:
             await self.login()
+        if not self.groups:
+            await self.getGroups()
+        for group in self.groups:
+            if group['id'] == uid:
+                return group
 
     async def getPerson(self, user):
         if not self.cookie:
