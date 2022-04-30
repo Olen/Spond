@@ -3,11 +3,44 @@
 
 Simple library with some example scripts to access data from Spond.
 
+
 ## Usage
 
 Rename `config.py.sample` to config.py and set your Spond username and password in that file.
 
-Run `python3 ical.py` which will generate an ics-file (`spond.ics`) of the upcoming events in Spond (which can then be imported into any calendar, or even put up on a web page to be subscribed to by different calendar apps.
+### Example code
 
-Run `python3 groups.py` which will simply dump all your groups and group memebers to a JSON file (`<group name>.json`)
+```
+import asyncio
+from spond import spond
+from config import username, password
+async def main():
+    s = spond.Spond(username=username, password=password)
+    groups = await s.getGroups()
+    for group in groups:
+        print(group['name'])
+    await s.clientsession.close()
+
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+
+```
+
+## Functions
+
+### getGroups()
+Gets all your group memberships and all members of those groups
+
+### getEvents()
+Gets all upcoming events
+
+### getPerson()
+Get information about a member
+
+### getMessages()
+Get all your messages
+
+### sendMessage(receipient, text)
+Send a message to `receipient` with the content `text`
 

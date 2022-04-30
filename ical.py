@@ -1,5 +1,5 @@
 import asyncio
-from spond import Spond
+from spond import spond
 from ics import Calendar, Event
 from config import username, password
 
@@ -7,7 +7,7 @@ ics_file = 'spond.ics'
 
 
 async def main():
-    s = Spond(username=username, password=password)
+    s = spond.Spond(username=username, password=password)
     c = Calendar()
     c.method = 'PUBLISH'
     events = await s.getEvents()
