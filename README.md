@@ -3,17 +3,25 @@
 
 Simple library with some example scripts to access data from Spond.
 
+## Install
+
+`pip install spond`
 
 ## Usage
 
-Rename `config.py.sample` to config.py and set your Spond username and password in that file.
+You need a username and password from Spond
+
+
 
 ### Example code
 
 ```
 import asyncio
 from spond import spond
-from config import username, password
+
+username = 'my@mail.invalid'
+password = 'Pa55worD'
+
 async def main():
     s = spond.Spond(username=username, password=password)
     groups = await s.getGroups()

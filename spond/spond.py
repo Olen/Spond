@@ -2,16 +2,11 @@
 
 import asyncio
 import aiohttp
-import logging
 
 from datetime import datetime, timedelta
 
 class Spond():
     def __init__(self, username, password):
-        logging.basicConfig(level=logging.INFO)
-        trace_config = aiohttp.TraceConfig()
-        trace_config.on_request_start.append(self.on_request_start)
-
         self.username = username
         self.password = password
         self.apiurl = "https://spond.com/api/2.1/"
@@ -22,9 +17,6 @@ class Spond():
         self.groups = None
         self.events = None
 
-
-    async def on_request_start(self, session, context, params):
-        logging.getLogger('aiohttp.client').debug(f'Starting request <{params}>')
 
 
     async def login(self):
