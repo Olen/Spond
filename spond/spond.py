@@ -10,7 +10,7 @@ class Spond():
         self.username = username
         self.password = password
         self.apiurl = "https://spond.com/api/2.1/"
-        self.clientsession = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar(), trace_configs=[trace_config])
+        self.clientsession = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar())
         self.chaturl = None
         self.auth = None
         self.cookie = None
