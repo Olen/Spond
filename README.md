@@ -40,8 +40,15 @@ loop.run_until_complete(main())
 ### getGroups()
 Gets all your group memberships and all members of those groups
 
-### getEvents()
-Gets all upcoming events
+### getEvents(end_time)
+Gets up to 100 events.
+
+Optional `end_time` parameter determines the earliest date from which events are returned.
+Pass a `datetime` to get earlier events, e.g.:
+```
+events = await spond_session.getEvents(datetime.now() - timedelta(days=365))
+```
+If omitted, returns events from today - 14 days.
 
 ### getPerson()
 Get information about a member
@@ -49,6 +56,6 @@ Get information about a member
 ### getMessages()
 Get all your messages
 
-### sendMessage(receipient, text)
-Send a message to `receipient` with the content `text`
+### sendMessage(recipient, text)
+Send a message to `recipient` with the content `text`
 
