@@ -1,6 +1,6 @@
 import asyncio
 import json
-import spond
+from spond import spond
 from config import username, password
 
 
