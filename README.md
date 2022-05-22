@@ -75,3 +75,15 @@ Get all your messages
 ### sendMessage(recipient, text)
 Send a message to `recipient` with the content `text`
 
+## Example scripts
+
+The following scripts are included as examples
+
+### ical.py
+Generates an ics-file of upcoming events.
+
+### groups.py
+Generates a json-file for each group you are a member of.
+
+### attendance.py <start> <end> [--members]
+Generates a csv-file for each event between `start` and `end` with attendance status of all organizers.  The optional parameter `--members` also includes regular members that has been invited.
