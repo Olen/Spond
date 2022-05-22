@@ -1,10 +1,13 @@
 import asyncio
+import os
 from spond import spond
 from ics import Calendar, Event
 from config import username, password
 
-ics_file = 'spond.ics'
+if not os.path.exists('./exports'):
+    os.makedirs('./exports')
 
+ics_file = os.path.join("./exports", "spond.ics")
 
 async def main():
     s = spond.Spond(username=username, password=password)
