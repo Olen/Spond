@@ -1,7 +1,13 @@
 import asyncio
 import json
+import os
 from spond import spond
 from config import username, password
+
+
+if not os.path.exists('./exports'):
+    os.makedirs('./exports')
+
 
 
 async def main():
@@ -11,7 +17,7 @@ async def main():
         name = group['name']
         data = (json.dumps(group, indent=4, sort_keys=True))
         keepcharacters = (' ','.','_')
-        filename = "".join(c for c in name if c.isalnum() or c in keepcharacters).rstrip() + ".json"
+        filename = os.path.join("./exports", "".join(c for c in name if c.isalnum() or c in keepcharacters).rstrip() + ".json")
         print(filename)
         with open(filename, 'w') as out_file:
             out_file.write(data)
