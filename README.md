@@ -79,6 +79,8 @@ Send a message to `recipient` with the content `text`
 
 The following scripts are included as examples.  Some of the scripts might require additional packages to be installed (csv, ical etc).
 
+Rename the file `config.py.sample` to `config.py` and add your username and password to the file before running the samples.
+
 ### ical.py
 Generates an ics-file of upcoming events.
 
