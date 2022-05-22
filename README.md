@@ -87,5 +87,5 @@ Generates an ics-file of upcoming events.
 ### groups.py
 Generates a json-file for each group you are a member of.
 
-### attendance.py &lt;start&gt; &lt;end&gt; [--members]
-Generates a csv-file for each event between `start` and `end` with attendance status of all organizers.  The optional parameter `--members` also includes regular members that has been invited.
+### attendance.py &lt;-f from_date&gt; &lt;-t to_date&gt; [-a]
+Generates a csv-file for each event between `from_date` and `to_date` with attendance status of all organizers.  The optional parameter `-a` also includes all members that has been invited.
