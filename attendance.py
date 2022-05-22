@@ -6,19 +6,18 @@ import csv
 from spond import spond
 from config import username, password
 
-parser = argparse.ArgumentParser()
-parser.add_argument("start", help="Start date to query for (format YYYY-MM-DD)", type=date.fromisoformat)
-parser.add_argument("end", help="End date to query for (format YYYY-MM-DD)", type=date.fromisoformat)
-parser.add_argument("--members", help="Also include members", default=False, action='store_true')
+parser = argparse.ArgumentParser(description="Creates an attendance.csv for organizers of events.")
+parser.add_argument("-f", "--from", help="First date to query for. Date is included in results (format YYYY-MM-DD)", type=date.fromisoformat, dest="f")
+parser.add_argument("-t", "--to", help="Last date to query for. Date is excluded from results (format YYYY-MM-DD)", type=date.fromisoformat, dest="t")
+parser.add_argument("-a", help="Also include all members", default=False, action='store_true')
 args = parser.parse_args()
 
 async def main():
     s = spond.Spond(username=username, password=password)
-    events = await s.getEventsBetween(args.start, args.end)
+    events = await s.getEventsBetween(args.f, args.t)
     
     if not os.path.exists('./exports'):
             os.makedirs('./exports')
-
 
     for e in events:
         filename = os.path.join("./exports", f"{e['startTimestamp']}-{e['heading']}.csv")
@@ -31,7 +30,7 @@ async def main():
                 person = await s.getPerson(o['id'])
                 fullName = person['firstName'] + ' ' + person['lastName']
                 spamwriter.writerow([e['startTimestamp'], e['endTimestamp'], e['heading'], fullName, o['response'], "X"])
-            if args.members is True:
+            if args.a is True:
                 for r in e['responses']['acceptedIds']:
                     person = await s.getPerson(r)
                     fullName = person['firstName'] + ' ' + person['lastName']
