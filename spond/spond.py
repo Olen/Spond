@@ -84,20 +84,20 @@ class Spond():
         print(r)
         return await r.json()
 
-    async def getEvents(self, end_time = None):
+    async def getEvents(self, from_date = None):
         if not self.cookie:
             await self.login()
-        if not end_time:
-            end_time = datetime.now() - timedelta(days=14)
-        url = self.apiurl + "sponds/?max=100&minEndTimestamp={}&order=asc&scheduled=true".format(end_time.strftime("%Y-%m-%dT00:00:00.000Z"))
+        if not from_date:
+            from_date = datetime.now() - timedelta(days=14)
+        url = self.apiurl + "sponds/?max=100&minEndTimestamp={}&order=asc&scheduled=true".format(from_date.strftime("%Y-%m-%dT00:00:00.000Z"))
         async with self.clientsession.get(url) as r:
             self.events = await r.json()
             return self.events
 
-    async def getEventsBetween(self, start_time, end_time):
+    async def getEventsBetween(self, from_date, to_date):
         if not self.cookie:
             await self.login()
-        url = self.apiurl + "sponds/?max=100&minEndTimestamp={}&maxEndTimestamp={}&order=asc&scheduled=true".format(start_time.strftime("%Y-%m-%dT00:00:00.000Z"), end_time.strftime("%Y-%m-%dT00:00:00.000Z"))
+        url = self.apiurl + "sponds/?max=100&minEndTimestamp={}&maxEndTimestamp={}&order=asc&scheduled=true".format(from_date.strftime("%Y-%m-%dT00:00:00.000Z"), to_date.strftime("%Y-%m-%dT00:00:00.000Z"))
         async with self.clientsession.get(url) as r:
             self.events = await r.json()
             return self.events
