@@ -77,7 +77,7 @@ Send a message to `recipient` with the content `text`
 
 ## Example scripts
 
-The following scripts are included as examples
+The following scripts are included as examples.  Some of the scripts might require additional packages to be installed (csv, ical etc).
 
 ### ical.py
 Generates an ics-file of upcoming events.
@@ -85,5 +85,5 @@ Generates an ics-file of upcoming events.
 ### groups.py
 Generates a json-file for each group you are a member of.
 
-### attendance.py <start> <end> [--members]
+### attendance.py &l;start&gt; &lt;end&gt; [--members]
 Generates a csv-file for each event between `start` and `end` with attendance status of all organizers.  The optional parameter `--members` also includes regular members that has been invited.
