@@ -40,7 +40,7 @@ loop.run_until_complete(main())
 ### getGroups()
 Gets all your group memberships and all members of those groups
 
-### getEvents(end_time)
+### getEvents([end_time])
 Gets up to 100 events.
 
 Optional `end_time` parameter determines the earliest date from which events are returned.
@@ -49,6 +49,22 @@ Pass a `datetime` to get earlier events, e.g.:
 events = await spond_session.getEvents(datetime.now() - timedelta(days=365))
 ```
 If omitted, returns events from today - 14 days.
+
+
+### getEventsBetween(start_time, end_time)
+Gets up to 100 events.
+
+Required `start_time` and `end_time` parameters determines the earliest and latest date from which events are returned.
+Both expect a `datetime` object, e.g.:
+```
+start_time = datetime.now() - timedelta(days=30)
+end_time = datetime.now() + timedelta(days=30)
+
+events = await spond_session.getEventsBetween(start_time, end_time)
+```
+Will return _up to_ 100 events starting from 30 days in the past until 30 days in the future.
+
+
 
 ### getPerson()
 Get information about a member
