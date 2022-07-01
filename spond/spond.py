@@ -35,6 +35,15 @@ class Spond():
         self.auth = result['auth']
 
     async def getGroups(self):
+        """
+        Get all groups.
+        Subject to authenticated user's access.
+
+        Returns
+        -------
+        list of dict
+            Groups; each group is a dict.
+        """
         if not self.cookie:
             await self.login()
         url = self.apiurl + "groups/"
@@ -43,6 +52,20 @@ class Spond():
             return self.groups
 
     async def getGroup(self, uid):
+        """
+        Get a group by unique ID.
+        Subject to authenticated user's access.
+
+        Parameters
+        ----------
+        uid : str
+            UID of the group.
+
+        Returns
+        -------
+        dict
+            Details of the group.
+        """
         if not self.cookie:
             await self.login()
         if not self.groups:
@@ -52,6 +75,21 @@ class Spond():
                 return group
 
     async def getPerson(self, user):
+        """
+        Get a member or guardian by matching various identifiers.
+        Subject to authenticated user's access.
+
+        Parameters
+        ----------
+        user : str
+            Identifier to match against member/guardian's id, email, full name, or
+            profile id.
+
+        Returns
+        -------
+        dict
+             Member or guardian's details.
+        """
         if not self.cookie:
             await self.login()
         if not self.groups:
@@ -85,6 +123,22 @@ class Spond():
         return await r.json()
 
     async def getEvents(self, from_date = None):
+        """
+        Get up to 100 events up to present.
+        Subject to authenticated user's access.
+        Excludes cancelled events.
+
+        Parameters
+        ----------
+        from_date : datetime, optional
+            Only return events which finish after this value.
+            If omitted, the last 14 days.
+
+        Returns
+        -------
+        list of dict
+            Events; each event is a dict.
+        """
         if not self.cookie:
             await self.login()
         if not from_date:
@@ -95,6 +149,23 @@ class Spond():
             return self.events
 
     async def getEventsBetween(self, from_date, to_date):
+        """
+        Get up to 100 events between two datetimes.
+        Subject to authenticated user's access.
+        Excludes cancelled events.
+
+        Parameters
+        ----------
+        from_date : datetime
+            Only return events which finish after this value.
+        to_date : datetime
+            Only return events which finish before this value.
+
+        Returns
+        -------
+        list of dict
+            Events; each event is a dict.
+        """
         if not self.cookie:
             await self.login()
         url = self.apiurl + "sponds/?max=100&minEndTimestamp={}&maxEndTimestamp={}&order=asc&scheduled=true".format(from_date.strftime("%Y-%m-%dT00:00:00.000Z"), to_date.strftime("%Y-%m-%dT00:00:00.000Z"))
@@ -103,6 +174,20 @@ class Spond():
             return self.events
 
     async def getEvent(self, uid):
+        """
+        Get an event by unique ID.
+        Subject to authenticated user's access.
+
+        Parameters
+        ----------
+        uid : str
+            UID of the event.
+
+        Returns
+        -------
+        dict
+            Details of the event.
+        """
         if not self.cookie:
             await self.login()
         if not self.events:
