@@ -94,10 +94,35 @@ class Spond():
             self.events = await r.json()
             return self.events
 
-    async def getEventsBetween(self, from_date, to_date):
+    async def getEventsBetween(self, from_date, to_date, max_events=100):
+        """
+        Get events between two datetimes.
+        Subject to authenticated user's access.
+        Excludes cancelled events.
+
+        Parameters
+        ----------
+        from_date : datetime
+            Only return events which finish after this value.
+        to_date : datetime
+            Only return events which finish before this value.
+        max_events : int, optional
+            Set a limit on the number of events returned
+
+        Returns
+        -------
+        list of dict
+            Events; each event is a dict.
+        """
         if not self.cookie:
             await self.login()
-        url = self.apiurl + "sponds/?max=100&minEndTimestamp={}&maxEndTimestamp={}&order=asc&scheduled=true".format(from_date.strftime("%Y-%m-%dT00:00:00.000Z"), to_date.strftime("%Y-%m-%dT00:00:00.000Z"))
+        url = (
+            f"{self.apiurl}sponds/?"
+            f"max={max_events}&"
+            f"minEndTimestamp={from_date.strftime('%Y-%m-%dT00:00:00.000Z')}&"
+            f"maxEndTimestamp={to_date.strftime('%Y-%m-%dT00:00:00.000Z')}&"
+            f"order=asc&scheduled=true"
+        )
         async with self.clientsession.get(url) as r:
             self.events = await r.json()
             return self.events
