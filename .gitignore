@@ -1,4 +1,14 @@
-__pycache__/*
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Project specific
 exports/*
-dist/*
 config.py
+
+
+
