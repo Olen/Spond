@@ -13,7 +13,7 @@ async def main():
     s = spond.Spond(username=username, password=password)
     c = Calendar()
     c.method = 'PUBLISH'
-    events = await s.getEvents()
+    events = await s.get_events()
     for event in events:
         e = Event()
         e.uid = event['id']

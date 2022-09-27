@@ -24,7 +24,7 @@ password = 'Pa55worD'
 
 async def main():
     s = spond.Spond(username=username, password=password)
-    groups = await s.getGroups()
+    groups = await s.get_groups()
     for group in groups:
         print(group['name'])
     await s.clientsession.close()
@@ -37,21 +37,21 @@ loop.run_until_complete(main())
 
 ## Functions
 
-### getGroups()
+### get_groups()
 Gets all your group memberships and all members of those groups
 
-### getEvents([from_date])
+### get_events([from_date])
 Gets up to 100 events.
 
 Optional `from_date` parameter determines the earliest date from which events are returned.
 Pass a `datetime` to get earlier events, e.g.:
 ```
-events = await spond_session.getEvents(datetime.now() - timedelta(days=365))
+events = await spond_session.get_events(datetime.now() - timedelta(days=365))
 ```
 If omitted, returns events from today - 14 days.
 
 
-### getEventsBetween(from_date, to_date)
+### get_events_between(from_date, to_date)
 Gets up to 100 events.
 
 Required `from_date` and `to_date` parameters determines the earliest and latest date from which events are returned.
@@ -60,19 +60,19 @@ Both expect a `datetime` object, e.g.:
 from_date = datetime.now() - timedelta(days=30)
 to_date = datetime.now() + timedelta(days=30)
 
-events = await spond_session.getEventsBetween(from_date, to_date)
+events = await spond_session.get_events_between(from_date, to_date)
 ```
 Will return _up to_ 100 events starting from 30 days in the past until 30 days in the future.
 
 
 
-### getPerson()
+### get_person()
 Get information about a member
 
-### getMessages()
+### get_messages()
 Get all your messages
 
-### sendMessage(recipient, text)
+### send_message(recipient, text)
 Send a message to `recipient` with the content `text`
 
 ## Example scripts

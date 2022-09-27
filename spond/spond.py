@@ -18,7 +18,6 @@ class Spond():
         self.events = None
 
 
-
     async def login(self):
         url = self.apiurl + "login"
         data = { 'email': self.username, 'password': self.password }
@@ -34,7 +33,7 @@ class Spond():
         self.chaturl = result['url']
         self.auth = result['auth']
 
-    async def getGroups(self):
+    async def get_groups(self):
         """
         Get all groups.
         Subject to authenticated user's access.
@@ -51,7 +50,7 @@ class Spond():
             self.groups = await r.json()
             return self.groups
 
-    async def getGroup(self, uid):
+    async def get_group(self, uid):
         """
         Get a group by unique ID.
         Subject to authenticated user's access.
@@ -69,12 +68,12 @@ class Spond():
         if not self.cookie:
             await self.login()
         if not self.groups:
-            await self.getGroups()
+            await self.get_groups()
         for group in self.groups:
             if group['id'] == uid:
                 return group
 
-    async def getPerson(self, user):
+    async def get_person(self, user):
         """
         Get a member or guardian by matching various identifiers.
         Subject to authenticated user's access.
@@ -93,7 +92,7 @@ class Spond():
         if not self.cookie:
             await self.login()
         if not self.groups:
-            await self.getGroups()
+            await self.get_groups()
         for group in self.groups:
             for member in group['members']:
                 if member['id'] == user or ('email' in member and member['email']) == user or member['firstName'] + " " + member['lastName'] == user or ( 'profile' in member and member['profile']['id'] == user):
@@ -103,7 +102,7 @@ class Spond():
                         if guardian['id'] == user or ('email' in guardian and guardian['email']) == user or guardian['firstName'] + " " + guardian['lastName'] == user or ( 'profile' in guardian and guardian['profile']['id'] == user):
                             return guardian
 
-    async def getMessages(self):
+    async def get_messages(self):
         if not self.cookie:
             await self.login()
         url = self.chaturl + "/chats/?max=10"
@@ -112,7 +111,7 @@ class Spond():
             return await r.json()
 
 
-    async def sendMessage(self, recipient, text):
+    async def send_message(self, recipient, text):
         if not self.cookie:
             await self.login()
         url = self.chaturl + "/messages"
@@ -122,7 +121,7 @@ class Spond():
         print(r)
         return await r.json()
 
-    async def getEvents(self, from_date = None):
+    async def get_events(self, from_date = None):
         """
         Get up to 100 events up to present.
         Subject to authenticated user's access.
@@ -148,7 +147,7 @@ class Spond():
             self.events = await r.json()
             return self.events
 
-    async def getEventsBetween(self, from_date, to_date, max_events=100):
+    async def get_events_between(self, from_date, to_date, max_events=100):
         """
         Get events between two datetimes.
         Subject to authenticated user's access.
@@ -181,7 +180,7 @@ class Spond():
             self.events = await r.json()
             return self.events
 
-    async def getEvent(self, uid):
+    async def get_event(self, uid):
         """
         Get an event by unique ID.
         Subject to authenticated user's access.
@@ -199,7 +198,7 @@ class Spond():
         if not self.cookie:
             await self.login()
         if not self.events:
-            await self.getEvents()
+            await self.get_events()
         for event in self.events:
             if event['id'] == uid:
                 return event
