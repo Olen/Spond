@@ -14,7 +14,7 @@ args = parser.parse_args()
 
 async def main():
     s = spond.Spond(username=username, password=password)
-    events = await s.getEventsBetween(args.f, args.t)
+    events = await s.get_events_between(args.f, args.t)
     
     if not os.path.exists('./exports'):
             os.makedirs('./exports')
@@ -27,28 +27,28 @@ async def main():
         
             spamwriter.writerow(["Start","End","Description","Name","Answer","Organizer"])
             for o in e['owners']:
-                person = await s.getPerson(o['id'])
+                person = await s.get_person(o['id'])
                 fullName = person['firstName'] + ' ' + person['lastName']
                 spamwriter.writerow([e['startTimestamp'], e['endTimestamp'], e['heading'], fullName, o['response'], "X"])
             if args.a is True:
                 for r in e['responses']['acceptedIds']:
-                    person = await s.getPerson(r)
+                    person = await s.get_person(r)
                     fullName = person['firstName'] + ' ' + person['lastName']
                     spamwriter.writerow([e['startTimestamp'], e['endTimestamp'], e['heading'], fullName, 'accepted'])
                 for r in e['responses']['declinedIds']:
-                    person = await s.getPerson(r)
+                    person = await s.get_person(r)
                     fullName = person['firstName'] + ' ' + person['lastName']
                     spamwriter.writerow([e['startTimestamp'], e['endTimestamp'], e['heading'], fullName, 'declined'])
                 for r in e['responses']['unansweredIds']:
-                    person = await s.getPerson(r)
+                    person = await s.get_person(r)
                     fullName = person['firstName'] + ' ' + person['lastName']
                     spamwriter.writerow([e['startTimestamp'], e['endTimestamp'], e['heading'], fullName, 'unanswered'])
                 for r in e['responses']['unconfirmedIds']:
-                    person = await s.getPerson(r)
+                    person = await s.get_person(r)
                     fullName = person['firstName'] + ' ' + person['lastName']
                     spamwriter.writerow([e['startTimestamp'], e['endTimestamp'], e['heading'], fullName, 'unconfirmed'])
                 for r in e['responses']['waitinglistIds']:
-                    person = await s.getPerson(r)
+                    person = await s.get_person(r)
                     fullName = person['firstName'] + ' ' + person['lastName']
                     spamwriter.writerow([e['startTimestamp'], e['endTimestamp'], e['heading'], fullName, 'waitinglist'])
                     
