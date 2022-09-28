@@ -12,7 +12,7 @@ if not os.path.exists('./exports'):
 
 async def main():
     s = spond.Spond(username=username, password=password)
-    groups = await s.getGroups()
+    groups = await s.get_groups()
     for group in groups:
         name = group['name']
         data = (json.dumps(group, indent=4, sort_keys=True))
