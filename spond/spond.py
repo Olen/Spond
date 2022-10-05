@@ -122,9 +122,10 @@ class Spond():
 
     async def get_events(
         self,
+        group_id=None,
+        include_scheduled=False,
         max_end=None,
         min_end=None,
-        group_id=None,
         max_events=100,
     ) -> List[dict]:
         """
@@ -133,16 +134,20 @@ class Spond():
 
         Parameters
         ----------
+        group_id : str, optional
+            Uses `GroupId` API parameter.
+        include_scheduled : bool, optional
+            Include scheduled events.
+            (TO DO: probably events for which invites haven't been sent yet?)
+            Defaults to False for performance reasons.
+            Uses `scheduled` API parameter.
         max_end : datetime, optional
-            Include only events which end before or at this datetime.
+            Only include events which end before or at this datetime.
             Defaults to 100 for performance reasons.
             Uses `maxEndTimestamp` API parameter.
         min_end : datetime, optional
-            Include only events which end after or at this datetime.
+            Only include events which end after or at this datetime.
             Uses `minEndTimestamp` API parameter.
-        group_id : str, optional
-            Include only events which finish after this value.
-            Uses `GroupId` API parameter.
         max_events : int, optional
             Set a limit on the number of events returned.
             For performance reasons, defaults to 100.
@@ -158,6 +163,7 @@ class Spond():
         url = (
             f"{self.apiurl}sponds/?"
             f"max={max_events}"
+            f"&scheduled={include_scheduled}"
             )
         if max_end:
             url += f"&maxEndTimestamp={max_end.strftime('%Y-%m-%dT00:00:00.000Z')}"
