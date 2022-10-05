@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import asyncio
 import aiohttp
 
 from datetime import datetime, timedelta
