@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from datetime import datetime
 from typing import List
 import aiohttp
 
@@ -122,11 +123,13 @@ class Spond():
 
     async def get_events(
         self,
-        group_id=None,
-        include_scheduled=False,
-        max_end=None,
-        min_end=None,
-        max_events=100,
+        group_id: str = None,
+        include_scheduled: bool = False,
+        max_end: datetime = None,
+        min_end: datetime = None,
+        max_start: datetime = None,
+        min_start: datetime = None,
+        max_events: int = 100,
     ) -> List[dict]:
         """
         Get events.
@@ -144,14 +147,21 @@ class Spond():
         max_end : datetime, optional
             Only include events which end before or at this datetime.
             Defaults to 100 for performance reasons.
-            Uses `maxEndTimestamp` API parameter.
+            Uses `maxEndTimestamp` API parameter; relates to `endTimestamp` event attribute.
+        max_start : datetime, optional
+            Only include events which start before or at this datetime.
+            Defaults to 100 for performance reasons.
+            Uses `maxStartTimestamp` API parameter; relates to `startTimestamp` event attribute.
         min_end : datetime, optional
             Only include events which end after or at this datetime.
-            Uses `minEndTimestamp` API parameter.
+            Uses `minEndTimestamp` API parameter; relates to `endTimestamp` event attribute.
+        min_start : datetime, optional
+            Only include events which start after or at this datetime.
+            Uses `minStartTimestamp` API parameter; relates to `startTimestamp` event attribute.
         max_events : int, optional
             Set a limit on the number of events returned.
             For performance reasons, defaults to 100.
-            Uses `max` API parameter
+            Uses `max` API parameter.
 
         Returns
         -------
@@ -167,8 +177,12 @@ class Spond():
             )
         if max_end:
             url += f"&maxEndTimestamp={max_end.strftime('%Y-%m-%dT00:00:00.000Z')}"
+        if max_start:
+            url += f"&maxStartTimestamp={max_start.strftime('%Y-%m-%dT00:00:00.000Z')}"
         if min_end:
             url += f"&minEndTimestamp={min_end.strftime('%Y-%m-%dT00:00:00.000Z')}"
+        if min_start:
+            url += f"&minStartTimestamp={min_start.strftime('%Y-%m-%dT00:00:00.000Z')}"
         if group_id:
             url += f"&groupId={group_id}"
 
