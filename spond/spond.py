@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
+from datetime import datetime
+from typing import List
 import aiohttp
-
-from datetime import datetime, timedelta
 
 class Spond():
     def __init__(self, username, password):
@@ -121,46 +121,47 @@ class Spond():
         print(r)
         return await r.json()
 
-    async def get_events(self, from_date = None):
+    async def get_events(
+        self,
+        group_id: str = None,
+        include_scheduled: bool = False,
+        max_end: datetime = None,
+        min_end: datetime = None,
+        max_start: datetime = None,
+        min_start: datetime = None,
+        max_events: int = 100,
+    ) -> List[dict]:
         """
-        Get up to 100 events up to present.
+        Get events.
         Subject to authenticated user's access.
-        Excludes cancelled events.
 
         Parameters
         ----------
-        from_date : datetime, optional
-            Only return events which finish after this value.
-            If omitted, the last 14 days.
-
-        Returns
-        -------
-        list of dict
-            Events; each event is a dict.
-        """
-        if not self.cookie:
-            await self.login()
-        if not from_date:
-            from_date = datetime.now() - timedelta(days=14)
-        url = self.apiurl + "sponds/?max=100&minEndTimestamp={}&order=asc&scheduled=true".format(from_date.strftime("%Y-%m-%dT00:00:00.000Z"))
-        async with self.clientsession.get(url) as r:
-            self.events = await r.json()
-            return self.events
-
-    async def get_events_between(self, from_date, to_date, max_events=100):
-        """
-        Get events between two datetimes.
-        Subject to authenticated user's access.
-        Excludes cancelled events.
-
-        Parameters
-        ----------
-        from_date : datetime
-            Only return events which finish after this value.
-        to_date : datetime
-            Only return events which finish before this value.
+        group_id : str, optional
+            Uses `GroupId` API parameter.
+        include_scheduled : bool, optional
+            Include scheduled events.
+            (TO DO: probably events for which invites haven't been sent yet?)
+            Defaults to False for performance reasons.
+            Uses `scheduled` API parameter.
+        max_end : datetime, optional
+            Only include events which end before or at this datetime.
+            Defaults to 100 for performance reasons.
+            Uses `maxEndTimestamp` API parameter; relates to `endTimestamp` event attribute.
+        max_start : datetime, optional
+            Only include events which start before or at this datetime.
+            Defaults to 100 for performance reasons.
+            Uses `maxStartTimestamp` API parameter; relates to `startTimestamp` event attribute.
+        min_end : datetime, optional
+            Only include events which end after or at this datetime.
+            Uses `minEndTimestamp` API parameter; relates to `endTimestamp` event attribute.
+        min_start : datetime, optional
+            Only include events which start after or at this datetime.
+            Uses `minStartTimestamp` API parameter; relates to `startTimestamp` event attribute.
         max_events : int, optional
-            Set a limit on the number of events returned
+            Set a limit on the number of events returned.
+            For performance reasons, defaults to 100.
+            Uses `max` API parameter.
 
         Returns
         -------
@@ -171,11 +172,20 @@ class Spond():
             await self.login()
         url = (
             f"{self.apiurl}sponds/?"
-            f"max={max_events}&"
-            f"minEndTimestamp={from_date.strftime('%Y-%m-%dT00:00:00.000Z')}&"
-            f"maxEndTimestamp={to_date.strftime('%Y-%m-%dT00:00:00.000Z')}&"
-            f"order=asc&scheduled=true"
-        )
+            f"max={max_events}"
+            f"&scheduled={include_scheduled}"
+            )
+        if max_end:
+            url += f"&maxEndTimestamp={max_end.strftime('%Y-%m-%dT00:00:00.000Z')}"
+        if max_start:
+            url += f"&maxStartTimestamp={max_start.strftime('%Y-%m-%dT00:00:00.000Z')}"
+        if min_end:
+            url += f"&minEndTimestamp={min_end.strftime('%Y-%m-%dT00:00:00.000Z')}"
+        if min_start:
+            url += f"&minStartTimestamp={min_start.strftime('%Y-%m-%dT00:00:00.000Z')}"
+        if group_id:
+            url += f"&groupId={group_id}"
+
         async with self.clientsession.get(url) as r:
             self.events = await r.json()
             return self.events
