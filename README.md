@@ -1,7 +1,7 @@
 # Spond
 ![spond logo](https://github.com/Olen/Spond/blob/main/images/spond-logo.png?raw=true)
 
-Simple library with some example scripts to access data from Spond.
+Simple, unofficial library with some example scripts to access data from the [Spond](https://spond.com/) API.
 
 ## Install
 
@@ -35,45 +35,25 @@ loop.run_until_complete(main())
 
 ```
 
-## Functions
+## Key methods
 
 ### get_groups()
-Gets all your group memberships and all members of those groups
 
-### get_events([from_date])
-Gets up to 100 events.
+Get details of all your group memberships and all members of those groups.
 
-Optional `from_date` parameter determines the earliest date from which events are returned.
-Pass a `datetime` to get earlier events, e.g.:
-```
-events = await spond_session.get_events(datetime.now() - timedelta(days=365))
-```
-If omitted, returns events from today - 14 days.
+### get_events([group_id, include_scheduled, max_end, min_end, max_start, min_start, max_events])
+)
+Get details of events, limited to 100 by default.
+Optional parameters allow filtering by start and end datetimes, group; more events to be returned; inclusion of 'scheduled' events.
 
+### get_person()
+Get a member's details.
 
-### get_events_between(from_date, to_date)
-Gets up to 100 events.
+### get_messages()
+Get all your messages.
 
-Required `from_date` and `to_date` parameters determines the earliest and latest date from which events are returned.
-Both expect a `datetime` object, e.g.:
-```
-from_date = datetime.now() - timedelta(days=30)
-to_date = datetime.now() + timedelta(days=30)
-
-events = await spond_session.get_events_between(from_date, to_date)
-```
-Will return _up to_ 100 events starting from 30 days in the past until 30 days in the future.
-
-
-
-### getPerson()
-Get information about a member
-
-### getMessages()
-Get all your messages
-
-### sendMessage(recipient, text)
-Send a message to `recipient` with the content `text`
+### send_message(recipient, text)
+Send a message to `recipient` with the content `text`.
 
 ## Example scripts
 
