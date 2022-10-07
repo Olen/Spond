@@ -14,7 +14,7 @@ args = parser.parse_args()
 
 async def main():
     s = spond.Spond(username=username, password=password)
-    events = await s.get_events_between(args.f, args.t)
+    events = await s.get_events(args.f, args.t)
     
     if not os.path.exists('./exports'):
             os.makedirs('./exports')
