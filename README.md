@@ -43,6 +43,7 @@ Get details of all your group memberships and all members of those groups.
 
 ### get_events([params])
 Get details of events, limited to 100 by default.
+Various optional parameters allow filtering by start and end datetimes, group; more events to be returned; inclusion of 'scheduled' events.
 
 ### get_person()
 Get a member's details.
