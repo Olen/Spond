@@ -1,7 +1,7 @@
 # Spond
 ![spond logo](https://github.com/Olen/Spond/blob/main/images/spond-logo.png?raw=true)
 
-Simple library with some example scripts to access data from Spond.
+Simple, unofficial library with some example scripts to access data from the [Spond](https://spond.com/) API.
 
 ## Install
 
