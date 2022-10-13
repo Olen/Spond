@@ -53,7 +53,7 @@ Get a member's details.
 Get all your messages.
 
 ### send_message(recipient, text)
-Send a message to `recipient` with the content `text`.
+Send a message with content `text` in a specific chat with id `chatId`.
 
 ## Example scripts
 

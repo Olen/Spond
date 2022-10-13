@@ -110,15 +110,30 @@ class Spond():
         async with self.clientsession.get(url, headers=headers) as r:
             return await r.json()
 
+    async def send_message(self, chatId, text):
+        """
+        Send a given text in an existing given chat.
+        Subject to authenticated user's access.
 
-    async def send_message(self, recipient, text):
+        Parameters
+        ----------
+        chatId : str
+            Identifier of the chat.
+
+        text : str
+            The text to be sent to the chat.
+
+        Returns
+        -------
+        dict
+             Result of the sending.
+        """
         if not self.cookie:
             await self.login()
         url = self.chaturl + "/messages"
-        data = { 'recipient': recipient, 'text': text, 'type': "TEXT" }
+        data = { 'chatId': chatId, 'text': text, 'type': "TEXT" }
         headers = { 'auth': self.auth }
         r = await self.clientsession.post(url, json=data, headers=headers)
-        print(r)
         return await r.json()
 
     async def get_events(
