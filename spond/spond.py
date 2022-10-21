@@ -110,7 +110,7 @@ class Spond():
         async with self.clientsession.get(url, headers=headers) as r:
             return await r.json()
 
-    async def send_message(self, chatId, text):
+    async def send_message(self, chat_id, text):
         """
         Send a given text in an existing given chat.
         Subject to authenticated user's access.
@@ -131,7 +131,7 @@ class Spond():
         if not self.cookie:
             await self.login()
         url = self.chaturl + "/messages"
-        data = { 'chatId': chatId, 'text': text, 'type': "TEXT" }
+        data = { 'chatId': chat_id, 'text': text, 'type': "TEXT" }
         headers = { 'auth': self.auth }
         r = await self.clientsession.post(url, json=data, headers=headers)
         return await r.json()
