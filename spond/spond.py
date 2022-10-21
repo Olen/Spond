@@ -212,3 +212,43 @@ class Spond():
         for event in self.events:
             if event['id'] == uid:
                 return event
+
+    async def write_post(self, group_id: str, title: str, body: str,
+                         comment_disabled: bool) -> Dict[str, Any]:
+        """
+        Write post on the main page of a group.
+
+        Parameters
+        ----------
+        group_id : str
+            Id of the group.
+        title: str
+            Title of the post.
+        body: str
+            Body of the post.
+        comment_disabled: bool.
+            Bool to say if the comments on the post are disabled or not.
+
+        Returns
+        -------
+        dict
+            Result of writing the post.
+        """
+        if not self.cookie:
+            await self.login()
+        url = self.apiurl + "posts"
+
+        data = {
+            "type": "PLAIN",
+            "groupId": group_id,
+            "visibility": "ALL",
+            "commentsDisabled": comment_disabled,
+            "attachments": [],
+            "title": title,
+            "body": body,
+            "media": []
+        }
+
+        headers = {'auth': self.auth}
+        r = await self.clientsession.post(url, json=data, headers=headers)
+        return await r.json()
