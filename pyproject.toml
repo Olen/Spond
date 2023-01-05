@@ -1,4 +1,17 @@
+[tool.poetry]
+name = "spond"
+version = "0.9.0"
+description = "Simple, unofficial library with some example scripts to access data from the Spond API."
+authors = ["Ola Thoresen <ola@nytt.no>"]
+license = "GPL 3.0"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+aiohttp = "^3.8.3"
+
+[tool.poetry.dev-dependencies]
+
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=1.0.0"]
 python_requires = ">=3.7"
+build-backend = "poetry.core.masonry.api"
