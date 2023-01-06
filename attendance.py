@@ -51,13 +51,13 @@ async def main():
             )
             for o in e["owners"]:
                 person = await s.get_person(o["id"])
-                fullName = person["firstName"] + " " + person["lastName"]
+                full_name = person["firstName"] + " " + person["lastName"]
                 spamwriter.writerow(
                     [
                         e["startTimestamp"],
                         e["endTimestamp"],
                         e["heading"],
-                        fullName,
+                        full_name,
                         o["response"],
                         "X",
                     ]
@@ -65,61 +65,61 @@ async def main():
             if args.a is True:
                 for r in e["responses"]["acceptedIds"]:
                     person = await s.get_person(r)
-                    fullName = person["firstName"] + " " + person["lastName"]
+                    full_name = person["firstName"] + " " + person["lastName"]
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            fullName,
+                            full_name,
                             "accepted",
                         ]
                     )
                 for r in e["responses"]["declinedIds"]:
                     person = await s.get_person(r)
-                    fullName = person["firstName"] + " " + person["lastName"]
+                    full_name = person["firstName"] + " " + person["lastName"]
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            fullName,
+                            full_name,
                             "declined",
                         ]
                     )
                 for r in e["responses"]["unansweredIds"]:
                     person = await s.get_person(r)
-                    fullName = person["firstName"] + " " + person["lastName"]
+                    full_name = person["firstName"] + " " + person["lastName"]
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            fullName,
+                            full_name,
                             "unanswered",
                         ]
                     )
                 for r in e["responses"]["unconfirmedIds"]:
                     person = await s.get_person(r)
-                    fullName = person["firstName"] + " " + person["lastName"]
+                    full_name = person["firstName"] + " " + person["lastName"]
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            fullName,
+                            full_name,
                             "unconfirmed",
                         ]
                     )
                 for r in e["responses"]["waitinglistIds"]:
                     person = await s.get_person(r)
-                    fullName = person["firstName"] + " " + person["lastName"]
+                    full_name = person["firstName"] + " " + person["lastName"]
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            fullName,
+                            full_name,
                             "waitinglist",
                         ]
                     )
