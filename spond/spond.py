@@ -23,9 +23,7 @@ class Spond:
         data = {"email": self.username, "password": self.password}
         async with self.clientsession.post(url, json=data) as r:
             self.cookie = r.cookies["auth"]
-        # print(self.cookie.value)
         url = self.apiurl + "chat"
-        # headers = { 'content-length': '0', 'accept': '*/*', 'api-level': '2.5.25', 'origin': 'https://spond.com', 'referer': 'https://spond.com/client/', 'content-type': 'application/json;charset=utf-8' }
         headers = {"content-type": "application/json;charset=utf-8"}
         res = await self.clientsession.post(url, headers=headers)
         result = await res.json()
