@@ -2,9 +2,11 @@
 
 from datetime import datetime
 from typing import List
+
 import aiohttp
 
-class Spond():
+
+class Spond:
     def __init__(self, username, password):
         self.username = username
         self.password = password
@@ -16,22 +18,18 @@ class Spond():
         self.groups = None
         self.events = None
 
-
-
     async def login(self):
         url = self.apiurl + "login"
-        data = { 'email': self.username, 'password': self.password }
+        data = {"email": self.username, "password": self.password}
         async with self.clientsession.post(url, json=data) as r:
-            self.cookie = r.cookies['auth']
-        # print(self.cookie.value)
+            self.cookie = r.cookies["auth"]
         url = self.apiurl + "chat"
-        # headers = { 'content-length': '0', 'accept': '*/*', 'api-level': '2.5.25', 'origin': 'https://spond.com', 'referer': 'https://spond.com/client/', 'content-type': 'application/json;charset=utf-8' }
-        headers = { 'content-type': 'application/json;charset=utf-8' }
+        headers = {"content-type": "application/json;charset=utf-8"}
         res = await self.clientsession.post(url, headers=headers)
         result = await res.json()
 
-        self.chaturl = result['url']
-        self.auth = result['auth']
+        self.chaturl = result["url"]
+        self.auth = result["auth"]
 
     async def get_groups(self):
         """
@@ -70,7 +68,7 @@ class Spond():
         if not self.groups:
             await self.get_groups()
         for group in self.groups:
-            if group['id'] == uid:
+            if group["id"] == uid:
                 return group
 
     async def get_person(self, user):
@@ -94,19 +92,33 @@ class Spond():
         if not self.groups:
             await self.get_groups()
         for group in self.groups:
-            for member in group['members']:
-                if member['id'] == user or ('email' in member and member['email']) == user or member['firstName'] + " " + member['lastName'] == user or ( 'profile' in member and member['profile']['id'] == user):
+            for member in group["members"]:
+                if (
+                    member["id"] == user
+                    or ("email" in member and member["email"]) == user
+                    or member["firstName"] + " " + member["lastName"] == user
+                    or ("profile" in member and member["profile"]["id"] == user)
+                ):
                     return member
-                if 'guardians' in member:
-                    for guardian in member['guardians']:
-                        if guardian['id'] == user or ('email' in guardian and guardian['email']) == user or guardian['firstName'] + " " + guardian['lastName'] == user or ( 'profile' in guardian and guardian['profile']['id'] == user):
+                if "guardians" in member:
+                    for guardian in member["guardians"]:
+                        if (
+                            guardian["id"] == user
+                            or ("email" in guardian and guardian["email"]) == user
+                            or guardian["firstName"] + " " + guardian["lastName"]
+                            == user
+                            or (
+                                "profile" in guardian
+                                and guardian["profile"]["id"] == user
+                            )
+                        ):
                             return guardian
 
     async def get_messages(self):
         if not self.cookie:
             await self.login()
         url = self.chaturl + "/chats/?max=10"
-        headers = { 'auth': self.auth }
+        headers = {"auth": self.auth}
         async with self.clientsession.get(url, headers=headers) as r:
             return await r.json()
 
@@ -117,7 +129,7 @@ class Spond():
 
         Parameters
         ----------
-        chatId : str
+        chat_id : str
             Identifier of the chat.
 
         text : str
@@ -131,8 +143,8 @@ class Spond():
         if not self.cookie:
             await self.login()
         url = self.chaturl + "/messages"
-        data = { 'chatId': chat_id, 'text': text, 'type': "TEXT" }
-        headers = { 'auth': self.auth }
+        data = {"chatId": chat_id, "text": text, "type": "TEXT"}
+        headers = {"auth": self.auth}
         r = await self.clientsession.post(url, json=data, headers=headers)
         return await r.json()
 
@@ -162,17 +174,21 @@ class Spond():
         max_end : datetime, optional
             Only include events which end before or at this datetime.
             Defaults to 100 for performance reasons.
-            Uses `maxEndTimestamp` API parameter; relates to `endTimestamp` event attribute.
+            Uses `maxEndTimestamp` API parameter; relates to `endTimestamp` event
+            attribute.
         max_start : datetime, optional
             Only include events which start before or at this datetime.
             Defaults to 100 for performance reasons.
-            Uses `maxStartTimestamp` API parameter; relates to `startTimestamp` event attribute.
+            Uses `maxStartTimestamp` API parameter; relates to `startTimestamp` event
+            attribute.
         min_end : datetime, optional
             Only include events which end after or at this datetime.
-            Uses `minEndTimestamp` API parameter; relates to `endTimestamp` event attribute.
+            Uses `minEndTimestamp` API parameter; relates to `endTimestamp` event
+            attribute.
         min_start : datetime, optional
             Only include events which start after or at this datetime.
-            Uses `minStartTimestamp` API parameter; relates to `startTimestamp` event attribute.
+            Uses `minStartTimestamp` API parameter; relates to `startTimestamp` event
+            attribute.
         max_events : int, optional
             Set a limit on the number of events returned.
             For performance reasons, defaults to 100.
@@ -189,7 +205,7 @@ class Spond():
             f"{self.apiurl}sponds/?"
             f"max={max_events}"
             f"&scheduled={include_scheduled}"
-            )
+        )
         if max_end:
             url += f"&maxEndTimestamp={max_end.strftime('%Y-%m-%dT00:00:00.000Z')}"
         if max_start:
@@ -225,5 +241,5 @@ class Spond():
         if not self.events:
             await self.get_events()
         for event in self.events:
-            if event['id'] == uid:
+            if event["id"] == uid:
                 return event
