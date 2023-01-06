@@ -174,17 +174,21 @@ class Spond:
         max_end : datetime, optional
             Only include events which end before or at this datetime.
             Defaults to 100 for performance reasons.
-            Uses `maxEndTimestamp` API parameter; relates to `endTimestamp` event attribute.
+            Uses `maxEndTimestamp` API parameter; relates to `endTimestamp` event
+            attribute.
         max_start : datetime, optional
             Only include events which start before or at this datetime.
             Defaults to 100 for performance reasons.
-            Uses `maxStartTimestamp` API parameter; relates to `startTimestamp` event attribute.
+            Uses `maxStartTimestamp` API parameter; relates to `startTimestamp` event
+            attribute.
         min_end : datetime, optional
             Only include events which end after or at this datetime.
-            Uses `minEndTimestamp` API parameter; relates to `endTimestamp` event attribute.
+            Uses `minEndTimestamp` API parameter; relates to `endTimestamp` event
+            attribute.
         min_start : datetime, optional
             Only include events which start after or at this datetime.
-            Uses `minStartTimestamp` API parameter; relates to `startTimestamp` event attribute.
+            Uses `minStartTimestamp` API parameter; relates to `startTimestamp` event
+            attribute.
         max_events : int, optional
             Set a limit on the number of events returned.
             For performance reasons, defaults to 100.
