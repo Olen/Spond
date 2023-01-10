@@ -28,5 +28,6 @@ async def main():
     await s.clientsession.close()
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+asyncio.run(main())
