@@ -12,6 +12,7 @@ aiohttp = "^3.8.3"
 [tool.poetry.group.dev.dependencies]
 black = "^22.12.0"
 isort = "^5.11.4"
+pytest = "^7.2.0"
 
 [tool.black]
 line-length = 88
