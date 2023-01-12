@@ -30,7 +30,7 @@ jobs:
         virtualenvs-create: true
         virtualenvs-in-project: true
     - name: Install project
-      run: poetry install
+      run: poetry install --without dev
     - name: Test with pytest
       run: |
         source $VENV
