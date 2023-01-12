@@ -31,7 +31,7 @@ async def main():
             e.status = "Cancelled"
         if "location" in event:
             e.location = "{}, {}".format(
-                event["location"]["feature"], event["location"]["address"]
+                event["location"].get("feature"), event["location"].get("address")
             )
         c.events.add(e)
     with open(ics_file, "w") as out_file:
