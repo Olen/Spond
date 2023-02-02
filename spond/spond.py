@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 import aiohttp
 
@@ -150,12 +150,12 @@ class Spond:
 
     async def get_events(
         self,
-        group_id: str = None,
+        group_id: Optional[str] = None,
         include_scheduled: bool = False,
-        max_end: datetime = None,
-        min_end: datetime = None,
-        max_start: datetime = None,
-        min_start: datetime = None,
+        max_end: Optional[datetime] = None,
+        min_end: Optional[datetime] = None,
+        max_start: Optional[datetime] = None,
+        min_start: Optional[datetime] = None,
         max_events: int = 100,
     ) -> List[dict]:
         """
