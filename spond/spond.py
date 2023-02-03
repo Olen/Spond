@@ -245,16 +245,14 @@ class Spond:
                 return event
 
 
-    async def update_event(self, event_id, event: dict, updates: dict):
+    async def update_event(self, uid, updates: dict):
         """
         Updates an existing event.
 
         Parameters:
         ----------
-        event_id : str
-            The ID of the event -> e.g. get_events()[0]['id']
-        event : dict
-            The original event dict, unchanged
+        uid : str
+           UID of the event.
         updates : dict
             The changes. e.g. if you want to change the description -> {'description': "New Description with changes"} 
         
@@ -265,8 +263,13 @@ class Spond:
         """
         if not self.cookie:
             await self.login()
+        if not self.events:
+            await self.get_events()
+        for event in self.events:
+            if event["id"] == uid:
+                break
         
-        url = f"{self.apiurl}sponds/" + f"{event_id}"
+        url = f"{self.apiurl}sponds/" + f"{uid}"
         
         base_event = {"heading":str,
                 "description": str,
