@@ -173,12 +173,10 @@ class Spond:
             Uses `scheduled` API parameter.
         max_end : datetime, optional
             Only include events which end before or at this datetime.
-            Defaults to 100 for performance reasons.
             Uses `maxEndTimestamp` API parameter; relates to `endTimestamp` event
             attribute.
         max_start : datetime, optional
             Only include events which start before or at this datetime.
-            Defaults to 100 for performance reasons.
             Uses `maxStartTimestamp` API parameter; relates to `startTimestamp` event
             attribute.
         min_end : datetime, optional
