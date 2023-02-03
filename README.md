@@ -21,15 +21,16 @@ from spond import spond
 
 username = 'my@mail.invalid'
 password = 'Pa55worD'
+group_id = 'C9DC791FFE63D7914D6952BE10D97B46'  # fake 
 
 async def main():
     s = spond.Spond(username=username, password=password)
-    groups = await s.get_groups()
-    for group in groups:
-        print(group['name'])
+    group = await s.get_group(group_id)
+    print(group['name'])
     await s.clientsession.close()
 
 asyncio.run(main())
+
 ```
 
 ## Key methods
