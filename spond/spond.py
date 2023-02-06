@@ -241,3 +241,99 @@ class Spond:
         for event in self.events:
             if event["id"] == uid:
                 return event
+
+    async def write_post(self, group_id: str, title: str, body: str,
+                         comment_disabled: bool) -> Dict[str, Any]:
+        """
+        Write post on the main page of a group.
+
+        Parameters
+        ----------
+        group_id : str
+            Id of the group.
+        title: str
+            Title of the post.
+        body: str
+            Body of the post.
+        comment_disabled: bool
+            Bool to say if the comments on the post are disabled or not.
+
+        Returns
+        -------
+        dict
+            Result of writing the post.
+        """
+        if not self.cookie:
+            await self.login()
+        url = self.apiurl + "posts"
+
+        data = {
+            "type": "PLAIN",
+            "groupId": group_id,
+            "visibility": "ALL",
+            "commentsDisabled": comment_disabled,
+            "attachments": [],
+            "title": title,
+            "body": body,
+            "media": []
+        }
+
+        headers = {'auth': self.auth}
+        r = await self.clientsession.post(url, json=data, headers=headers)
+        return await r.json()
+
+    async def write_poll(self, group_id: str, title: str, description: str,
+                         comment_disabled: bool, options: List[str],
+                         hide_votes: bool, multiple_choices: bool, due_datetime: datetime) -> Dict[str, Any]:
+        """
+        Write poll on the main page of a group.
+
+        Parameters
+        ----------
+        group_id : str
+            Id of the group.
+        title: str
+            Title of the poll.
+        description: str
+            Description of the poll.
+        comment_disabled: bool
+            Bool to say if the comments on the poll are disabled or not.
+        options: list
+            List of options.
+        hide_votes: bool
+            Bool to say if the votes are hided or not.
+        multiple_choices: bool
+            Bool to say if multiple choices are allowed or not.
+        due_datetime: datetime
+            Deadline to complete the poll.
+
+        Returns
+        -------
+        dict
+            Result of writing the poll.
+        """
+        if not self.cookie:
+            await self.login()
+        url = self.apiurl + "posts"
+
+        data = {
+            "type": "POLL",
+            "groupId": group_id,
+            "visibility": "ALL",
+            "commentsDisabled": comment_disabled,
+            "attachments": [],
+            "poll": {
+                "question": title,
+                "description": description,
+                "options": [{"text": option} for option in options],
+                "hideVotes": hide_votes,
+                "dueBy": due_datetime.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+                "multipleChoice": multiple_choices,
+                "commentsDisabled": comment_disabled,
+                "type": "TEXT"
+            }
+        }
+
+        headers = {'auth': self.auth}
+        r = await self.clientsession.post(url, json=data, headers=headers)
+        return await r.json()
