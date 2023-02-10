@@ -1,9 +1,11 @@
 [tool.poetry]
 name = "spond"
-version = "0.9.0"
+version = "0.10.1"
 description = "Simple, unofficial library with some example scripts to access data from the Spond API."
 authors = ["Ola Thoresen <ola@nytt.no>"]
 license = "GPL 3.0"
+readme = 'README.md'
+repository = 'https://github.com/Olen/Spond'
 
 [tool.poetry.dependencies]
 python = "^3.7"
