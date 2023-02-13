@@ -148,6 +148,38 @@ class Spond:
         r = await self.clientsession.post(url, json=data, headers=headers)
         return await r.json()
 
+    async def send_new_message(self, user, group_uid, text):
+        """
+        Starts a new chat or continue old one.
+
+        Parameters
+        ----------
+        user : str
+            Identifier to match against member/guardian's id, email, full name, or
+            profile id.
+        group_uid : str
+            UID of the group.
+        text: str
+            Message to send
+
+        Returns
+        -------
+        dict
+             Result of the sending.
+        """
+        if not self.cookie:
+            await self.login()
+        user_obj = await self.get_person(user)
+        if user_obj:
+            user_uid = user_obj['profile']['id']
+        else:
+            return False
+        url = self.chaturl + "/messages"
+        data = {"text": text, "type": "TEXT", "recipient": user_uid, "groupId": group_uid}
+        headers = {"auth": self.auth}
+        r = await self.clientsession.post(url, json=data, headers=headers)
+        return await r.json()
+
     async def get_events(
         self,
         group_id: str = None,
