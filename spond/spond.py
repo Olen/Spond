@@ -171,7 +171,7 @@ class Spond:
 
         if chat_id is not None:
             return self._continue_chat(chat_id, text)
-        elif group_uid is None or user_uid is None:
+        elif group_uid is None or user is None:
             return {'error': 'wrong usage, group_id and user_id needed or continue chat with chat_id'}
 
         if not self.cookie:
