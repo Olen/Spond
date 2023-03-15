@@ -242,7 +242,6 @@ class Spond:
             if event["id"] == uid:
                 return event
 
-
     async def update_event(self, uid, updates: dict):
         """
         Updates an existing event.
@@ -252,8 +251,8 @@ class Spond:
         uid : str
            UID of the event.
         updates : dict
-            The changes. e.g. if you want to change the description -> {'description': "New Description with changes"} 
-        
+            The changes. e.g. if you want to change the description -> {'description': "New Description with changes"}
+
         Returns:
         ----------
         json results of post command
@@ -266,43 +265,48 @@ class Spond:
         for event in self.events:
             if event["id"] == uid:
                 break
-        
+
         url = f"{self.apiurl}sponds/" + f"{uid}"
-        
-        base_event = {"heading":str,
-                "description": str,
-                "spondType":"EVENT",
-                "startTimestamp":str,
-                "endTimestamp":str,
-                "commentsDisabled":False,
-                "maxAccepted":0,
-                "rsvpDate":None,
-                "location":{"id": str,
-                            "feature":str,
-                            "address":str,
-                            "latitude":float,
-                            "longitude":float},
-                "owners":[{"id":str}],
-                "visibility":"INVITEES",
-                "participantsHidden":False,
-                "autoReminderType":"DISABLED",
-                "autoAccept":False,
-                "payment":{},
-                "attachments":[],
-                "id":str,
-                "tasks":{"openTasks":[],
-                    "assignedTasks":[{"name":str,
-                                    "description":"",
-                                    "type":"ASSIGNED",
-                                    "id":str,
-                                    "adultsOnly":True,
-                                    "assignments":{"memberIds":[],
-                                    "profiles":[],
-                                    "remove":[]}}
-                                    ]
-                        }
-                }
-        
+
+        base_event = {
+            "heading": str,
+            "description": str,
+            "spondType": "EVENT",
+            "startTimestamp": str,
+            "endTimestamp": str,
+            "commentsDisabled": False,
+            "maxAccepted": 0,
+            "rsvpDate": None,
+            "location": {
+                "id": str,
+                "feature": str,
+                "address": str,
+                "latitude": float,
+                "longitude": float,
+            },
+            "owners": [{"id": str}],
+            "visibility": "INVITEES",
+            "participantsHidden": False,
+            "autoReminderType": "DISABLED",
+            "autoAccept": False,
+            "payment": {},
+            "attachments": [],
+            "id": str,
+            "tasks": {
+                "openTasks": [],
+                "assignedTasks": [
+                    {
+                        "name": str,
+                        "description": "",
+                        "type": "ASSIGNED",
+                        "id": str,
+                        "adultsOnly": True,
+                        "assignments": {"memberIds": [], "profiles": [], "remove": []},
+                    }
+                ],
+            },
+        }
+
         for key in base_event:
             if event.get(key) != None and not updates.get(key):
                 base_event[key] = event[key]
@@ -313,4 +317,4 @@ class Spond:
         headers = {"content-type": "application/json;charset=utf-8"}
         async with self.clientsession.post(url, json=data, headers=headers) as r:
             self.events_update = await r.json()
-            return self.events    
+            return self.events
