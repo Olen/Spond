@@ -3,6 +3,7 @@
 from datetime import datetime
 from typing import List, Optional
 
+
 import aiohttp
 
 
@@ -122,7 +123,7 @@ class Spond:
         async with self.clientsession.get(url, headers=headers) as r:
             return await r.json()
 
-    async def send_message(self, chat_id, text):
+    async def _continue_chat(self, chat_id, text):
         """
         Send a given text in an existing given chat.
         Subject to authenticated user's access.
@@ -144,6 +145,46 @@ class Spond:
             await self.login()
         url = self.chaturl + "/messages"
         data = {"chatId": chat_id, "text": text, "type": "TEXT"}
+        headers = {"auth": self.auth}
+        r = await self.clientsession.post(url, json=data, headers=headers)
+        return await r.json()
+
+    async def send_message(self, text, user=None, group_uid=None, chat_id=None):
+        """
+        Starts a new chat or continue old one.
+
+        Parameters
+        ----------
+        text: str
+            Message to send
+        user : str
+            Identifier to match against member/guardian's id, email, full name, or
+            profile id.
+        group_uid : str
+            UID of the group.
+        chat_id : str
+            Identifier of the chat.
+
+        Returns
+        -------
+        dict
+             Result of the sending.
+        """
+
+        if chat_id is not None:
+            return self._continue_chat(chat_id, text)
+        elif group_uid is None or user is None:
+            return {'error': 'wrong usage, group_id and user_id needed or continue chat with chat_id'}
+
+        if not self.cookie:
+            await self.login()
+        user_obj = await self.get_person(user)
+        if user_obj:
+            user_uid = user_obj['profile']['id']
+        else:
+            return False
+        url = self.chaturl + "/messages"
+        data = {"text": text, "type": "TEXT", "recipient": user_uid, "groupId": group_uid}
         headers = {"auth": self.auth}
         r = await self.clientsession.post(url, json=data, headers=headers)
         return await r.json()
@@ -267,45 +308,41 @@ class Spond:
                 break
 
         url = f"{self.apiurl}sponds/" + f"{uid}"
-
-        base_event = {
-            "heading": str,
-            "description": str,
-            "spondType": "EVENT",
-            "startTimestamp": str,
-            "endTimestamp": str,
-            "commentsDisabled": False,
-            "maxAccepted": 0,
-            "rsvpDate": None,
-            "location": {
-                "id": str,
-                "feature": str,
-                "address": str,
-                "latitude": float,
-                "longitude": float,
-            },
-            "owners": [{"id": str}],
-            "visibility": "INVITEES",
-            "participantsHidden": False,
-            "autoReminderType": "DISABLED",
-            "autoAccept": False,
-            "payment": {},
-            "attachments": [],
-            "id": str,
-            "tasks": {
-                "openTasks": [],
-                "assignedTasks": [
-                    {
-                        "name": str,
-                        "description": "",
-                        "type": "ASSIGNED",
-                        "id": str,
-                        "adultsOnly": True,
-                        "assignments": {"memberIds": [], "profiles": [], "remove": []},
-                    }
-                ],
-            },
-        }
+        
+        base_event = {"heading":None,
+                "description": None,
+                "spondType":"EVENT",
+                "startTimestamp":None,
+                "endTimestamp":None,
+                "commentsDisabled":False,
+                "maxAccepted":0,
+                "rsvpDate":None,
+                "location":{"id": None,
+                            "feature":None,
+                            "address":None,
+                            "latitude":None,
+                            "longitude":None},
+                "owners":[{"id":None}],
+                "visibility":"INVITEES",
+                "participantsHidden":False,
+                "autoReminderType":"DISABLED",
+                "autoAccept":False,
+                "payment":{},
+                "attachments":[],
+                "id":None,
+                "tasks":{"openTasks":[],
+                    "assignedTasks":[{"name":None,
+                                    "description":"",
+                                    "type":"ASSIGNED",
+                                    "id":None,
+                                    "adultsOnly":True,
+                                    "assignments":{"memberIds":[],
+                                    "profiles":[],
+                                    "remove":[]}}
+                                    ]
+                        }
+                }
+        
 
         for key in base_event:
             if event.get(key) != None and not updates.get(key):
@@ -313,7 +350,7 @@ class Spond:
             elif updates.get(key) != None:
                 base_event[key] = updates[key]
 
-        data = base_event
+        data = dict(base_event)
         headers = {"content-type": "application/json;charset=utf-8"}
         async with self.clientsession.post(url, json=data, headers=headers) as r:
             self.events_update = await r.json()
