@@ -31,6 +31,9 @@ jobs:
         virtualenvs-in-project: true
     - name: Install project
       run: poetry install
+    - name: Lint with isort
+      # by default: exit with error if the code is not properly sorted; show diffs
+      uses: isort/isort-action@master
     - name: Test with pytest
       run: |
         source $VENV
