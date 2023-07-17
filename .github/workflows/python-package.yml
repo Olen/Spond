@@ -31,6 +31,9 @@ jobs:
         virtualenvs-in-project: true
     - name: Install project
       run: poetry install
+    - name: Lint with black
+      # by default: exit with error if the code is not properly formatted; show diffs
+      uses: psf/black@stable
     - name: Test with pytest
       run: |
         source $VENV
