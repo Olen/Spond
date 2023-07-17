@@ -8,19 +8,19 @@ readme = 'README.md'
 repository = 'https://github.com/Olen/Spond'
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.8"
 aiohttp = "^3.8.3"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.1.0"
-isort = "^5.11.4"  # >= 5.12 requires Python >= 3.8
+isort = "^5.11.4"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.2"
 
 [tool.black]
 line-length = 88
-target-version = ['py37']
+target-version = ['py38']
 
 [tool.isort]
 profile = "black"
