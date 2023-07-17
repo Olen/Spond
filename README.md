@@ -21,17 +21,16 @@ from spond import spond
 
 username = 'my@mail.invalid'
 password = 'Pa55worD'
+group_id = 'C9DC791FFE63D7914D6952BE10D97B46'  # fake 
 
 async def main():
     s = spond.Spond(username=username, password=password)
-    groups = await s.get_groups()
-    for group in groups:
-        print(group['name'])
+    group = await s.get_group(group_id)
+    print(group['name'])
     await s.clientsession.close()
 
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
 asyncio.run(main())
+
 ```
 
 ## Key methods
@@ -68,3 +67,9 @@ Generates a json-file for each group you are a member of.
 
 ### attendance.py &lt;-f from_date&gt; &lt;-t to_date&gt; [-a]
 Generates a csv-file for each event between `from_date` and `to_date` with attendance status of all organizers.  The optional parameter `-a` also includes all members that has been invited.
+
+## AsyncIO
+[Asyncio](https://docs.python.org/3/library/asyncio.html) might seem intimidating in the beginning, but for basic stuff, it is quite easy to follow the examples above, and just remeber to prefix functions that use the API with `async def ...` and to `await` all API-calls and all calls to said functions.
+
+[This article](https://realpython.com/async-io-python/) will give a nice introduction to both why, when and how to use asyncio in projects.
+

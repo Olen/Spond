@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 from datetime import datetime
-from typing import List
+from typing import List, Optional
+
+
 import aiohttp
 
 
@@ -189,12 +191,12 @@ class Spond:
 
     async def get_events(
         self,
-        group_id: str = None,
+        group_id: Optional[str] = None,
         include_scheduled: bool = False,
-        max_end: datetime = None,
-        min_end: datetime = None,
-        max_start: datetime = None,
-        min_start: datetime = None,
+        max_end: Optional[datetime] = None,
+        min_end: Optional[datetime] = None,
+        max_start: Optional[datetime] = None,
+        min_start: Optional[datetime] = None,
         max_events: int = 100,
     ) -> List[dict]:
         """
@@ -212,12 +214,10 @@ class Spond:
             Uses `scheduled` API parameter.
         max_end : datetime, optional
             Only include events which end before or at this datetime.
-            Defaults to 100 for performance reasons.
             Uses `maxEndTimestamp` API parameter; relates to `endTimestamp` event
             attribute.
         max_start : datetime, optional
             Only include events which start before or at this datetime.
-            Defaults to 100 for performance reasons.
             Uses `maxStartTimestamp` API parameter; relates to `startTimestamp` event
             attribute.
         min_end : datetime, optional
@@ -283,7 +283,6 @@ class Spond:
             if event["id"] == uid:
                 return event
 
-
     async def update_event(self, uid, updates: dict):
         """
         Updates an existing event.
@@ -293,8 +292,8 @@ class Spond:
         uid : str
            UID of the event.
         updates : dict
-            The changes. e.g. if you want to change the description -> {'description': "New Description with changes"} 
-        
+            The changes. e.g. if you want to change the description -> {'description': "New Description with changes"}
+
         Returns:
         ----------
         json results of post command
@@ -307,7 +306,7 @@ class Spond:
         for event in self.events:
             if event["id"] == uid:
                 break
-        
+
         url = f"{self.apiurl}sponds/" + f"{uid}"
         
         base_event = {"heading":None,
@@ -344,6 +343,7 @@ class Spond:
                         }
                 }
         
+
         for key in base_event:
             if event.get(key) != None and not updates.get(key):
                 base_event[key] = event[key]
@@ -354,4 +354,4 @@ class Spond:
         headers = {"content-type": "application/json;charset=utf-8"}
         async with self.clientsession.post(url, json=data, headers=headers) as r:
             self.events_update = await r.json()
-            return self.events    
+            return self.events
