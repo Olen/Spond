@@ -173,17 +173,24 @@ class Spond:
         if chat_id is not None:
             return self._continue_chat(chat_id, text)
         elif group_uid is None or user is None:
-            return {'error': 'wrong usage, group_id and user_id needed or continue chat with chat_id'}
+            return {
+                "error": "wrong usage, group_id and user_id needed or continue chat with chat_id"
+            }
 
         if not self.cookie:
             await self.login()
         user_obj = await self.get_person(user)
         if user_obj:
-            user_uid = user_obj['profile']['id']
+            user_uid = user_obj["profile"]["id"]
         else:
             return False
         url = self.chaturl + "/messages"
-        data = {"text": text, "type": "TEXT", "recipient": user_uid, "groupId": group_uid}
+        data = {
+            "text": text,
+            "type": "TEXT",
+            "recipient": user_uid,
+            "groupId": group_uid,
+        }
         headers = {"auth": self.auth}
         r = await self.clientsession.post(url, json=data, headers=headers)
         return await r.json()
@@ -307,41 +314,45 @@ class Spond:
                 break
 
         url = f"{self.apiurl}sponds/" + f"{uid}"
-        
-        base_event = {"heading":None,
-                "description": None,
-                "spondType":"EVENT",
-                "startTimestamp":None,
-                "endTimestamp":None,
-                "commentsDisabled":False,
-                "maxAccepted":0,
-                "rsvpDate":None,
-                "location":{"id": None,
-                            "feature":None,
-                            "address":None,
-                            "latitude":None,
-                            "longitude":None},
-                "owners":[{"id":None}],
-                "visibility":"INVITEES",
-                "participantsHidden":False,
-                "autoReminderType":"DISABLED",
-                "autoAccept":False,
-                "payment":{},
-                "attachments":[],
-                "id":None,
-                "tasks":{"openTasks":[],
-                    "assignedTasks":[{"name":None,
-                                    "description":"",
-                                    "type":"ASSIGNED",
-                                    "id":None,
-                                    "adultsOnly":True,
-                                    "assignments":{"memberIds":[],
-                                    "profiles":[],
-                                    "remove":[]}}
-                                    ]
-                        }
-                }
-        
+
+        base_event = {
+            "heading": None,
+            "description": None,
+            "spondType": "EVENT",
+            "startTimestamp": None,
+            "endTimestamp": None,
+            "commentsDisabled": False,
+            "maxAccepted": 0,
+            "rsvpDate": None,
+            "location": {
+                "id": None,
+                "feature": None,
+                "address": None,
+                "latitude": None,
+                "longitude": None,
+            },
+            "owners": [{"id": None}],
+            "visibility": "INVITEES",
+            "participantsHidden": False,
+            "autoReminderType": "DISABLED",
+            "autoAccept": False,
+            "payment": {},
+            "attachments": [],
+            "id": None,
+            "tasks": {
+                "openTasks": [],
+                "assignedTasks": [
+                    {
+                        "name": None,
+                        "description": "",
+                        "type": "ASSIGNED",
+                        "id": None,
+                        "adultsOnly": True,
+                        "assignments": {"memberIds": [], "profiles": [], "remove": []},
+                    }
+                ],
+            },
+        }
 
         for key in base_event:
             if event.get(key) != None and not updates.get(key):
