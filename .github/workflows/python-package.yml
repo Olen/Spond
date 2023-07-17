@@ -34,6 +34,9 @@ jobs:
     - name: Lint with isort
       # by default: exit with error if the code is not properly sorted; show diffs
       uses: isort/isort-action@master
+    - name: Lint with black
+      # by default: exit with error if the code is not properly formatted; show diffs
+      uses: psf/black@stable
     - name: Test with pytest
       run: |
         source $VENV
