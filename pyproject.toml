@@ -12,15 +12,13 @@ python = "^3.8"
 aiohttp = "^3.8.3"
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.1.0"
+black = "^23.7.0"
 isort = "^5.11.4"
-
-[tool.poetry.group.test.dependencies]
 pytest = "^7.2.2"
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py38', 'py39', 'py310', 'py311']
 
 [tool.isort]
 profile = "black"
