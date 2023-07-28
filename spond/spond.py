@@ -19,11 +19,11 @@ class Spond:
         self.events = None
 
     async def login(self):
-        login_url = self.api_url + "login"
+        login_url = f"{self.api_url}login"
         data = {"email": self.username, "password": self.password}
         async with self.clientsession.post(login_url, json=data) as r:
             self.cookie = r.cookies["auth"]
-        chat_api_url = self.api_url + "chat"
+        chat_api_url = f"{self.api_url}chat"
         headers = {"content-type": "application/json;charset=utf-8"}
         r = await self.clientsession.post(chat_api_url, headers=headers)
         result = await r.json()
@@ -43,7 +43,7 @@ class Spond:
         """
         if not self.cookie:
             await self.login()
-        url = self.api_url + "groups/"
+        url = f"{self.api_url}groups/"
         async with self.clientsession.get(url) as r:
             self.groups = await r.json()
             return self.groups
@@ -117,7 +117,7 @@ class Spond:
     async def get_messages(self):
         if not self.cookie:
             await self.login()
-        url = self.chat_url + "/chats/?max=10"
+        url = f"{self.chat_url}/chats/?max=10"
         headers = {"auth": self.auth}
         async with self.clientsession.get(url, headers=headers) as r:
             return await r.json()
@@ -142,7 +142,7 @@ class Spond:
         """
         if not self.cookie:
             await self.login()
-        url = self.chat_url + "/messages"
+        url = f"{self.chat_url}/messages"
         data = {"chatId": chat_id, "text": text, "type": "TEXT"}
         headers = {"auth": self.auth}
         r = await self.clientsession.post(url, json=data, headers=headers)
@@ -184,7 +184,7 @@ class Spond:
             user_uid = user_obj["profile"]["id"]
         else:
             return False
-        url = self.chat_url + "/messages"
+        url = f"{self.chat_url}/messages"
         data = {
             "text": text,
             "type": "TEXT",
@@ -313,7 +313,7 @@ class Spond:
             if event["id"] == uid:
                 break
 
-        url = f"{self.api_url}sponds/" + f"{uid}"
+        url = f"{self.api_url}sponds/{uid}"
 
         base_event = {
             "heading": None,
