@@ -19,14 +19,14 @@ class Spond:
         self.events = None
 
     async def login(self):
-        url = self.api_url + "login"
+        login_url = self.api_url + "login"
         data = {"email": self.username, "password": self.password}
-        async with self.clientsession.post(url, json=data) as r:
+        async with self.clientsession.post(login_url, json=data) as r:
             self.cookie = r.cookies["auth"]
-        url = self.api_url + "chat"
+        chat_api_url = self.api_url + "chat"
         headers = {"content-type": "application/json;charset=utf-8"}
-        res = await self.clientsession.post(url, headers=headers)
-        result = await res.json()
+        r = await self.clientsession.post(chat_api_url, headers=headers)
+        result = await r.json()
 
         self.chat_url = result["url"]
         self.auth = result["auth"]
