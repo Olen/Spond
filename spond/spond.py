@@ -3,7 +3,6 @@
 from datetime import datetime
 from typing import List, Optional
 
-
 import aiohttp
 
 
@@ -49,7 +48,7 @@ class Spond:
             self.groups = await r.json()
             return self.groups
 
-    async def get_group(self, uid):
+    async def get_group(self, uid) -> dict:
         """
         Get a group by unique ID.
         Subject to authenticated user's access.
@@ -61,8 +60,7 @@ class Spond:
 
         Returns
         -------
-        dict
-            Details of the group.
+        Details of the group.
         """
         if not self.cookie:
             await self.login()
@@ -71,8 +69,9 @@ class Spond:
         for group in self.groups:
             if group["id"] == uid:
                 return group
+        raise IndexError
 
-    async def get_person(self, user):
+    async def get_person(self, user) -> dict:
         """
         Get a member or guardian by matching various identifiers.
         Subject to authenticated user's access.
@@ -85,8 +84,7 @@ class Spond:
 
         Returns
         -------
-        dict
-             Member or guardian's details.
+        Member or guardian's details.
         """
         if not self.cookie:
             await self.login()
@@ -114,6 +112,7 @@ class Spond:
                             )
                         ):
                             return guardian
+        raise IndexError
 
     async def get_messages(self):
         if not self.cookie:
@@ -267,7 +266,7 @@ class Spond:
             self.events = await r.json()
             return self.events
 
-    async def get_event(self, uid):
+    async def get_event(self, uid) -> dict:
         """
         Get an event by unique ID.
         Subject to authenticated user's access.
@@ -279,8 +278,7 @@ class Spond:
 
         Returns
         -------
-        dict
-            Details of the event.
+        Details of the event.
         """
         if not self.cookie:
             await self.login()
@@ -289,6 +287,7 @@ class Spond:
         for event in self.events:
             if event["id"] == uid:
                 return event
+        raise IndexError
 
     async def update_event(self, uid, updates: dict):
         """
