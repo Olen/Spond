@@ -10,24 +10,37 @@ class Spond:
     def __init__(self, username, password):
         self.username = username
         self.password = password
-        self.api_url = "https://spond.com/api/2.1/"
+        self.api_url = "https://api.spond.com/core/v1/"
         self.clientsession = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar())
         self.chat_url = None
         self.auth = None
-        self.cookie = None
+        self.token = None
         self.groups = None
         self.events = None
+
+    @property
+    def auth_headers(self):
+        headers = {
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self.token}",
+            "auth": f"{self.auth}",
+        }
+        return headers
 
     async def login(self):
         login_url = f"{self.api_url}login"
         data = {"email": self.username, "password": self.password}
         async with self.clientsession.post(login_url, json=data) as r:
-            self.cookie = r.cookies["auth"]
-        chat_api_url = f"{self.api_url}chat"
-        headers = {"content-type": "application/json;charset=utf-8"}
-        r = await self.clientsession.post(chat_api_url, headers=headers)
-        result = await r.json()
+            login_result = await r.json()
+            self.token = login_result["loginToken"]
 
+        api_chat_url = f"{self.api_url}chat"
+        headers = {
+            "content-type": "application/json",
+            "Authorization": f"Bearer {self.token}",
+        }
+        r = await self.clientsession.post(api_chat_url, headers=headers)
+        result = await r.json()
         self.chat_url = result["url"]
         self.auth = result["auth"]
 
@@ -41,10 +54,10 @@ class Spond:
         list of dict
             Groups; each group is a dict.
         """
-        if not self.cookie:
+        if not self.token:
             await self.login()
         url = f"{self.api_url}groups/"
-        async with self.clientsession.get(url) as r:
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
             self.groups = await r.json()
             return self.groups
 
@@ -62,7 +75,7 @@ class Spond:
         -------
         Details of the group.
         """
-        if not self.cookie:
+        if not self.token:
             await self.login()
         if not self.groups:
             await self.get_groups()
@@ -86,7 +99,7 @@ class Spond:
         -------
         Member or guardian's details.
         """
-        if not self.cookie:
+        if not self.token:
             await self.login()
         if not self.groups:
             await self.get_groups()
@@ -115,7 +128,7 @@ class Spond:
         raise IndexError
 
     async def get_messages(self):
-        if not self.cookie:
+        if not self.token:
             await self.login()
         url = f"{self.chat_url}/chats/?max=10"
         headers = {"auth": self.auth}
@@ -140,7 +153,7 @@ class Spond:
         dict
              Result of the sending.
         """
-        if not self.cookie:
+        if not self.token:
             await self.login()
         url = f"{self.chat_url}/messages"
         data = {"chatId": chat_id, "text": text, "type": "TEXT"}
@@ -177,7 +190,7 @@ class Spond:
                 "error": "wrong usage, group_id and user_id needed or continue chat with chat_id"
             }
 
-        if not self.cookie:
+        if not self.token:
             await self.login()
         user_obj = await self.get_person(user)
         if user_obj:
@@ -244,7 +257,7 @@ class Spond:
         list of dict
             Events; each event is a dict.
         """
-        if not self.cookie:
+        if not self.token:
             await self.login()
         url = (
             f"{self.api_url}sponds/?"
@@ -280,7 +293,7 @@ class Spond:
         -------
         Details of the event.
         """
-        if not self.cookie:
+        if not self.token:
             await self.login()
         if not self.events:
             await self.get_events()
@@ -305,7 +318,7 @@ class Spond:
         json results of post command
 
         """
-        if not self.cookie:
+        if not self.token:
             await self.login()
         if not self.events:
             await self.get_events()
