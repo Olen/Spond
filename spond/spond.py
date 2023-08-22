@@ -10,25 +10,25 @@ class Spond:
     def __init__(self, username, password):
         self.username = username
         self.password = password
-        self.apiurl = "https://spond.com/api/2.1/"
+        self.api_url = "https://spond.com/api/2.1/"
         self.clientsession = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar())
-        self.chaturl = None
+        self.chat_url = None
         self.auth = None
         self.cookie = None
         self.groups = None
         self.events = None
 
     async def login(self):
-        url = self.apiurl + "login"
+        url = self.api_url + "login"
         data = {"email": self.username, "password": self.password}
         async with self.clientsession.post(url, json=data) as r:
             self.cookie = r.cookies["auth"]
-        url = self.apiurl + "chat"
+        url = self.api_url + "chat"
         headers = {"content-type": "application/json;charset=utf-8"}
         res = await self.clientsession.post(url, headers=headers)
         result = await res.json()
 
-        self.chaturl = result["url"]
+        self.chat_url = result["url"]
         self.auth = result["auth"]
 
     async def get_groups(self):
@@ -43,7 +43,7 @@ class Spond:
         """
         if not self.cookie:
             await self.login()
-        url = self.apiurl + "groups/"
+        url = self.api_url + "groups/"
         async with self.clientsession.get(url) as r:
             self.groups = await r.json()
             return self.groups
@@ -117,7 +117,7 @@ class Spond:
     async def get_messages(self):
         if not self.cookie:
             await self.login()
-        url = self.chaturl + "/chats/?max=10"
+        url = self.chat_url + "/chats/?max=10"
         headers = {"auth": self.auth}
         async with self.clientsession.get(url, headers=headers) as r:
             return await r.json()
@@ -142,7 +142,7 @@ class Spond:
         """
         if not self.cookie:
             await self.login()
-        url = self.chaturl + "/messages"
+        url = self.chat_url + "/messages"
         data = {"chatId": chat_id, "text": text, "type": "TEXT"}
         headers = {"auth": self.auth}
         r = await self.clientsession.post(url, json=data, headers=headers)
@@ -184,7 +184,7 @@ class Spond:
             user_uid = user_obj["profile"]["id"]
         else:
             return False
-        url = self.chaturl + "/messages"
+        url = self.chat_url + "/messages"
         data = {
             "text": text,
             "type": "TEXT",
@@ -247,7 +247,7 @@ class Spond:
         if not self.cookie:
             await self.login()
         url = (
-            f"{self.apiurl}sponds/?"
+            f"{self.api_url}sponds/?"
             f"max={max_events}"
             f"&scheduled={include_scheduled}"
         )
@@ -313,7 +313,7 @@ class Spond:
             if event["id"] == uid:
                 break
 
-        url = f"{self.apiurl}sponds/" + f"{uid}"
+        url = f"{self.api_url}sponds/" + f"{uid}"
 
         base_event = {
             "heading": None,
