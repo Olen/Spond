@@ -20,12 +20,11 @@ class Spond:
 
     @property
     def auth_headers(self):
-        headers = {
+        return {
             "content-type": "application/json",
             "Authorization": f"Bearer {self.token}",
             "auth": f"{self.auth}",
         }
-        return headers
 
     async def login(self):
         login_url = f"{self.api_url}login"
