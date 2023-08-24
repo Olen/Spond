@@ -9,7 +9,7 @@ repository = 'https://github.com/Olen/Spond'
 
 [tool.poetry.dependencies]
 python = "^3.8"
-aiohttp = "^3.8.3"
+aiohttp = "^3.8.5"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.7.0"
