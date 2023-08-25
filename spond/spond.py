@@ -274,7 +274,7 @@ class Spond:
         if group_id:
             url += f"&groupId={group_id}"
 
-        async with self.clientsession.get(url) as r:
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
             self.events = await r.json()
             return self.events
 
