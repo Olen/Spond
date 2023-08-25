@@ -3,6 +3,9 @@
 
 Simple, unofficial library with some example scripts to access data from the [Spond](https://spond.com/) API.
 
+> [!WARNING]
+> Version 0.99 is a test containting breaking changes before doing release 1.0 in a short moment.
+
 ## Install
 
 `pip install spond`
