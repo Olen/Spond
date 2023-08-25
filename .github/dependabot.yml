@@ -4,9 +4,9 @@ updates:
   - package-ecosystem: "pip"  # also supports Poetry
     directory: "/" # Location of package manifests
     schedule:
-      interval: "monthly"
+      interval: "weekly"
 
   - package-ecosystem: "github-actions" # only supports updates using the GitHub repository syntax, such as actions/checkout@v3
     directory: "/" # Location of package manifests
     schedule:
-      interval: "monthly"
+      interval: "weekly"
