@@ -162,7 +162,10 @@ class Spond:
 
     async def send_message(self, text, user=None, group_uid=None, chat_id=None):
         """
-        Starts a new chat or continue old one.
+        Start a new chat or continue an existing one.
+
+        If `chat_id`of an existing chat is specified, message continues that chat.
+        Otherwise, both `user` and `group_uid` must be specified, and the message starts a new chat.
 
         Parameters
         ----------

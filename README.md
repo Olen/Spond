@@ -53,8 +53,9 @@ Get a member's details.
 ### get_messages()
 Get all your messages.
 
-### send_message(chat_id, text)
-Send a message with content `text` in a specific chat with id `chat_id`.
+### send_message(text, user=None, group_uid=None, chat_id=None)
+Send a message with content `text`.
+Either specify an existing `chat_id`, or both `user` and `group_uid` for a new chat.
 
 ## Example scripts
 
