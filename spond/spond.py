@@ -214,6 +214,7 @@ class Spond:
         self,
         group_id: Optional[str] = None,
         include_scheduled: bool = False,
+        response: Optional[str] = None,
         max_end: Optional[datetime] = None,
         min_end: Optional[datetime] = None,
         max_start: Optional[datetime] = None,
@@ -233,6 +234,9 @@ class Spond:
             (TO DO: probably events for which invites haven't been sent yet?)
             Defaults to False for performance reasons.
             Uses `scheduled` API parameter.
+        response : str, optional
+            Only include events which this response. Valid known options are:
+            `unanswered`, there may be more.
         max_end : datetime, optional
             Only include events which end before or at this datetime.
             Uses `maxEndTimestamp` API parameter; relates to `endTimestamp` event
@@ -276,6 +280,8 @@ class Spond:
             url += f"&minStartTimestamp={min_start.strftime('%Y-%m-%dT00:00:00.000Z')}"
         if group_id:
             url += f"&groupId={group_id}"
+        if response:
+            url += f"&response={response}"
 
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
             self.events = await r.json()
