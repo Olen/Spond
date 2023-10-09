@@ -403,3 +403,47 @@ class Spond:
         async with self.clientsession.post(url, json=data, headers=headers) as r:
             self.events_update = await r.json()
             return self.events
+
+    async def update_event_response(
+        self,
+        uid,
+        accepted: bool = True,
+    ) -> List[dict]:
+        """
+        Respond to an event invite.
+
+        Parameters:
+        ----------
+        uid : str
+           UID of the event.
+        accepted : bool
+            Accept invite to an event.
+
+        Returns:
+        ----------
+        json results of put command, containing:
+            `acceptedIds`,
+            `unconfirmedIds`,
+            `waitinglistIds`,
+            `votes`
+        """
+        if not self.token:
+            await self.login()
+        profile = await self.get_profile()
+        event = await self.get_event(uid)
+
+        membershipId = None
+        members = event["recipients"]["group"]["members"]
+        for m in members:
+            if m["profile"]["id"] == profile["id"]:
+                membershipId = m["id"]
+                break
+
+        if membershipId == None:
+            raise ValueError("You don't seem to be a member of the event's group")
+
+        url = f"{self.api_url}sponds/{uid}/responses/{membershipId}"
+
+        data = {"accepted": accepted}
+        r = await self.clientsession.put(url, json=data, headers=self.auth_headers)
+        return await r.json()
