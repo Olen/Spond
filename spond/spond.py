@@ -15,6 +15,7 @@ class Spond:
         self.chat_url = None
         self.auth = None
         self.token = None
+        self.profile = None
         self.groups = None
         self.events = None
 
@@ -42,6 +43,22 @@ class Spond:
         result = await r.json()
         self.chat_url = result["url"]
         self.auth = result["auth"]
+
+    async def get_profile(self):
+        """
+        Get the current users profile.
+        Subject to authenticated user's access.
+
+        Returns
+        -------
+        json response of the current user
+        """
+        if not self.token:
+            await self.login()
+        url = f"{self.api_url}profile"
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+            self.profile = await r.json()
+            return self.profile
 
     async def get_groups(self):
         """
