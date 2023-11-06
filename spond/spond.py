@@ -376,7 +376,8 @@ class Spond:
                 base_event[key] = updates[key]
 
         data = dict(base_event)
-        headers = {"content-type": "application/json;charset=utf-8"}
-        async with self.clientsession.post(url, json=data, headers=headers) as r:
+        async with self.clientsession.post(
+            url, json=data, headers=self.auth_headers
+        ) as r:
             self.events_update = await r.json()
             return self.events
