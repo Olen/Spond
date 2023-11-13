@@ -15,6 +15,7 @@ class Spond:
         self.chat_url = None
         self.auth = None
         self.token = None
+        self.profile = None
         self.groups = None
         self.events = None
 
@@ -42,6 +43,22 @@ class Spond:
         result = await r.json()
         self.chat_url = result["url"]
         self.auth = result["auth"]
+
+    async def get_profile(self):
+        """
+        Get the current users profile.
+        Subject to authenticated user's access.
+
+        Returns
+        -------
+        json response of the current user
+        """
+        if not self.token:
+            await self.login()
+        url = f"{self.api_url}profile"
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+            self.profile = await r.json()
+            return self.profile
 
     async def get_groups(self):
         """
@@ -214,6 +231,7 @@ class Spond:
         self,
         group_id: Optional[str] = None,
         include_scheduled: bool = False,
+        response: Optional[str] = None,
         max_end: Optional[datetime] = None,
         min_end: Optional[datetime] = None,
         max_start: Optional[datetime] = None,
@@ -233,6 +251,9 @@ class Spond:
             (TO DO: probably events for which invites haven't been sent yet?)
             Defaults to False for performance reasons.
             Uses `scheduled` API parameter.
+        response : str, optional
+            Only include events which this response. Valid known options are:
+            `unanswered`, there may be more.
         max_end : datetime, optional
             Only include events which end before or at this datetime.
             Uses `maxEndTimestamp` API parameter; relates to `endTimestamp` event
@@ -276,6 +297,8 @@ class Spond:
             url += f"&minStartTimestamp={min_start.strftime('%Y-%m-%dT00:00:00.000Z')}"
         if group_id:
             url += f"&groupId={group_id}"
+        if response:
+            url += f"&response={response}"
 
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
             self.events = await r.json()
@@ -381,3 +404,47 @@ class Spond:
         ) as r:
             self.events_update = await r.json()
             return self.events
+
+    async def update_event_response(
+        self,
+        uid,
+        accepted: bool = True,
+    ) -> List[dict]:
+        """
+        Respond to an event invite.
+
+        Parameters:
+        ----------
+        uid : str
+           UID of the event.
+        accepted : bool
+            Accept invite to an event.
+
+        Returns:
+        ----------
+        json results of put command, containing:
+            `acceptedIds`,
+            `unconfirmedIds`,
+            `waitinglistIds`,
+            `votes`
+        """
+        if not self.token:
+            await self.login()
+        profile = await self.get_profile()
+        event = await self.get_event(uid)
+
+        membershipId = None
+        members = event["recipients"]["group"]["members"]
+        for m in members:
+            if m["profile"]["id"] == profile["id"]:
+                membershipId = m["id"]
+                break
+
+        if membershipId == None:
+            raise ValueError("You don't seem to be a member of the event's group")
+
+        url = f"{self.api_url}sponds/{uid}/responses/{membershipId}"
+
+        data = {"accepted": accepted}
+        r = await self.clientsession.put(url, json=data, headers=self.auth_headers)
+        return await r.json()
