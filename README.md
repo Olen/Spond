@@ -57,6 +57,10 @@ Get all your messages.
 Send a message with content `text`.
 Either specify an existing `chat_id`, or both `user` and `group_uid` for a new chat.
 
+### get_posts()
+
+Get details of the last 1K posts.
+
 ## Example scripts
 
 The following scripts are included as examples.  Some of the scripts might require additional packages to be installed (csv, ical etc).
