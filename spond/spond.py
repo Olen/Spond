@@ -381,3 +381,29 @@ class Spond:
         ) as r:
             self.events_update = await r.json()
             return self.events
+
+async def get_post(self, uid, prevuid, date) -> dict:
+        """
+        Get a group by unique ID.
+        Subject to authenticated user's access.
+
+        Parameters
+        ----------
+        uid : str
+            UID of the group.
+        prevuid : str
+            Different UID used on the webpage, optional to use when calling this function.
+        date : str
+            Date from when to read posts from
+
+        Returns
+        -------
+        Details about all last 1K posts in the group. | max=1000
+        """
+        if not self.token:
+            await self.login()
+        url = f"{self.api_url}posts?type=PLAIN&includeComments=true&includeReadStatus=true&includeSeenCount=true&max=1000&groupId={uid}&prevId={prevuid}&maxTimestamp={date}T00:00:00.211Z"
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+            self.groups = await r.json()
+            return self.groups
+        raise IndexError
