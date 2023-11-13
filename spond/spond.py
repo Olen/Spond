@@ -394,7 +394,7 @@ async def get_post(self, uid, prevuid, date) -> dict:
         prevuid : str
             Different UID used on the webpage, optional to use when calling this function.
         date : str
-            Date from when to read posts from
+            Last date to read posts from.
 
         Returns
         -------
