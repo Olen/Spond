@@ -1,3 +1,5 @@
+"""Utilities for reading downloaded spreadsheet exports."""
+
 from pathlib import Path
 import openpyxl as op
 from typing import NamedTuple, Optional, Any, Iterable, Iterator
