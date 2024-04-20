@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from .base import _SpondBase
 
@@ -9,8 +9,11 @@ if TYPE_CHECKING:
 
 
 class SpondClub(_SpondBase):
+
+    _API_BASE_URL: ClassVar = "https://api.spond.com/club/v1/"
+
     def __init__(self, username: str, password: str) -> None:
-        super().__init__(username, password, "https://api.spond.com/club/v1/")
+        super().__init__(username, password, self._API_BASE_URL)
         self.transactions: list[JSONDict] | None = None
 
     @_SpondBase.require_authentication
