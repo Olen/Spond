@@ -403,9 +403,9 @@ class Spond:
         }
 
         for key in base_event:
-            if event.get(key) != None and not updates.get(key):
+            if event.get(key) is not None and not updates.get(key):
                 base_event[key] = event[key]
-            elif updates.get(key) != None:
+            elif updates.get(key) is not None:
                 base_event[key] = updates[key]
 
         data = dict(base_event)
