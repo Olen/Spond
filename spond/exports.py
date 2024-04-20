@@ -30,7 +30,7 @@ def read_poll(fpath: Path) -> Iterator[tuple[User, Optional[set[str]]]]:
 
     Yields
     ------
-    Iterator
+    tuple[User, set[str] | None]
         Users and which options they voted for.
         Empty set if they voted blank;
         None if they did not vote.
@@ -91,13 +91,13 @@ def read_members(fpath: Path) -> Iterator[UserExt]:
 
     Parameters
     ----------
-    fpath : Path
+    fpath
         Path to .xlsx file.
 
     Yields
     ------
-    Iterator
-        User information
+    UserExt
+        Extended user information
 
     Raises
     ------
