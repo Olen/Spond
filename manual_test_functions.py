@@ -7,8 +7,8 @@ Doesn't yet use `get_person(user)` or any `send_`, `update_` methods."""
 
 import asyncio
 
-from config import password, username
-from spond import spond
+from config import club_id, password, username
+from spond import club, spond
 
 DUMMY_ID = "DUMMY_ID"
 
@@ -42,6 +42,15 @@ async def main() -> None:
 
     await s.clientsession.close()
 
+    # SPOND CLUB
+    sc = club.SpondClub(username=username, password=password)
+    print("\nGetting up to 10 transactions...")
+    transactions = await sc.get_transactions(club_id=club_id, max_items=10)
+    print(f"{len(transactions)} transactions:")
+    for i, t in enumerate(transactions):
+        print(f"[{i}] {_transaction_summary(t)}")
+    await sc.clientsession.close()
+
 
 def _group_summary(group) -> str:
     return f"id='{group['id']}', " f"name='{group['name']}'"
@@ -60,6 +69,15 @@ def _message_summary(message) -> str:
         f"id='{message['id']}', "
         f"timestamp='{message['message']['timestamp']}', "
         f"text={_abbreviate(message['message']['text'] if message['message'].get('text') else '', length=64)}, "
+    )
+
+
+def _transaction_summary(transaction) -> str:
+    return (
+        f"id='{transaction['id']}', "
+        f"timestamp='{transaction['paidAt']}', "
+        f"payment_name='{transaction['paymentName']}', "
+        f"name={transaction['paidByName']}"
     )
 
 
