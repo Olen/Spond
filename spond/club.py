@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from .base import _SpondBase
 
 
@@ -12,7 +10,7 @@ class SpondClub(_SpondBase):
 
     @_SpondBase.require_authentication
     async def get_transactions(
-        self, club_id: str, skip: Optional[int] = None, max_items: int = 100
+        self, club_id: str, skip: int | None = None, max_items: int = 100
     ) -> list[dict]:
         """
         Retrieves a list of transactions/payments for a specified club.

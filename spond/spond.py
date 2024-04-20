@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar
 
 from .base import _SpondBase
 
@@ -33,7 +33,7 @@ class Spond(_SpondBase):
         self.auth = result["auth"]
 
     @_SpondBase.require_authentication
-    async def get_groups(self) -> Optional[list[dict]]:
+    async def get_groups(self) -> list[dict] | None:
         """
         Retrieve all groups, subject to authenticated user's access.
 
@@ -118,7 +118,7 @@ class Spond(_SpondBase):
         raise KeyError(errmsg)
 
     @_SpondBase.require_authentication
-    async def get_messages(self, max_chats: int = 100) -> Optional[list[dict]]:
+    async def get_messages(self, max_chats: int = 100) -> list[dict] | None:
         """
         Retrieve messages (chats).
 
@@ -177,9 +177,9 @@ class Spond(_SpondBase):
     async def send_message(
         self,
         text: str,
-        user: Optional[str] = None,
-        group_uid: Optional[str] = None,
-        chat_id: Optional[str] = None,
+        user: str | None = None,
+        group_uid: str | None = None,
+        chat_id: str | None = None,
     ):
         """
         Start a new chat or continue an existing one.
@@ -232,15 +232,15 @@ class Spond(_SpondBase):
     @_SpondBase.require_authentication
     async def get_events(
         self,
-        group_id: Optional[str] = None,
-        subgroup_id: Optional[str] = None,
+        group_id: str | None = None,
+        subgroup_id: str | None = None,
         include_scheduled: bool = False,
-        max_end: Optional[datetime] = None,
-        min_end: Optional[datetime] = None,
-        max_start: Optional[datetime] = None,
-        min_start: Optional[datetime] = None,
+        max_end: datetime | None = None,
+        min_end: datetime | None = None,
+        max_start: datetime | None = None,
+        min_start: datetime | None = None,
         max_events: int = 100,
-    ) -> Optional[list[dict]]:
+    ) -> list[dict] | None:
         """
         Retrieve events.
 
