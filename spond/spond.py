@@ -12,12 +12,12 @@ class AuthenticationError(Exception):
 
 class Spond:
 
+    API_BASE_URL = "https://api.spond.com/core/v1/"
     DT_FORMAT = "%Y-%m-%dT00:00:00.000Z"
 
     def __init__(self, username, password):
         self.username = username
         self.password = password
-        self.api_url = "https://api.spond.com/core/v1/"
         self.clientsession = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar())
         self.chat_url = None
         self.auth = None
@@ -34,7 +34,7 @@ class Spond:
         }
 
     async def login(self):
-        login_url = f"{self.api_url}login"
+        login_url = f"{self.API_BASE_URL}login"
         data = {"email": self.username, "password": self.password}
         async with self.clientsession.post(login_url, json=data) as r:
             login_result = await r.json()
@@ -43,7 +43,7 @@ class Spond:
                 err_msg = f"Login failed. Response received: {login_result}"
                 raise AuthenticationError(err_msg)
 
-        api_chat_url = f"{self.api_url}chat"
+        api_chat_url = f"{self.API_BASE_URL}chat"
         headers = {
             "content-type": "application/json",
             "Authorization": f"Bearer {self.token}",
@@ -76,7 +76,7 @@ class Spond:
         list of dict
             Groups; each group is a dict.
         """
-        url = f"{self.api_url}groups/"
+        url = f"{self.API_BASE_URL}groups/"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
             self.groups = await r.json()
             return self.groups
@@ -286,7 +286,7 @@ class Spond:
         list of dict
             Events; each event is a dict.
         """
-        url = f"{self.api_url}sponds/"
+        url = f"{self.API_BASE_URL}sponds/"
         params = {
             "max": str(max_events),
             "scheduled": str(include_scheduled),
@@ -361,7 +361,7 @@ class Spond:
             if event["id"] == uid:
                 break
 
-        url = f"{self.api_url}sponds/{uid}"
+        url = f"{self.API_BASE_URL}sponds/{uid}"
 
         base_event = {
             "heading": None,
