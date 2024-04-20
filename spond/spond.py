@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
 from datetime import datetime
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import aiohttp
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class AuthenticationError(Exception):
