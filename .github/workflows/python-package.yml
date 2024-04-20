@@ -31,6 +31,11 @@ jobs:
         virtualenvs-in-project: true
     - name: Install project
       run: poetry install
+    - name: Lint imports with isort
+      # By default: exit with error if imports are not properly sorted
+      uses: isort/isort-action@master
+      with:
+        configuration: profile = black
     - name: Lint with black
       # by default: exit with error if the code is not properly formatted; show diffs
       uses: psf/black@stable
