@@ -46,7 +46,7 @@ def read_poll(fpath: Path) -> Iterator[tuple[User, Optional[set[str]]]]:
             if block_n >= 3:
                 break
 
-    # blank, name, email, phone
+    # name, email, phone
     values = [h.value for h in next(rows_iter)[:-3]]
 
     for row in rows_iter:
