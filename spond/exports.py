@@ -32,8 +32,8 @@ def read_poll(fpath: Path) -> Iterator[tuple[User, Optional[set[str]]]]:
     ------
     Iterator
         Users and which options they voted for.
-        Empty set if they did not vote;
-        None if they voted blank.
+        Empty set if they voted blank;
+        None if they did not vote.
     """
     wb: op.Workbook = op.load_workbook(fpath)
     sheet = wb[wb.sheetnames[0]]
@@ -56,18 +56,18 @@ def read_poll(fpath: Path) -> Iterator[tuple[User, Optional[set[str]]]]:
         name = str(this_row.pop())
         user = User(name, email, phone)
 
+        responses = set()
+
         # voted blank
         if this_row.pop():
-            yield (user, None)
+            yield (user, responses)
             continue
-
-        responses = set()
 
         for val, response in zip(values, this_row):
             if response:
                 responses.add(val)
 
-        yield (User(name, email, phone), responses)
+        yield (User(name, email, phone), responses or None)
 
 
 class UserExt(NamedTuple):
