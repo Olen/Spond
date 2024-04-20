@@ -79,19 +79,11 @@ class UserExt(NamedTuple):
 
 
 def _sliding_window(seq: Iterable, n: int) -> Iterator[tuple]:
-    it = iter(seq)
     d = deque(maxlen=n)
-    for _, val in zip(range(n), it):
+    for val in seq:
         d.append(val)
-
-    if len(d) < n:
-        return
-
-    yield tuple(d)
-
-    for val in it:
-        d.append(val)
-        yield tuple(d)
+        if len(d) >= n:
+            yield tuple(d)
 
 
 def read_members(fpath: Path) -> Iterator[UserExt]:
