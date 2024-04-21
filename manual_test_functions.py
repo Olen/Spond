@@ -10,6 +10,8 @@ import random
 from config import password, username
 from spond import spond
 
+DUMMY_ID = "DUMMY_ID"
+
 
 async def main() -> None:
     s = spond.Spond(username=username, password=password)
@@ -25,6 +27,14 @@ async def main() -> None:
     group = await s.get_group(random_group_id)
     print(f"{_group_summary(group)}")
 
+    print("\nGetting a nonexistent group by id to check exception handling...")
+    try:
+        await s.get_group(DUMMY_ID)
+    except IndexError as error:
+        print(f"Exception raised: {error!r}")
+
+    # EVENTS
+
     print("\nGetting up to 10 events...")
     events = await s.get_events(max_events=10)
     print(f"{len(events)} events:")
@@ -35,6 +45,14 @@ async def main() -> None:
     random_event_id = random.choice(events)["id"]
     event = await s.get_event(random_event_id)
     print(f"{_event_summary(event)}")
+
+    print("\nGetting a nonexistent event by id to check exception handling...")
+    try:
+        await s.get_event(DUMMY_ID)
+    except IndexError as error:
+        print(f"Exception raised: {error!r}")
+
+    # MESSAGES
 
     print("\nGetting up to 10 messages...")
     messages = await s.get_messages()
