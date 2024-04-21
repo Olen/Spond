@@ -2,7 +2,7 @@
 
 Intended as a simple end-to-end test for assurance when making changes.
 Uses all existing group, event, message `get_` methods.
-Doesn't yet use `get_person(id)` or any `send_`, `update_` methods."""
+Doesn't yet use `get_person(user)` or any `send_`, `update_` methods."""
 
 import asyncio
 import random
@@ -16,13 +16,15 @@ DUMMY_ID = "DUMMY_ID"
 async def main() -> None:
     s = spond.Spond(username=username, password=password)
 
-    print("Getting all groups...")
+    # GROUPS
+
+    print("\nGetting all groups...")
     groups = await s.get_groups()
     print(f"{len(groups)} groups:")
     for i, group in enumerate(groups):
         print(f"[{i}] {_group_summary(group)}")
 
-    print("Getting a random group by id...")
+    print("\nGetting a random group by id...")
     random_group_id = random.choice(groups)["id"]
     group = await s.get_group(random_group_id)
     print(f"{_group_summary(group)}")
@@ -41,7 +43,7 @@ async def main() -> None:
     for i, event in enumerate(events):
         print(f"[{i}] {_event_summary(event)}")
 
-    print("Getting a random event by id...")
+    print("\nGetting a random event by id...")
     random_event_id = random.choice(events)["id"]
     event = await s.get_event(random_event_id)
     print(f"{_event_summary(event)}")
@@ -66,22 +68,22 @@ async def main() -> None:
 
 
 def _group_summary(group) -> str:
-    return f"id: {group['id']}, " f"name: {group['name']}"
+    return f"id='{group['id']}', " f"name='{group['name']}'"
 
 
 def _event_summary(event) -> str:
     return (
-        f"id: {event['id']}, "
-        f"name: {event['heading']}, "
-        f"startTimestamp: {event['startTimestamp']}"
+        f"id='{event['id']}', "
+        f"heading='{event['heading']}', "
+        f"startTimestamp='{event['startTimestamp']}'"
     )
 
 
 def _message_summary(message) -> str:
     return (
-        f"id: {message['id']}, "
-        f"timestamp: {message['message']['timestamp']}, "
-        f"text: {_abbreviate(message['message']['text'] if message['message'].get('text') else '', length=64)}, "
+        f"id='{message['id']}', "
+        f"timestamp='{message['message']['timestamp']}', "
+        f"text={_abbreviate(message['message']['text'] if message['message'].get('text') else '', length=64)}, "
     )
 
 
@@ -89,8 +91,8 @@ def _abbreviate(text, length) -> str:
     """Abbreviate long text, normalising line endings to escape characters."""
     escaped_text = repr(text)
     if len(text) > length:
-        return f"{escaped_text[0:length]}[…]"
-    return f"{escaped_text}"
+        return f"{escaped_text[:length]}[…]"
+    return escaped_text
 
 
 loop = asyncio.new_event_loop()
