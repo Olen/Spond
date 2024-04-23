@@ -63,7 +63,7 @@ def _message_summary(message) -> str:
     return (
         f"id: {message['id']}, "
         f"timestamp: {message['message']['timestamp']}, "
-        f"text: {_abbreviate(message['message']['text'], length=64)}, "
+        f"text: {_abbreviate(message['message']['text'] if message['message'].get('text') else '', length=64)}, "
     )
 
 
