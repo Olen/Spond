@@ -1,7 +1,8 @@
 """Use Spond 'get' functions to summarise available data.
 
-Intended as a simple end-to-end test for assurance when making changes.
-Uses all existing group, event, message `get_` methods.
+Intended as a simple end-to-end test for assurance when making changes, where there are s
+gaps in test suite coverage.
+
 Doesn't yet use `get_person(user)` or any `send_`, `update_` methods."""
 
 import asyncio
