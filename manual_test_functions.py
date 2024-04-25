@@ -5,7 +5,6 @@ Uses all existing group, event, message `get_` methods.
 Doesn't yet use `get_person(user)` or any `send_`, `update_` methods."""
 
 import asyncio
-import random
 
 from config import password, username
 from spond import spond
@@ -24,17 +23,6 @@ async def main() -> None:
     for i, group in enumerate(groups):
         print(f"[{i}] {_group_summary(group)}")
 
-    print("\nGetting a random group by id...")
-    random_group_id = random.choice(groups)["id"]
-    group = await s.get_group(random_group_id)
-    print(f"{_group_summary(group)}")
-
-    print("\nGetting a nonexistent group by id to check exception handling...")
-    try:
-        await s.get_group(DUMMY_ID)
-    except IndexError as error:
-        print(f"Exception raised: {error!r}")
-
     # EVENTS
 
     print("\nGetting up to 10 events...")
@@ -43,17 +31,6 @@ async def main() -> None:
     for i, event in enumerate(events):
         print(f"[{i}] {_event_summary(event)}")
 
-    print("\nGetting a random event by id...")
-    random_event_id = random.choice(events)["id"]
-    event = await s.get_event(random_event_id)
-    print(f"{_event_summary(event)}")
-
-    print("\nGetting a nonexistent event by id to check exception handling...")
-    try:
-        await s.get_event(DUMMY_ID)
-    except IndexError as error:
-        print(f"Exception raised: {error!r}")
-
     # MESSAGES
 
     print("\nGetting up to 10 messages...")
@@ -61,8 +38,6 @@ async def main() -> None:
     print(f"{len(messages)} messages:")
     for i, message in enumerate(messages):
         print(f"[{i}] {_message_summary(message)}")
-
-    # No `get_message(id)` function
 
     await s.clientsession.close()
 
