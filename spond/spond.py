@@ -92,6 +92,11 @@ class Spond:
         Returns
         -------
         Details of the group.
+
+        Raises
+        ------
+        IndexError if no group is matched.
+
         """
 
         if not self.groups:
@@ -99,7 +104,8 @@ class Spond:
         for group in self.groups:
             if group["id"] == uid:
                 return group
-        raise IndexError
+        errmsg = f"No group with id='{uid}'"
+        raise IndexError(errmsg)
 
     @require_authentication
     async def get_person(self, user) -> dict:
@@ -308,13 +314,19 @@ class Spond:
         Returns
         -------
         Details of the event.
+
+        Raises
+        ------
+        IndexError if no event is matched.
+
         """
         if not self.events:
             await self.get_events()
         for event in self.events:
             if event["id"] == uid:
                 return event
-        raise IndexError
+        errmsg = f"No event with id='{uid}'"
+        raise IndexError(errmsg)
 
     @require_authentication
     async def update_event(self, uid, updates: dict):
