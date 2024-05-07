@@ -60,6 +60,9 @@ Either specify an existing `chat_id`, or both `user` and `group_uid` for a new c
 ### get_event_attendance_xlsx()
 Get Excel attendance report for a single event, available via the web client.
 
+### change_response()
+Change a member's response for an event (e.g. accept/decline)
+
 ## Example scripts
 
 The following scripts are included as examples.  Some of the scripts might require additional packages to be installed (csv, ical etc).

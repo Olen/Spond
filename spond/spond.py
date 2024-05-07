@@ -397,3 +397,27 @@ class Spond(_SpondBase):
             output_data = await r.read()
             return output_data
 
+    @_SpondBase.require_authentication
+    async def change_response(self, uid: str, user: str, payload: dict) -> dict:
+        """change a user's response for an event
+
+        Parameters
+        ----------
+        uid : str
+            UID of the event.
+
+        user : str
+            UID of the user
+
+        payload : dict
+            user response to event, e.g. {"accepted": "true"}
+
+        Returns
+        ----------
+            json: event["responses"] with updated info
+        """
+        url = f"{self.api_url}sponds/{uid}/responses/{user}"
+        async with self.clientsession.put(
+            url, headers=self.auth_headers, json=payload
+        ) as r:
+            return await r.json()
