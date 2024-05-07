@@ -378,3 +378,22 @@ class Spond(_SpondBase):
         ) as r:
             self.events_update = await r.json()
             return self.events
+
+    @_SpondBase.require_authentication
+    async def get_event_attendance_xlsx(self, uid: str) -> bytes:
+        """get Excel attendance report for a single event.
+           Available via the web client.
+
+        Parameters
+        ----------
+        uid : str
+            UID of the event.
+
+        Returns:
+            bytes: XLSX binary data
+        """
+        url = f"{self.api_url}sponds/{uid}/export"
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+            output_data = await r.read()
+            return output_data
+

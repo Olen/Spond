@@ -6,6 +6,7 @@ gaps in test suite coverage.
 Doesn't yet use `get_person(user)` or any `send_`, `update_` methods."""
 
 import asyncio
+import tempfile
 
 from config import club_id, password, username
 from spond import club, spond
@@ -39,6 +40,17 @@ async def main() -> None:
     print(f"{len(messages)} messages:")
     for i, message in enumerate(messages):
         print(f"[{i}] {_message_summary(message)}")
+
+    # ATTENDANCE EXPORT
+
+    print("\nGetting attendance report for the first event...")
+    e = events[0]
+    data = await s.get_event_attendance_xlsx(e["id"])
+    with tempfile.NamedTemporaryFile(
+        mode="wb", suffix=".xlsx", delete=False
+    ) as temp_file:
+        temp_file.write(data)
+        print(f"Check out {temp_file.name}")
 
     await s.clientsession.close()
 
