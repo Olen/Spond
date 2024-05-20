@@ -237,6 +237,7 @@ class Spond:
     async def get_events(
         self,
         group_id: Optional[str] = None,
+        subgroup_id: Optional[str] = None,
         include_scheduled: bool = False,
         max_end: Optional[datetime] = None,
         min_end: Optional[datetime] = None,
@@ -252,6 +253,8 @@ class Spond:
         ----------
         group_id : str, optional
             Uses `GroupId` API parameter.
+        subgroup_id : str, optional
+            Uses `subgroupId` API parameter.
         include_scheduled : bool, optional
             Include scheduled events.
             (TO DO: probably events for which invites haven't been sent yet?)
@@ -298,6 +301,8 @@ class Spond:
             params["minStartTimestamp"] = min_start.strftime(self.DT_FORMAT)
         if group_id:
             params["groupId"] = group_id
+        if subgroup_id:
+            params["subgroupId"] = subgroup_id
 
         async with self.clientsession.get(
             url, headers=self.auth_headers, params=params
