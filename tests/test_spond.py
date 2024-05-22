@@ -2,7 +2,6 @@
 
 import pytest
 
-
 from spond.spond import Spond
 
 MOCK_USERNAME, MOCK_PASSWORD = "MOCK_USERNAME", "MOCK_PASSWORD"
