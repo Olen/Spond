@@ -32,10 +32,18 @@ jobs:
     - name: Install project
       run: poetry install
     - name: Lint imports with isort
-      # By default: exit with error if imports are not properly sorted
-      uses: isort/isort-action@master
-      with:
-        configuration: profile = black
+      # Use command line due to bugs/docs gaps with official `isort/isort-action`.
+      # Exit with error if the code is not properly formatted; show diffs;
+      # `black` compatibility.
+      # Only target files in `spond` and `test` due to unreliable behaviour on files in
+      # root directory.
+      # Diffs reported for these files should be the same as fixes made by running
+      # `isort .` in the root project folder, which picks up config from
+      # `pyproject.toml`.
+      run: |
+        source $VENV
+        isort spond --check-only --diff --profile black
+        isort tests --check-only --diff --profile black
     - name: Lint with black
       # by default: exit with error if the code is not properly formatted; show diffs
       uses: psf/black@stable
