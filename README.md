@@ -42,10 +42,10 @@ asyncio.run(main())
 
 Get details of all your group memberships and all members of those groups.
 
-### get_events([group_id, include_scheduled, max_end, min_end, max_start, min_start, max_events])
+### get_events([group_id, subgroup_id, include_scheduled, max_end, min_end, max_start, min_start, max_events])
 
 Get details of events, limited to 100 by default.
-Optional parameters allow filtering by start and end datetimes, group; more events to be returned; inclusion of 'scheduled' events.
+Optional parameters allow filtering by start and end datetimes, group and subgroup; more events to be returned; inclusion of 'scheduled' events.
 
 ### get_person()
 Get a member's details.

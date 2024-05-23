@@ -11,6 +11,9 @@ class AuthenticationError(Exception):
 
 
 class Spond:
+
+    DT_FORMAT = "%Y-%m-%dT00:00:00.000Z"
+
     def __init__(self, username, password):
         self.username = username
         self.password = password
@@ -234,6 +237,7 @@ class Spond:
     async def get_events(
         self,
         group_id: Optional[str] = None,
+        subgroup_id: Optional[str] = None,
         include_scheduled: bool = False,
         max_end: Optional[datetime] = None,
         min_end: Optional[datetime] = None,
@@ -249,6 +253,8 @@ class Spond:
         ----------
         group_id : str, optional
             Uses `GroupId` API parameter.
+        subgroup_id : str, optional
+            Uses `subgroupId` API parameter.
         include_scheduled : bool, optional
             Include scheduled events.
             (TO DO: probably events for which invites haven't been sent yet?)
@@ -280,23 +286,27 @@ class Spond:
         list of dict
             Events; each event is a dict.
         """
-        url = (
-            f"{self.api_url}sponds/?"
-            f"max={max_events}"
-            f"&scheduled={include_scheduled}"
-        )
+        url = f"{self.api_url}sponds/"
+        params = {
+            "max": str(max_events),
+            "scheduled": str(include_scheduled),
+        }
         if max_end:
-            url += f"&maxEndTimestamp={max_end.strftime('%Y-%m-%dT00:00:00.000Z')}"
+            params["maxEndTimestamp"] = max_end.strftime(self.DT_FORMAT)
         if max_start:
-            url += f"&maxStartTimestamp={max_start.strftime('%Y-%m-%dT00:00:00.000Z')}"
+            params["maxStartTimestamp"] = max_start.strftime(self.DT_FORMAT)
         if min_end:
-            url += f"&minEndTimestamp={min_end.strftime('%Y-%m-%dT00:00:00.000Z')}"
+            params["minEndTimestamp"] = min_end.strftime(self.DT_FORMAT)
         if min_start:
-            url += f"&minStartTimestamp={min_start.strftime('%Y-%m-%dT00:00:00.000Z')}"
+            params["minStartTimestamp"] = min_start.strftime(self.DT_FORMAT)
         if group_id:
-            url += f"&groupId={group_id}"
+            params["groupId"] = group_id
+        if subgroup_id:
+            params["subgroupId"] = subgroup_id
 
-        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+        async with self.clientsession.get(
+            url, headers=self.auth_headers, params=params
+        ) as r:
             self.events = await r.json()
             return self.events
 
