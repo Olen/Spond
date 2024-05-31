@@ -358,7 +358,6 @@ class Spond(_SpondBase):
             "autoAccept": False,
             "payment": {},
             "attachments": [],
-            "id": None,
             "tasks": {
                 "openTasks": [],
                 "assignedTasks": [
@@ -374,10 +373,19 @@ class Spond(_SpondBase):
             },
         }
 
+        if not self.events:
+            await self.get_events()
+        for event in self.events:
+            if event["id"] == uid:
+                base_event.update(event)
+                url = f"{self.API_BASE_URL}sponds/{uid}"
+                break
+        else:
+            errmsg = f"No event with id='{uid}' existing"
+            raise ValueError(errmsg)
+
         for key in base_event:
-            if event.get(key) is not None and not updates.get(key):
-                base_event[key] = event[key]
-            elif updates.get(key) is not None:
+            if updates.get(key) is not None:
                 base_event[key] = updates[key]
 
         data = dict(base_event)
