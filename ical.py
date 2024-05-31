@@ -23,16 +23,14 @@ async def main():
         e = Event()
         e.uid = event["id"]
         e.name = event["heading"]
-        e.description = event["description"]
         e.begin = event["startTimestamp"]
         e.end = event["endTimestamp"]
         e.sequence = event["updated"]
+        e.description = event.get("description")
         if "cancelled" in event and event["cancelled"]:
             e.status = "Cancelled"
         if "location" in event:
-            e.location = "{}, {}".format(
-                event["location"].get("feature"), event["location"].get("address")
-            )
+            e.location = f'{event["location"].get("feature")}, {event["location"].get("address")}'
         c.events.add(e)
     with open(ics_file, "w") as out_file:
         out_file.writelines(c)
