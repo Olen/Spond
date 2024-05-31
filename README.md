@@ -57,6 +57,12 @@ Get all your messages.
 Send a message with content `text`.
 Either specify an existing `chat_id`, or both `user` and `group_uid` for a new chat.
 
+### get_event_attendance_xlsx()
+Get Excel attendance report for a single event, available via the web client.
+
+### change_response()
+Change a member's response for an event (e.g. accept/decline)
+
 ## Example scripts
 
 The following scripts are included as examples.  Some of the scripts might require additional packages to be installed (csv, ical etc).
@@ -71,6 +77,9 @@ Generates a json-file for each group you are a member of.
 
 ### attendance.py &lt;-f from_date&gt; &lt;-t to_date&gt; [-a]
 Generates a csv-file for each event between `from_date` and `to_date` with attendance status of all organizers.  The optional parameter `-a` also includes all members that has been invited.
+
+### transactions.py
+Generates a csv-file for transactions / payments appeared in [Spond Club](https://www.spond.com/spond-club-overview/) > Finance > Payments.
 
 ## AsyncIO
 [Asyncio](https://docs.python.org/3/library/asyncio.html) might seem intimidating in the beginning, but for basic stuff, it is quite easy to follow the examples above, and just remeber to prefix functions that use the API with `async def ...` and to `await` all API-calls and all calls to said functions.

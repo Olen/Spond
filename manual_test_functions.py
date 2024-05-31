@@ -6,9 +6,10 @@ gaps in test suite coverage.
 Doesn't yet use `get_person(user)` or any `send_`, `update_` methods."""
 
 import asyncio
+import tempfile
 
-from config import password, username
-from spond import spond
+from config import club_id, password, username
+from spond import club, spond
 
 DUMMY_ID = "DUMMY_ID"
 
@@ -40,7 +41,27 @@ async def main() -> None:
     for i, message in enumerate(messages):
         print(f"[{i}] {_message_summary(message)}")
 
+    # ATTENDANCE EXPORT
+
+    print("\nGetting attendance report for the first event...")
+    e = events[0]
+    data = await s.get_event_attendance_xlsx(e["id"])
+    with tempfile.NamedTemporaryFile(
+        mode="wb", suffix=".xlsx", delete=False
+    ) as temp_file:
+        temp_file.write(data)
+        print(f"Check out {temp_file.name}")
+
     await s.clientsession.close()
+
+    # SPOND CLUB
+    sc = club.SpondClub(username=username, password=password)
+    print("\nGetting up to 10 transactions...")
+    transactions = await sc.get_transactions(club_id=club_id, max_items=10)
+    print(f"{len(transactions)} transactions:")
+    for i, t in enumerate(transactions):
+        print(f"[{i}] {_transaction_summary(t)}")
+    await sc.clientsession.close()
 
 
 def _group_summary(group) -> str:
@@ -60,6 +81,15 @@ def _message_summary(message) -> str:
         f"id='{message['id']}', "
         f"timestamp='{message['message']['timestamp']}', "
         f"text={_abbreviate(message['message']['text'] if message['message'].get('text') else '', length=64)}, "
+    )
+
+
+def _transaction_summary(transaction) -> str:
+    return (
+        f"id='{transaction['id']}', "
+        f"timestamp='{transaction['paidAt']}', "
+        f"payment_name='{transaction['paymentName']}', "
+        f"name={transaction['paidByName']}"
     )
 
 

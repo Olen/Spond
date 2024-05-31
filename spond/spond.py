@@ -1,74 +1,32 @@
 #!/usr/bin/env python3
-
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
-import aiohttp
+from .base import _SpondBase
 
 if TYPE_CHECKING:
     from datetime import datetime
 
 
-class AuthenticationError(Exception):
-    pass
+class Spond(_SpondBase):
 
-
-class Spond:
-
-    API_BASE_URL = "https://api.spond.com/core/v1/"
     DT_FORMAT = "%Y-%m-%dT00:00:00.000Z"
 
     def __init__(self, username, password):
-        self.username = username
-        self.password = password
-        self.clientsession = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar())
+        super().__init__(username, password, "https://api.spond.com/core/v1/")
         self.chat_url = None
         self.auth = None
-        self.token = None
         self.groups = None
         self.events = None
 
-    @property
-    def auth_headers(self):
-        return {
-            "content-type": "application/json",
-            "Authorization": f"Bearer {self.token}",
-            "auth": f"{self.auth}",
-        }
-
-    async def login(self):
-        login_url = f"{self.API_BASE_URL}login"
-        data = {"email": self.username, "password": self.password}
-        async with self.clientsession.post(login_url, json=data) as r:
-            login_result = await r.json()
-            self.token = login_result.get("loginToken", None)
-            if self.token is None:
-                err_msg = f"Login failed. Response received: {login_result}"
-                raise AuthenticationError(err_msg)
-
-        api_chat_url = f"{self.API_BASE_URL}chat"
-        headers = {
-            "content-type": "application/json",
-            "Authorization": f"Bearer {self.token}",
-        }
-        r = await self.clientsession.post(api_chat_url, headers=headers)
+    async def login_chat(self):
+        api_chat_url = f"{self.api_url}chat"
+        r = await self.clientsession.post(api_chat_url, headers=self.auth_headers)
         result = await r.json()
         self.chat_url = result["url"]
         self.auth = result["auth"]
 
-    def require_authentication(func: callable):
-        async def wrapper(self, *args, **kwargs):
-            if not self.token:
-                try:
-                    await self.login()
-                except AuthenticationError as e:
-                    await self.clientsession.close()
-                    raise e
-            return await func(self, *args, **kwargs)
-
-        return wrapper
-
-    @require_authentication
+    @_SpondBase.require_authentication
     async def get_groups(self):
         """
         Get all groups.
@@ -79,12 +37,12 @@ class Spond:
         list of dict
             Groups; each group is a dict.
         """
-        url = f"{self.API_BASE_URL}groups/"
+        url = f"{self.api_url}groups/"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
             self.groups = await r.json()
             return self.groups
 
-    @require_authentication
+    @_SpondBase.require_authentication
     async def get_group(self, uid) -> dict:
         """
         Get a group by unique ID.
@@ -113,7 +71,7 @@ class Spond:
         errmsg = f"No group with id='{uid}'"
         raise IndexError(errmsg)
 
-    @require_authentication
+    @_SpondBase.require_authentication
     async def get_person(self, user) -> dict:
         """
         Get a member or guardian by matching various identifiers.
@@ -155,14 +113,15 @@ class Spond:
                             return guardian
         raise IndexError
 
-    @require_authentication
+    @_SpondBase.require_authentication
     async def get_messages(self):
+        if not self.auth:
+            await self.login_chat()
         url = f"{self.chat_url}/chats/?max=10"
-        headers = {"auth": self.auth}
-        async with self.clientsession.get(url, headers=headers) as r:
+        async with self.clientsession.get(url, headers={"auth": self.auth}) as r:
             return await r.json()
 
-    @require_authentication
+    @_SpondBase.require_authentication
     async def _continue_chat(self, chat_id, text):
         """
         Send a given text in an existing given chat.
@@ -181,13 +140,14 @@ class Spond:
         dict
              Result of the sending.
         """
+        if not self.auth:
+            await self.login_chat()
         url = f"{self.chat_url}/messages"
         data = {"chatId": chat_id, "text": text, "type": "TEXT"}
-        headers = {"auth": self.auth}
-        r = await self.clientsession.post(url, json=data, headers=headers)
+        r = await self.clientsession.post(url, json=data, headers={"auth": self.auth})
         return await r.json()
 
-    @require_authentication
+    @_SpondBase.require_authentication
     async def send_message(self, text, user=None, group_uid=None, chat_id=None):
         """
         Start a new chat or continue an existing one.
@@ -212,6 +172,8 @@ class Spond:
         dict
              Result of the sending.
         """
+        if self.auth is None:
+            await self.login_chat()
 
         if chat_id is not None:
             return self._continue_chat(chat_id, text)
@@ -232,11 +194,10 @@ class Spond:
             "recipient": user_uid,
             "groupId": group_uid,
         }
-        headers = {"auth": self.auth}
-        r = await self.clientsession.post(url, json=data, headers=headers)
+        r = await self.clientsession.post(url, json=data, headers={"auth": self.auth})
         return await r.json()
 
-    @require_authentication
+    @_SpondBase.require_authentication
     async def get_events(
         self,
         group_id: Optional[str] = None,
@@ -289,7 +250,7 @@ class Spond:
         list of dict
             Events; each event is a dict.
         """
-        url = f"{self.API_BASE_URL}sponds/"
+        url = f"{self.api_url}sponds/"
         params = {
             "max": str(max_events),
             "scheduled": str(include_scheduled),
@@ -313,7 +274,7 @@ class Spond:
             self.events = await r.json()
             return self.events
 
-    @require_authentication
+    @_SpondBase.require_authentication
     async def get_event(self, uid) -> dict:
         """
         Get an event by unique ID.
@@ -341,7 +302,7 @@ class Spond:
         errmsg = f"No event with id='{uid}'"
         raise IndexError(errmsg)
 
-    @require_authentication
+    @_SpondBase.require_authentication
     async def update_event(self, uid, updates: dict):
         """
         Updates an existing event.
@@ -364,7 +325,7 @@ class Spond:
             if event["id"] == uid:
                 break
 
-        url = f"{self.API_BASE_URL}sponds/{uid}"
+        url = f"{self.api_url}sponds/{uid}"
 
         base_event = {
             "heading": None,
@@ -417,3 +378,46 @@ class Spond:
         ) as r:
             self.events_update = await r.json()
             return self.events
+
+    @_SpondBase.require_authentication
+    async def get_event_attendance_xlsx(self, uid: str) -> bytes:
+        """get Excel attendance report for a single event.
+           Available via the web client.
+
+        Parameters
+        ----------
+        uid : str
+            UID of the event.
+
+        Returns:
+            bytes: XLSX binary data
+        """
+        url = f"{self.api_url}sponds/{uid}/export"
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+            output_data = await r.read()
+            return output_data
+
+    @_SpondBase.require_authentication
+    async def change_response(self, uid: str, user: str, payload: dict) -> dict:
+        """change a user's response for an event
+
+        Parameters
+        ----------
+        uid : str
+            UID of the event.
+
+        user : str
+            UID of the user
+
+        payload : dict
+            user response to event, e.g. {"accepted": "true"}
+
+        Returns
+        ----------
+            json: event["responses"] with updated info
+        """
+        url = f"{self.api_url}sponds/{uid}/responses/{user}"
+        async with self.clientsession.put(
+            url, headers=self.auth_headers, json=payload
+        ) as r:
+            return await r.json()
