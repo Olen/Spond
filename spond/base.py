@@ -8,7 +8,7 @@ class AuthenticationError(Exception):
 
 
 class _SpondBase(ABC):
-    def __init__(self, username, password, api_url):
+    def __init__(self, username, password, api_url) -> None:
         self.username = username
         self.password = password
         self.api_url = api_url
@@ -16,7 +16,7 @@ class _SpondBase(ABC):
         self.token = None
 
     @property
-    def auth_headers(self):
+    def auth_headers(self) -> dict:
         return {
             "content-type": "application/json",
             "Authorization": f"Bearer {self.token}",
@@ -34,7 +34,7 @@ class _SpondBase(ABC):
 
         return wrapper
 
-    async def login(self):
+    async def login(self) -> None:
         login_url = f"{self.api_url}login"
         data = {"email": self.username, "password": self.password}
         async with self.clientsession.post(login_url, json=data) as r:

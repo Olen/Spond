@@ -19,7 +19,7 @@ class Spond(_SpondBase):
         self.groups = None
         self.events = None
 
-    async def login_chat(self):
+    async def login_chat(self) -> None:
         api_chat_url = f"{self.api_url}chat"
         r = await self.clientsession.post(api_chat_url, headers=self.auth_headers)
         result = await r.json()
@@ -27,7 +27,7 @@ class Spond(_SpondBase):
         self.auth = result["auth"]
 
     @_SpondBase.require_authentication
-    async def get_groups(self):
+    async def get_groups(self) -> List[dict]:
         """
         Get all groups.
         Subject to authenticated user's access.
@@ -114,7 +114,7 @@ class Spond(_SpondBase):
         raise IndexError
 
     @_SpondBase.require_authentication
-    async def get_messages(self):
+    async def get_messages(self) -> List[dict]:
         if not self.auth:
             await self.login_chat()
         url = f"{self.chat_url}/chats/?max=10"
