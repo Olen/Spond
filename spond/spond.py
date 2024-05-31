@@ -327,7 +327,7 @@ class Spond(_SpondBase):
 
         url = f"{self.api_url}sponds/{uid}"
 
-        base_event = {
+        base_event: dict = {
             "heading": None,
             "description": None,
             "spondType": "EVENT",
