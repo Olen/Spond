@@ -8,7 +8,7 @@ class AuthenticationError(Exception):
 
 
 class _SpondBase(ABC):
-    def __init__(self, username, password, api_url) -> None:
+    def __init__(self, username: str, password: str, api_url: str) -> None:
         self.username = username
         self.password = password
         self.api_url = api_url

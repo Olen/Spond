@@ -43,7 +43,7 @@ class Spond(_SpondBase):
             return self.groups
 
     @_SpondBase.require_authentication
-    async def get_group(self, uid) -> dict:
+    async def get_group(self, uid: str) -> dict:
         """
         Get a group by unique ID.
         Subject to authenticated user's access.
@@ -72,7 +72,7 @@ class Spond(_SpondBase):
         raise IndexError(errmsg)
 
     @_SpondBase.require_authentication
-    async def get_person(self, user) -> dict:
+    async def get_person(self, user: str) -> dict:
         """
         Get a member or guardian by matching various identifiers.
         Subject to authenticated user's access.
@@ -122,7 +122,7 @@ class Spond(_SpondBase):
             return await r.json()
 
     @_SpondBase.require_authentication
-    async def _continue_chat(self, chat_id, text):
+    async def _continue_chat(self, chat_id: str, text: str):
         """
         Send a given text in an existing given chat.
         Subject to authenticated user's access.
@@ -148,7 +148,7 @@ class Spond(_SpondBase):
         return await r.json()
 
     @_SpondBase.require_authentication
-    async def send_message(self, text, user=None, group_uid=None, chat_id=None):
+    async def send_message(self, text: str, user=None, group_uid=None, chat_id=None):
         """
         Start a new chat or continue an existing one.
 
@@ -275,7 +275,7 @@ class Spond(_SpondBase):
             return self.events
 
     @_SpondBase.require_authentication
-    async def get_event(self, uid) -> dict:
+    async def get_event(self, uid: str) -> dict:
         """
         Get an event by unique ID.
         Subject to authenticated user's access.
@@ -303,7 +303,7 @@ class Spond(_SpondBase):
         raise IndexError(errmsg)
 
     @_SpondBase.require_authentication
-    async def update_event(self, uid, updates: dict):
+    async def update_event(self, uid: str, updates: dict):
         """
         Updates an existing event.
 
