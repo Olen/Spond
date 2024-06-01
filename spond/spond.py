@@ -14,7 +14,7 @@ class Spond(_SpondBase):
 
     DT_FORMAT = "%Y-%m-%dT00:00:00.000Z"
 
-    def __init__(self, username, password):
+    def __init__(self, username: str, password: str) -> None:
         super().__init__(username, password, "https://api.spond.com/core/v1/")
         self.chat_url = None
         self.auth = None
