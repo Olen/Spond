@@ -1,4 +1,5 @@
 from abc import ABC
+from typing import Callable
 
 import aiohttp
 
@@ -22,7 +23,8 @@ class _SpondBase(ABC):
             "Authorization": f"Bearer {self.token}",
         }
 
-    def require_authentication(func: callable):
+    @staticmethod
+    def require_authentication(func: Callable):
         async def wrapper(self, *args, **kwargs):
             if not self.token:
                 try:
