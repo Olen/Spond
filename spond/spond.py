@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
+
+from __future__ import annotations
+
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from .base import _SpondBase
 
@@ -27,7 +30,7 @@ class Spond(_SpondBase):
         self.auth = result["auth"]
 
     @_SpondBase.require_authentication
-    async def get_groups(self) -> List[dict]:
+    async def get_groups(self) -> list[dict]:
         """
         Get all groups.
         Subject to authenticated user's access.
@@ -114,7 +117,7 @@ class Spond(_SpondBase):
         raise IndexError
 
     @_SpondBase.require_authentication
-    async def get_messages(self) -> List[dict]:
+    async def get_messages(self) -> list[dict]:
         if not self.auth:
             await self.login_chat()
         url = f"{self.chat_url}/chats/?max=10"
@@ -208,7 +211,7 @@ class Spond(_SpondBase):
         max_start: Optional[datetime] = None,
         min_start: Optional[datetime] = None,
         max_events: int = 100,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Get events.
         Subject to authenticated user's access.
