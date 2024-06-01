@@ -307,15 +307,15 @@ class Spond(_SpondBase):
         """
         Updates an existing event.
 
-        Parameters:
+        Parameters
         ----------
         uid : str
            UID of the event.
         updates : dict
             The changes. e.g. if you want to change the description -> {'description': "New Description with changes"}
 
-        Returns:
-        ----------
+        Returns
+        -------
         json results of post command
 
         """
@@ -389,7 +389,8 @@ class Spond(_SpondBase):
         uid : str
             UID of the event.
 
-        Returns:
+        Returns
+        -------
             bytes: XLSX binary data
         """
         url = f"{self.api_url}sponds/{uid}/export"
@@ -413,7 +414,7 @@ class Spond(_SpondBase):
             user response to event, e.g. {"accepted": "true"}
 
         Returns
-        ----------
+        -------
             json: event["responses"] with updated info
         """
         url = f"{self.api_url}sponds/{uid}/responses/{user}"
