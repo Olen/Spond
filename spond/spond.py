@@ -150,7 +150,13 @@ class Spond(_SpondBase):
         return await r.json()
 
     @_SpondBase.require_authentication
-    async def send_message(self, text: str, user=None, group_uid=None, chat_id=None):
+    async def send_message(
+        self,
+        text: str,
+        user: Optional[str] = None,
+        group_uid: Optional[str] = None,
+        chat_id: Optional[str] = None,
+    ):
         """
         Start a new chat or continue an existing one.
 
@@ -159,14 +165,14 @@ class Spond(_SpondBase):
 
         Parameters
         ----------
-        text: str
+        text : str
             Message to send
-        user : str
+        user : str, optional
             Identifier to match against member/guardian's id, email, full name, or
             profile id.
-        group_uid : str
+        group_uid : str, optional
             UID of the group.
-        chat_id : str
+        chat_id : str, optional
             Identifier of the chat.
 
         Returns
