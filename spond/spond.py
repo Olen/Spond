@@ -313,28 +313,26 @@ class Spond(_SpondBase):
     @_SpondBase.require_authentication
     async def update_event(self, uid: str, updates: dict):
         """
-        Updates an existing event.
+        Updates an existing event or creates a new one.
 
         Parameters
         ----------
         uid : str
-           UID of the event.
+           UID of the event to be updated. If no event of that UID exists,
+           a new one will be created with default settings.
         updates : dict
-            The changes. e.g. if you want to change the description -> {'description': "New Description with changes"}
+            The changes to existing event or default template for new events.
+            e.g. if you want to change the description ->
+                {'description': "New Description with changes"}
+            For a new event this should at a minimum include entries for
+                (list of) 'owners', 'recipients' (a dict of {"group": {"id": GID}}),
+                'heading', 'startTimestamp', 'endTimestamp' (in datetime.isoformat).
 
         Returns
         -------
         json results of post command
 
         """
-        if not self.events:
-            await self.get_events()
-        for event in self.events:
-            if event["id"] == uid:
-                break
-
-        url = f"{self.api_url}sponds/{uid}"
-
         base_event: dict = {
             "heading": None,
             "description": None,
@@ -358,37 +356,39 @@ class Spond(_SpondBase):
             "autoAccept": False,
             "payment": {},
             "attachments": [],
-            "tasks": {
-                "openTasks": [],
-                "assignedTasks": [
-                    {
-                        "name": None,
-                        "description": "",
-                        "type": "ASSIGNED",
-                        "id": None,
-                        "adultsOnly": True,
-                        "assignments": {"memberIds": [], "profiles": [], "remove": []},
-                    }
-                ],
-            },
+            "recipients": {"group": {"id": None}},
+            "tasks": {"openTasks": [], "assignedTasks": []},
         }
+        data = dict(base_event)
 
         if not self.events:
             await self.get_events()
         for event in self.events:
             if event["id"] == uid:
-                base_event.update(event)
-                url = f"{self.API_BASE_URL}sponds/{uid}"
+                data.update(event)
+                url = f"{self.api_url}sponds/{uid}"
                 break
         else:
-            errmsg = f"No event with id='{uid}' existing"
-            raise ValueError(errmsg)
+            # No event of that id, create a new one (id to be set by Spond)
+            if (
+                len(updates.get("owners", [])) < 1
+                or updates["owners"][0].get("id") is None
+            ):
+                errmsg = '"owners" need to have a valid user id'
+                raise ValueError(errmsg)
+            if (
+                "recipients" not in updates
+                or updates["recipients"].get("group").get("id") is None
+            ):
+                errmsg = '"recipients" need to contain a "group" with valid id'
+                raise ValueError(errmsg)
+            updates.pop("id", None)
+            url = f"{self.api_url}sponds"
 
-        for key in base_event:
+        for key in data:
             if updates.get(key) is not None:
-                base_event[key] = updates[key]
+                data[key] = updates[key]
 
-        data = dict(base_event)
         async with self.clientsession.post(
             url, json=data, headers=self.auth_headers
         ) as r:
