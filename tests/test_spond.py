@@ -80,25 +80,25 @@ async def test_get_event__happy_path(mock_events, mock_token):
 
 @pytest.mark.asyncio
 async def test_get_event__no_match_raises_exception(mock_events, mock_token):
-    """Test that a non-matched `id` raises IndexError."""
+    """Test that a non-matched `id` raises KeyError."""
 
     s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
     s.events = mock_events
     s.token = mock_token
 
-    with pytest.raises(IndexError):
+    with pytest.raises(KeyError):
         await s.get_event("ID3")
 
 
 @pytest.mark.asyncio
 async def test_get_event__blank_id_match_raises_exception(mock_events, mock_token):
-    """Test that a blank `id` raises IndexError."""
+    """Test that a blank `id` raises KeyError."""
 
     s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
     s.events = mock_events
     s.token = mock_token
 
-    with pytest.raises(IndexError):
+    with pytest.raises(KeyError):
         await s.get_event("")
 
 
@@ -119,25 +119,25 @@ async def test_get_group__happy_path(mock_groups, mock_token):
 
 @pytest.mark.asyncio
 async def test_get_group__no_match_raises_exception(mock_groups, mock_token):
-    """Test that a non-matched `id` raises IndexError."""
+    """Test that a non-matched `id` raises KeyError."""
 
     s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
     s.groups = mock_groups
     s.token = mock_token
 
-    with pytest.raises(IndexError):
+    with pytest.raises(KeyError):
         await s.get_group("ID3")
 
 
 @pytest.mark.asyncio
 async def test_get_group__blank_id_raises_exception(mock_groups, mock_token):
-    """Test that a blank `id` raises IndexError."""
+    """Test that a blank `id` raises KeyError."""
 
     s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
     s.groups = mock_groups
     s.token = mock_token
 
-    with pytest.raises(IndexError):
+    with pytest.raises(KeyError):
         await s.get_group("")
 
 

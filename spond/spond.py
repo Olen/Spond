@@ -61,8 +61,7 @@ class Spond(_SpondBase):
 
         Raises
         ------
-        IndexError if no group is matched.
-
+        KeyError if no group is matched.
         """
 
         if not self.groups:
@@ -70,8 +69,8 @@ class Spond(_SpondBase):
         for group in self.groups:
             if group["id"] == uid:
                 return group
-        errmsg = f"No group with id='{uid}'"
-        raise IndexError(errmsg)
+        errmsg = f"No group with id='{uid}'."
+        raise KeyError(errmsg)
 
     @_SpondBase.require_authentication
     async def get_person(self, user: str) -> dict:
@@ -88,6 +87,10 @@ class Spond(_SpondBase):
         Returns
         -------
         Member or guardian's details.
+
+        Raises
+        ------
+        KeyError if no person is matched.
         """
         if not self.groups:
             await self.get_groups()
@@ -113,7 +116,8 @@ class Spond(_SpondBase):
                             )
                         ):
                             return guardian
-        raise IndexError
+        errmsg = f"No person matched with identifier '{user}'."
+        raise KeyError(errmsg)
 
     @_SpondBase.require_authentication
     async def get_messages(self) -> list[dict]:
@@ -299,7 +303,7 @@ class Spond(_SpondBase):
 
         Raises
         ------
-        IndexError if no event is matched.
+        KeyError if no event is matched.
 
         """
         if not self.events:
@@ -307,8 +311,8 @@ class Spond(_SpondBase):
         for event in self.events:
             if event["id"] == uid:
                 return event
-        errmsg = f"No event with id='{uid}'"
-        raise IndexError(errmsg)
+        errmsg = f"No event with id='{uid}'."
+        raise KeyError(errmsg)
 
     @_SpondBase.require_authentication
     async def update_event(self, uid: str, updates: dict):
