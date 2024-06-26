@@ -4,7 +4,7 @@
 Simple, unofficial library with some example scripts to access data from the [Spond](https://spond.com/) API.
 
 > [!WARNING]
-> Version 0.99 is a test with some breaking changes before doing release 1.0 really soon.
+> Notice breaking changes from versions =< 0.99 to versions >= 1.0
 
 ## Install
 
