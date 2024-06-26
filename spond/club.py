@@ -6,7 +6,7 @@ from .base import _SpondBase
 
 
 class SpondClub(_SpondBase):
-    def __init__(self, username, password):
+    def __init__(self, username: str, password: str) -> None:
         super().__init__(username, password, "https://api.spond.com/club/v1/")
         self.transactions = None
 
