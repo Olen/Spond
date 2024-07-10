@@ -124,7 +124,7 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        list[dict] or None
+        list[DictFromJSON] or None
             A list of chats, each represented as a dictionary, or None if no chats are available.
 
         """
