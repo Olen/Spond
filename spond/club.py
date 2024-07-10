@@ -13,9 +13,9 @@ class SpondClub(_SpondBase):
     @_SpondBase.require_authentication
     async def get_transactions(
         self, club_id: str, skip: Optional[int] = None, max_items: int = 100
-    ) -> list[dict]:
+    ) -> Optional[list[dict]]:
         """
-        Retrieves a list of transactions/payments for a specified club.
+        Retrieve transactions/payments for a specified club.
 
         Parameters
         ----------
@@ -33,8 +33,9 @@ class SpondClub(_SpondBase):
 
         Returns
         -------
-        list of dict
-            A list of transactions, each represented as a dictionary.
+        list[dict] or None
+            A list of transactions, each represented as a dictionary, or None if no transactions are available.
+
         """
         if self.transactions is None:
             self.transactions = []
