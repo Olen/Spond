@@ -25,6 +25,7 @@ class Spond(_SpondBase):
         self.auth = None
         self.groups = None
         self.events = None
+        self.messages = None
 
     async def login_chat(self) -> None:
         api_chat_url = f"{self.api_url}chat"
@@ -118,9 +119,19 @@ class Spond(_SpondBase):
         raise KeyError(errmsg)
 
     @_SpondBase.require_authentication
-    async def get_messages(self) -> Optional[DictFromJSON]:
+    async def get_messages(
+        self,
+        max_chats: int = 100,
+    ) -> Optional[DictFromJSON]:
         """
         Retrieve messages (chats).
+
+        Parameters
+        ----------
+        max_chats : int, optional
+            Set a limit on the number of chats returned.
+            For performance reasons, defaults to 100.
+            Uses `max` API parameter.
 
         Returns
         -------
@@ -130,9 +141,14 @@ class Spond(_SpondBase):
         """
         if not self.auth:
             await self.login_chat()
-        url = f"{self.chat_url}/chats/?max=10"
-        async with self.clientsession.get(url, headers={"auth": self.auth}) as r:
-            return await r.json()
+        url = f"{self.chat_url}/chats/"
+        async with self.clientsession.get(
+            url,
+            headers={"auth": self.auth},
+            params={"max": str(max_chats)},
+        ) as r:
+            self.messages = await r.json()
+        return self.messages
 
     @_SpondBase.require_authentication
     async def _continue_chat(self, chat_id: str, text: str):

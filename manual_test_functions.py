@@ -33,13 +33,13 @@ async def main() -> None:
     for i, event in enumerate(events):
         print(f"[{i}] {_event_summary(event)}")
 
-    # MESSAGES
+    # CHATS (MESSAGES)
 
-    print("\nGetting up to 10 messages...")
-    messages = await s.get_messages()
-    print(f"{len(messages)} messages:")
-    for i, message in enumerate(messages):
-        print(f"[{i}] {_message_summary(message)}")
+    print("\nGetting up to 10 chats...")
+    messages = await s.get_messages(max_chats=10)
+    print(f"{len(messages)} chats:")
+    for i, chat in enumerate(messages):
+        print(f"[{i}] {_message_summary(chat)}")
 
     # ATTENDANCE EXPORT
 
