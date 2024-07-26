@@ -25,6 +25,7 @@ target-version = "py39"  # Ruff doesn't yet infer this from [tool.poetry.depende
 
 [tool.ruff.lint]
 select = [
+    "ANN201",  # Missing return type annotation for public function
     "E",  # pycodestyle
     "F",  # Pyflakes
     "I",  # isort
@@ -36,13 +37,18 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-# Don't try to sort imports in example files, as non-existent `config` module causes
-# issues in CI
-"attendance.py" = ["I001"]
-"groups.py" = ["I001"]
-"ical.py" = ["I001"]
+# In example files:
+# - Don't try to sort imports as non-existent `config` module causes issues in CI
+# - Don't enforce type annotations for now
+"attendance.py" = ["ANN", "I001"]
+"groups.py" = ["ANN", "I001"]
+"ical.py" = ["ANN", "I001"]
 "manual_test_functions.py" = ["I001"]
-"transactions.py" = ["I001"]
+"transactions.py" = ["ANN", "I001"]
+
+# In tests:
+# - Don't enforce type annotations for now
+"**/{tests}/*" = ["ANN"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
