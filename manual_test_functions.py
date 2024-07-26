@@ -13,6 +13,10 @@ from spond import club, spond
 
 DUMMY_ID = "DUMMY_ID"
 
+MAX_EVENTS = 10
+MAX_CHATS = 10
+MAX_TRANSACTIONS = 10
+
 
 async def main() -> None:
     s = spond.Spond(username=username, password=password)
@@ -27,19 +31,19 @@ async def main() -> None:
 
     # EVENTS
 
-    print("\nGetting up to 10 events...")
-    events = await s.get_events(max_events=10)
+    print(f"\nGetting up to {MAX_EVENTS} events...")
+    events = await s.get_events(max_events=MAX_EVENTS)
     print(f"{len(events)} events:")
     for i, event in enumerate(events):
         print(f"[{i}] {_event_summary(event)}")
 
-    # MESSAGES
+    # CHATS (MESSAGES)
 
-    print("\nGetting up to 10 messages...")
-    messages = await s.get_messages()
-    print(f"{len(messages)} messages:")
-    for i, message in enumerate(messages):
-        print(f"[{i}] {_message_summary(message)}")
+    print(f"\nGetting up to {MAX_CHATS} chats...")
+    messages = await s.get_messages(max_chats=MAX_CHATS)
+    print(f"{len(messages)} chats:")
+    for i, chat in enumerate(messages):
+        print(f"[{i}] {_message_summary(chat)}")
 
     # ATTENDANCE EXPORT
 
@@ -56,8 +60,10 @@ async def main() -> None:
 
     # SPOND CLUB
     sc = club.SpondClub(username=username, password=password)
-    print("\nGetting up to 10 transactions...")
-    transactions = await sc.get_transactions(club_id=club_id, max_items=10)
+    print(f"\nGetting up to {MAX_TRANSACTIONS} transactions...")
+    transactions = await sc.get_transactions(
+        club_id=club_id, max_items=MAX_TRANSACTIONS
+    )
     print(f"{len(transactions)} transactions:")
     for i, t in enumerate(transactions):
         print(f"[{i}] {_transaction_summary(t)}")
