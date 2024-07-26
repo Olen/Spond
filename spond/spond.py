@@ -180,7 +180,7 @@ class Spond(_SpondBase):
         user: str | None = None,
         group_uid: str | None = None,
         chat_id: str | None = None,
-    ):
+    ) -> JSONDict:
         """
         Start a new chat or continue an existing one.
 
@@ -330,7 +330,7 @@ class Spond(_SpondBase):
         return await self._get_entity(self._EVENT, uid)
 
     @_SpondBase.require_authentication
-    async def update_event(self, uid: str, updates: JSONDict):
+    async def update_event(self, uid: str, updates: JSONDict) -> JSONDict | None:
         """
         Updates an existing event.
 
