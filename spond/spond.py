@@ -9,6 +9,8 @@ from .base import _SpondBase
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from . import DictFromJSON
+
 
 class Spond(_SpondBase):
 
@@ -32,7 +34,7 @@ class Spond(_SpondBase):
         self.auth = result["auth"]
 
     @_SpondBase.require_authentication
-    async def get_groups(self) -> Optional[list[dict]]:
+    async def get_groups(self) -> Optional[DictFromJSON]:
         """
         Retrieve all groups, subject to authenticated user's access.
 
@@ -47,7 +49,7 @@ class Spond(_SpondBase):
             self.groups = await r.json()
             return self.groups
 
-    async def get_group(self, uid: str) -> dict:
+    async def get_group(self, uid: str) -> DictFromJSON:
         """
         Get a group by unique ID.
         Subject to authenticated user's access.
@@ -69,7 +71,7 @@ class Spond(_SpondBase):
         return await self._get_entity(self._GROUP, uid)
 
     @_SpondBase.require_authentication
-    async def get_person(self, user: str) -> dict:
+    async def get_person(self, user: str) -> DictFromJSON:
         """
         Get a member or guardian by matching various identifiers.
         Subject to authenticated user's access.
@@ -116,7 +118,7 @@ class Spond(_SpondBase):
         raise KeyError(errmsg)
 
     @_SpondBase.require_authentication
-    async def get_messages(self) -> Optional[list[dict]]:
+    async def get_messages(self) -> Optional[DictFromJSON]:
         """
         Retrieve messages (chats).
 
@@ -225,7 +227,7 @@ class Spond(_SpondBase):
         max_start: Optional[datetime] = None,
         min_start: Optional[datetime] = None,
         max_events: int = 100,
-    ) -> Optional[list[dict]]:
+    ) -> Optional[DictFromJSON]:
         """
         Retrieve events.
 
@@ -291,7 +293,7 @@ class Spond(_SpondBase):
             self.events = await r.json()
             return self.events
 
-    async def get_event(self, uid: str) -> dict:
+    async def get_event(self, uid: str) -> DictFromJSON:
         """
         Get an event by unique ID.
         Subject to authenticated user's access.

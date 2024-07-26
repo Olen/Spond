@@ -9,7 +9,7 @@ import asyncio
 import tempfile
 
 from config import club_id, password, username
-from spond import club, spond
+from spond import DictFromJSON, club, spond
 
 DUMMY_ID = "DUMMY_ID"
 
@@ -64,11 +64,11 @@ async def main() -> None:
     await sc.clientsession.close()
 
 
-def _group_summary(group) -> str:
+def _group_summary(group: DictFromJSON) -> str:
     return f"id='{group['id']}', " f"name='{group['name']}'"
 
 
-def _event_summary(event) -> str:
+def _event_summary(event: DictFromJSON) -> str:
     return (
         f"id='{event['id']}', "
         f"heading='{event['heading']}', "
@@ -76,7 +76,7 @@ def _event_summary(event) -> str:
     )
 
 
-def _message_summary(message) -> str:
+def _message_summary(message: DictFromJSON) -> str:
     return (
         f"id='{message['id']}', "
         f"timestamp='{message['message']['timestamp']}', "
@@ -84,7 +84,7 @@ def _message_summary(message) -> str:
     )
 
 
-def _transaction_summary(transaction) -> str:
+def _transaction_summary(transaction: DictFromJSON) -> str:
     return (
         f"id='{transaction['id']}', "
         f"timestamp='{transaction['paidAt']}', "
