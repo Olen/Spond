@@ -194,18 +194,16 @@ class Spond(_SpondBase):
         if self.auth is None:
             await self.login_chat()
 
-        if chat_id is not None:
+        if chat_id:
             return self._continue_chat(chat_id, text)
-        elif group_uid is None or user is None:
-            return {
-                "error": "wrong usage, group_id and user_id needed or continue chat with chat_id"
-            }
+        if not group_uid or not user:
+            return {"error": "wrong usage, group_id and user_id needed or continue chat with chat_id"}
 
         user_obj = await self.get_person(user)
-        if user_obj:
-            user_uid = user_obj["profile"]["id"]
-        else:
+        if not user_obj:
             return False
+
+        user_uid = user_obj["profile"]["id"]
         url = f"{self.chat_url}/messages"
         data = {
             "text": text,
@@ -339,7 +337,7 @@ class Spond(_SpondBase):
 
         url = f"{self.api_url}sponds/{uid}"
 
-        base_event: dict = {
+        base_event = {
             "heading": None,
             "description": None,
             "spondType": "EVENT",
@@ -379,14 +377,10 @@ class Spond(_SpondBase):
         }
 
         for key in base_event:
-            if event.get(key) is not None and not updates.get(key):
-                base_event[key] = event[key]
-            elif updates.get(key) is not None:
-                base_event[key] = updates[key]
+            base_event[key] = updates.get(key, event.get(key))
 
-        data = dict(base_event)
         async with self.clientsession.post(
-            url, json=data, headers=self.auth_headers
+            url, json=base_event, headers=self.auth_headers
         ) as r:
             self.events_update = await r.json()
             return self.events
@@ -407,8 +401,7 @@ class Spond(_SpondBase):
         """
         url = f"{self.api_url}sponds/{uid}/export"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
-            output_data = await r.read()
-            return output_data
+            return await r.read()
 
     @_SpondBase.require_authentication
     async def change_response(self, uid: str, user: str, payload: dict) -> dict:
