@@ -9,6 +9,8 @@ from .base import _SpondBase
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from . import DictFromJSON
+
 
 class Spond(_SpondBase):
 
@@ -32,22 +34,22 @@ class Spond(_SpondBase):
         self.auth = result["auth"]
 
     @_SpondBase.require_authentication
-    async def get_groups(self) -> list[dict]:
+    async def get_groups(self) -> Optional[DictFromJSON]:
         """
-        Get all groups.
-        Subject to authenticated user's access.
+        Retrieve all groups, subject to authenticated user's access.
 
         Returns
         -------
-        list of dict
-            Groups; each group is a dict.
+        list[dict] or None
+            A list of groups, each represented as a dictionary, or None if no groups are available.
+
         """
         url = f"{self.api_url}groups/"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
             self.groups = await r.json()
             return self.groups
 
-    async def get_group(self, uid: str) -> dict:
+    async def get_group(self, uid: str) -> DictFromJSON:
         """
         Get a group by unique ID.
         Subject to authenticated user's access.
@@ -69,7 +71,7 @@ class Spond(_SpondBase):
         return await self._get_entity(self._GROUP, uid)
 
     @_SpondBase.require_authentication
-    async def get_person(self, user: str) -> dict:
+    async def get_person(self, user: str) -> DictFromJSON:
         """
         Get a member or guardian by matching various identifiers.
         Subject to authenticated user's access.
@@ -116,7 +118,16 @@ class Spond(_SpondBase):
         raise KeyError(errmsg)
 
     @_SpondBase.require_authentication
-    async def get_messages(self) -> list[dict]:
+    async def get_messages(self) -> Optional[DictFromJSON]:
+        """
+        Retrieve messages (chats).
+
+        Returns
+        -------
+        list[DictFromJSON] or None
+            A list of chats, each represented as a dictionary, or None if no chats are available.
+
+        """
         if not self.auth:
             await self.login_chat()
         url = f"{self.chat_url}/chats/?max=10"
@@ -183,18 +194,16 @@ class Spond(_SpondBase):
         if self.auth is None:
             await self.login_chat()
 
-        if chat_id is not None:
+        if chat_id:
             return self._continue_chat(chat_id, text)
-        elif group_uid is None or user is None:
-            return {
-                "error": "wrong usage, group_id and user_id needed or continue chat with chat_id"
-            }
+        if not group_uid or not user:
+            return {"error": "wrong usage, group_id and user_id needed or continue chat with chat_id"}
 
         user_obj = await self.get_person(user)
-        if user_obj:
-            user_uid = user_obj["profile"]["id"]
-        else:
+        if not user_obj:
             return False
+
+        user_uid = user_obj["profile"]["id"]
         url = f"{self.chat_url}/messages"
         data = {
             "text": text,
@@ -216,10 +225,9 @@ class Spond(_SpondBase):
         max_start: Optional[datetime] = None,
         min_start: Optional[datetime] = None,
         max_events: int = 100,
-    ) -> list[dict]:
+    ) -> Optional[DictFromJSON]:
         """
-        Get events.
-        Subject to authenticated user's access.
+        Retrieve events.
 
         Parameters
         ----------
@@ -255,8 +263,9 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        list of dict
-            Events; each event is a dict.
+        list[dict] or None
+            A list of events, each represented as a dictionary, or None if no events are available.
+
         """
         url = f"{self.api_url}sponds/"
         params = {
@@ -282,7 +291,7 @@ class Spond(_SpondBase):
             self.events = await r.json()
             return self.events
 
-    async def get_event(self, uid: str) -> dict:
+    async def get_event(self, uid: str) -> DictFromJSON:
         """
         Get an event by unique ID.
         Subject to authenticated user's access.
@@ -328,7 +337,7 @@ class Spond(_SpondBase):
 
         url = f"{self.api_url}sponds/{uid}"
 
-        base_event: dict = {
+        base_event = {
             "heading": None,
             "description": None,
             "spondType": "EVENT",
@@ -368,14 +377,10 @@ class Spond(_SpondBase):
         }
 
         for key in base_event:
-            if event.get(key) is not None and not updates.get(key):
-                base_event[key] = event[key]
-            elif updates.get(key) is not None:
-                base_event[key] = updates[key]
+            base_event[key] = updates.get(key, event.get(key))
 
-        data = dict(base_event)
         async with self.clientsession.post(
-            url, json=data, headers=self.auth_headers
+            url, json=base_event, headers=self.auth_headers
         ) as r:
             self.events_update = await r.json()
             return self.events
@@ -396,8 +401,7 @@ class Spond(_SpondBase):
         """
         url = f"{self.api_url}sponds/{uid}/export"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
-            output_data = await r.read()
-            return output_data
+            return await r.read()
 
     @_SpondBase.require_authentication
     async def change_response(self, uid: str, user: str, payload: dict) -> dict:
