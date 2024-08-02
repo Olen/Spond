@@ -9,7 +9,7 @@ import asyncio
 import tempfile
 
 from config import club_id, password, username
-from spond import club, spond
+from spond import DictFromJSON, club, spond
 
 DUMMY_ID = "DUMMY_ID"
 
@@ -33,13 +33,13 @@ async def main() -> None:
     for i, event in enumerate(events):
         print(f"[{i}] {_event_summary(event)}")
 
-    # MESSAGES
+    # CHATS (MESSAGES)
 
-    print("\nGetting up to 10 messages...")
-    messages = await s.get_messages()
-    print(f"{len(messages)} messages:")
-    for i, message in enumerate(messages):
-        print(f"[{i}] {_message_summary(message)}")
+    print("\nGetting up to 10 chats...")
+    messages = await s.get_messages(max_chats=10)
+    print(f"{len(messages)} chats:")
+    for i, chat in enumerate(messages):
+        print(f"[{i}] {_message_summary(chat)}")
 
     # ATTENDANCE EXPORT
 
@@ -64,11 +64,11 @@ async def main() -> None:
     await sc.clientsession.close()
 
 
-def _group_summary(group) -> str:
+def _group_summary(group: DictFromJSON) -> str:
     return f"id='{group['id']}', " f"name='{group['name']}'"
 
 
-def _event_summary(event) -> str:
+def _event_summary(event: DictFromJSON) -> str:
     return (
         f"id='{event['id']}', "
         f"heading='{event['heading']}', "
@@ -76,7 +76,7 @@ def _event_summary(event) -> str:
     )
 
 
-def _message_summary(message) -> str:
+def _message_summary(message: DictFromJSON) -> str:
     return (
         f"id='{message['id']}', "
         f"timestamp='{message['message']['timestamp']}', "
@@ -84,7 +84,7 @@ def _message_summary(message) -> str:
     )
 
 
-def _transaction_summary(transaction) -> str:
+def _transaction_summary(transaction: DictFromJSON) -> str:
     return (
         f"id='{transaction['id']}', "
         f"timestamp='{transaction['paidAt']}', "

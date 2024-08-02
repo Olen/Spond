@@ -9,6 +9,8 @@ from .base import _SpondBase
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from . import DictFromJSON
+
 
 class Spond(_SpondBase):
 
@@ -23,6 +25,7 @@ class Spond(_SpondBase):
         self.auth = None
         self.groups = None
         self.events = None
+        self.messages = None
 
     async def login_chat(self) -> None:
         api_chat_url = f"{self.api_url}chat"
@@ -32,22 +35,22 @@ class Spond(_SpondBase):
         self.auth = result["auth"]
 
     @_SpondBase.require_authentication
-    async def get_groups(self) -> list[dict]:
+    async def get_groups(self) -> Optional[DictFromJSON]:
         """
-        Get all groups.
-        Subject to authenticated user's access.
+        Retrieve all groups, subject to authenticated user's access.
 
         Returns
         -------
-        list of dict
-            Groups; each group is a dict.
+        list[dict] or None
+            A list of groups, each represented as a dictionary, or None if no groups are available.
+
         """
         url = f"{self.api_url}groups/"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
             self.groups = await r.json()
             return self.groups
 
-    async def get_group(self, uid: str) -> dict:
+    async def get_group(self, uid: str) -> DictFromJSON:
         """
         Get a group by unique ID.
         Subject to authenticated user's access.
@@ -69,7 +72,7 @@ class Spond(_SpondBase):
         return await self._get_entity(self._GROUP, uid)
 
     @_SpondBase.require_authentication
-    async def get_person(self, user: str) -> dict:
+    async def get_person(self, user: str) -> DictFromJSON:
         """
         Get a member or guardian by matching various identifiers.
         Subject to authenticated user's access.
@@ -116,12 +119,36 @@ class Spond(_SpondBase):
         raise KeyError(errmsg)
 
     @_SpondBase.require_authentication
-    async def get_messages(self) -> list[dict]:
+    async def get_messages(
+        self,
+        max_chats: int = 100,
+    ) -> Optional[DictFromJSON]:
+        """
+        Retrieve messages (chats).
+
+        Parameters
+        ----------
+        max_chats : int, optional
+            Set a limit on the number of chats returned.
+            For performance reasons, defaults to 100.
+            Uses `max` API parameter.
+
+        Returns
+        -------
+        list[dict] or None
+            A list of chats, each represented as a dictionary, or None if no chats are available.
+
+        """
         if not self.auth:
             await self.login_chat()
-        url = f"{self.chat_url}/chats/?max=10"
-        async with self.clientsession.get(url, headers={"auth": self.auth}) as r:
-            return await r.json()
+        url = f"{self.chat_url}/chats/"
+        async with self.clientsession.get(
+            url,
+            headers={"auth": self.auth},
+            params={"max": str(max_chats)},
+        ) as r:
+            self.messages = await r.json()
+        return self.messages
 
     @_SpondBase.require_authentication
     async def _continue_chat(self, chat_id: str, text: str):
@@ -216,10 +243,9 @@ class Spond(_SpondBase):
         max_start: Optional[datetime] = None,
         min_start: Optional[datetime] = None,
         max_events: int = 100,
-    ) -> list[dict]:
+    ) -> Optional[DictFromJSON]:
         """
-        Get events.
-        Subject to authenticated user's access.
+        Retrieve events.
 
         Parameters
         ----------
@@ -255,8 +281,9 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        list of dict
-            Events; each event is a dict.
+        list[dict] or None
+            A list of events, each represented as a dictionary, or None if no events are available.
+
         """
         url = f"{self.api_url}sponds/"
         params = {
@@ -282,7 +309,7 @@ class Spond(_SpondBase):
             self.events = await r.json()
             return self.events
 
-    async def get_event(self, uid: str) -> dict:
+    async def get_event(self, uid: str) -> DictFromJSON:
         """
         Get an event by unique ID.
         Subject to authenticated user's access.
