@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 from .base import _SpondBase
 
@@ -13,6 +13,9 @@ if TYPE_CHECKING:
 class Spond(_SpondBase):
 
     DT_FORMAT = "%Y-%m-%dT00:00:00.000Z"
+
+    _EVENT: ClassVar = "event"
+    _GROUP: ClassVar = "group"
 
     def __init__(self, username: str, password: str) -> None:
         super().__init__(username, password, "https://api.spond.com/core/v1/")
@@ -44,7 +47,6 @@ class Spond(_SpondBase):
             self.groups = await r.json()
             return self.groups
 
-    @_SpondBase.require_authentication
     async def get_group(self, uid: str) -> dict:
         """
         Get a group by unique ID.
@@ -62,15 +64,9 @@ class Spond(_SpondBase):
         Raises
         ------
         KeyError if no group is matched.
-        """
 
-        if not self.groups:
-            await self.get_groups()
-        for group in self.groups:
-            if group["id"] == uid:
-                return group
-        errmsg = f"No group with id='{uid}'."
-        raise KeyError(errmsg)
+        """
+        return await self._get_entity(self._GROUP, uid)
 
     @_SpondBase.require_authentication
     async def get_person(self, user: str) -> dict:
@@ -286,7 +282,6 @@ class Spond(_SpondBase):
             self.events = await r.json()
             return self.events
 
-    @_SpondBase.require_authentication
     async def get_event(self, uid: str) -> dict:
         """
         Get an event by unique ID.
@@ -306,13 +301,7 @@ class Spond(_SpondBase):
         KeyError if no event is matched.
 
         """
-        if not self.events:
-            await self.get_events()
-        for event in self.events:
-            if event["id"] == uid:
-                return event
-        errmsg = f"No event with id='{uid}'."
-        raise KeyError(errmsg)
+        return await self._get_entity(self._EVENT, uid)
 
     @_SpondBase.require_authentication
     async def update_event(self, uid: str, updates: dict):
@@ -434,3 +423,45 @@ class Spond(_SpondBase):
             url, headers=self.auth_headers, json=payload
         ) as r:
             return await r.json()
+
+    @_SpondBase.require_authentication
+    async def _get_entity(self, entity_type: str, uid: str) -> dict:
+        """
+        Get an event or group by unique ID.
+
+        Subject to authenticated user's access.
+
+        Parameters
+        ----------
+        entity_type : str
+            self._EVENT or self._GROUP.
+        uid : str
+            UID of the entity.
+
+        Returns
+        -------
+        Details of the entity.
+
+        Raises
+        ------
+        KeyError if no entity is matched.
+        NotImplementedError if no/unsupported entity type is specified.
+
+        """
+        if entity_type == self._EVENT:
+            if not self.events:
+                await self.get_events()
+            entities = self.events
+        elif entity_type == self._GROUP:
+            if not self.groups:
+                await self.get_groups()
+            entities = self.groups
+        else:
+            err_msg = f"Entity type '{entity_type}' is not supported."
+            raise NotImplementedError(err_msg)
+
+        for entity in entities:
+            if entity["id"] == uid:
+                return entity
+        errmsg = f"No {entity_type} with id='{uid}'."
+        raise KeyError(errmsg)
