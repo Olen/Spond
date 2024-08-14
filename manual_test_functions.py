@@ -1,6 +1,6 @@
 """Use Spond 'get' functions to summarise available data.
 
-Intended as a simple end-to-end test for assurance when making changes, where there are s
+Intended as a simple end-to-end test for assurance when making changes, where there are
 gaps in test suite coverage.
 
 Doesn't yet use `get_person(user)` or any `send_`, `update_` methods."""
@@ -40,10 +40,10 @@ async def main() -> None:
     # CHATS (MESSAGES)
 
     print(f"\nGetting up to {MAX_CHATS} chats...")
-    messages = await s.get_messages(max_chats=MAX_CHATS)
-    print(f"{len(messages)} chats:")
-    for i, chat in enumerate(messages):
-        print(f"[{i}] {_message_summary(chat)}")
+    chats = await s.get_messages(max_chats=MAX_CHATS)
+    print(f"{len(chats)} chats:")
+    for i, chat in enumerate(chats):
+        print(f"[{i}] {_chat_summary(chat)}")
 
     # ATTENDANCE EXPORT
 
@@ -82,11 +82,12 @@ def _event_summary(event) -> str:
     )
 
 
-def _message_summary(message) -> str:
+def _chat_summary(chat) -> str:
+    msg_text = chat["message"].get("text", "")
     return (
-        f"id='{message['id']}', "
-        f"timestamp='{message['message']['timestamp']}', "
-        f"text={_abbreviate(message['message']['text'] if message['message'].get('text') else '', length=64)}, "
+        f"id='{chat['id']}', "
+        f"timestamp='{chat['message']['timestamp']}', "
+        f"text={_abbreviate(msg_text, length=64)}"
     )
 
 
