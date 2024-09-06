@@ -7,9 +7,13 @@ Doesn't yet use `get_person(user)` or any `send_`, `update_` methods."""
 
 import asyncio
 import tempfile
+from typing import TYPE_CHECKING
 
 from config import club_id, password, username
 from spond import club, spond
+
+if TYPE_CHECKING:
+    from spond import JSONDict
 
 DUMMY_ID = "DUMMY_ID"
 
@@ -70,11 +74,11 @@ async def main() -> None:
     await sc.clientsession.close()
 
 
-def _group_summary(group) -> str:
+def _group_summary(group: JSONDict) -> str:
     return f"id='{group['id']}', " f"name='{group['name']}'"
 
 
-def _event_summary(event) -> str:
+def _event_summary(event: JSONDict) -> str:
     return (
         f"id='{event['id']}', "
         f"heading='{event['heading']}', "
@@ -82,7 +86,7 @@ def _event_summary(event) -> str:
     )
 
 
-def _chat_summary(chat) -> str:
+def _chat_summary(chat: JSONDict) -> str:
     msg_text = chat["message"].get("text", "")
     return (
         f"id='{chat['id']}', "
@@ -91,7 +95,7 @@ def _chat_summary(chat) -> str:
     )
 
 
-def _transaction_summary(transaction) -> str:
+def _transaction_summary(transaction: JSONDict) -> str:
     return (
         f"id='{transaction['id']}', "
         f"timestamp='{transaction['paidAt']}', "

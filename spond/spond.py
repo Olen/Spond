@@ -23,9 +23,9 @@ class Spond(_SpondBase):
         super().__init__(username, password, "https://api.spond.com/core/v1/")
         self.chat_url = None
         self.auth = None
-        self.groups = None
-        self.events = None
-        self.messages = None
+        self.groups: list[JSONDict] | None = None
+        self.events: list[JSONDict] | None = None
+        self.messages: list[JSONDict] | None = None
 
     async def login_chat(self) -> None:
         api_chat_url = f"{self.api_url}chat"

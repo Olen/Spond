@@ -1,11 +1,18 @@
 """Test suite for Spond class."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from spond.base import _SpondBase
 from spond.spond import Spond
+
+if TYPE_CHECKING:
+    from spond import JSONDict
+
 
 MOCK_USERNAME, MOCK_PASSWORD = "MOCK_USERNAME", "MOCK_PASSWORD"
 MOCK_TOKEN = "MOCK_TOKEN"
@@ -36,7 +43,7 @@ def mock_payload():
 class TestEventMethods:
 
     @pytest.fixture
-    def mock_events(self):
+    def mock_events(self) -> list[JSONDict]:
         """Mock a minimal list of events."""
         return [
             {
@@ -50,7 +57,7 @@ class TestEventMethods:
         ]
 
     @pytest.mark.asyncio
-    async def test_get_event__happy_path(self, mock_events, mock_token):
+    async def test_get_event__happy_path(self, mock_events: list[JSONDict], mock_token):
         """Test that a valid `id` returns the matching event."""
 
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
@@ -64,7 +71,9 @@ class TestEventMethods:
         }
 
     @pytest.mark.asyncio
-    async def test_get_event__no_match_raises_exception(self, mock_events, mock_token):
+    async def test_get_event__no_match_raises_exception(
+        self, mock_events: list[JSONDict], mock_token
+    ):
         """Test that a non-matched `id` raises KeyError."""
 
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
@@ -76,7 +85,7 @@ class TestEventMethods:
 
     @pytest.mark.asyncio
     async def test_get_event__blank_id_match_raises_exception(
-        self, mock_events, mock_token
+        self, mock_events: list[JSONDict], mock_token
     ):
         """Test that a blank `id` raises KeyError."""
 
@@ -122,7 +131,7 @@ class TestEventMethods:
 
 class TestGroupMethods:
     @pytest.fixture
-    def mock_groups(self):
+    def mock_groups(self) -> list[JSONDict]:
         """Mock a minimal list of groups."""
         return [
             {
@@ -136,7 +145,7 @@ class TestGroupMethods:
         ]
 
     @pytest.mark.asyncio
-    async def test_get_group__happy_path(self, mock_groups, mock_token):
+    async def test_get_group__happy_path(self, mock_groups: list[JSONDict], mock_token):
         """Test that a valid `id` returns the matching group."""
 
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
@@ -150,7 +159,9 @@ class TestGroupMethods:
         }
 
     @pytest.mark.asyncio
-    async def test_get_group__no_match_raises_exception(self, mock_groups, mock_token):
+    async def test_get_group__no_match_raises_exception(
+        self, mock_groups: list[JSONDict], mock_token
+    ):
         """Test that a non-matched `id` raises KeyError."""
 
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
@@ -161,7 +172,9 @@ class TestGroupMethods:
             await s.get_group("ID3")
 
     @pytest.mark.asyncio
-    async def test_get_group__blank_id_raises_exception(self, mock_groups, mock_token):
+    async def test_get_group__blank_id_raises_exception(
+        self, mock_groups: list[JSONDict], mock_token
+    ):
         """Test that a blank `id` raises KeyError."""
 
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)

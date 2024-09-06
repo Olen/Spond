@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 class SpondClub(_SpondBase):
     def __init__(self, username: str, password: str) -> None:
         super().__init__(username, password, "https://api.spond.com/club/v1/")
-        self.transactions = None
+        self.transactions: list[JSONDict] | None = None
 
     @_SpondBase.require_authentication
     async def get_transactions(
