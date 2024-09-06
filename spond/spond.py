@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
+from ._event_template import _EVENT_TEMPLATE
 from .base import _SpondBase
 
 if TYPE_CHECKING:
@@ -16,6 +17,7 @@ class Spond(_SpondBase):
 
     _API_BASE_URL: ClassVar = "https://api.spond.com/core/v1/"
     _DT_FORMAT: ClassVar = "%Y-%m-%dT00:00:00.000Z"
+    _EVENT_TEMPLATE: ClassVar = _EVENT_TEMPLATE
     _EVENT: ClassVar = "event"
     _GROUP: ClassVar = "group"
 
@@ -353,54 +355,15 @@ class Spond(_SpondBase):
         event = await self._get_entity(self._EVENT, uid)
         url = f"{self.api_url}sponds/{uid}"
 
-        base_event: JSONDict = {
-            "heading": None,
-            "description": None,
-            "spondType": "EVENT",
-            "startTimestamp": None,
-            "endTimestamp": None,
-            "commentsDisabled": False,
-            "maxAccepted": 0,
-            "rsvpDate": None,
-            "location": {
-                "id": None,
-                "feature": None,
-                "address": None,
-                "latitude": None,
-                "longitude": None,
-            },
-            "owners": [{"id": None}],
-            "visibility": "INVITEES",
-            "participantsHidden": False,
-            "autoReminderType": "DISABLED",
-            "autoAccept": False,
-            "payment": {},
-            "attachments": [],
-            "id": None,
-            "tasks": {
-                "openTasks": [],
-                "assignedTasks": [
-                    {
-                        "name": None,
-                        "description": "",
-                        "type": "ASSIGNED",
-                        "id": None,
-                        "adultsOnly": True,
-                        "assignments": {"memberIds": [], "profiles": [], "remove": []},
-                    }
-                ],
-            },
-        }
-
+        base_event = self._EVENT_TEMPLATE.copy()
         for key in base_event:
             if event.get(key) is not None and not updates.get(key):
                 base_event[key] = event[key]
             elif updates.get(key) is not None:
                 base_event[key] = updates[key]
 
-        data = dict(base_event)
         async with self.clientsession.post(
-            url, json=data, headers=self.auth_headers
+            url, json=base_event, headers=self.auth_headers
         ) as r:
             self.events_update = await r.json()
             return self.events
