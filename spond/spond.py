@@ -9,6 +9,8 @@ from .base import _SpondBase
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from . import JSONDict
+
 
 class Spond(_SpondBase):
 
@@ -33,13 +35,13 @@ class Spond(_SpondBase):
         self.auth = result["auth"]
 
     @_SpondBase.require_authentication
-    async def get_groups(self) -> list[dict] | None:
+    async def get_groups(self) -> list[JSONDict] | None:
         """
         Retrieve all groups, subject to authenticated user's access.
 
         Returns
         -------
-        list[dict] or None
+        list[JSONDict] or None
             A list of groups, each represented as a dictionary, or None if no groups
             are available.
 
@@ -49,7 +51,7 @@ class Spond(_SpondBase):
             self.groups = await r.json()
             return self.groups
 
-    async def get_group(self, uid: str) -> dict:
+    async def get_group(self, uid: str) -> JSONDict:
         """
         Get a group by unique ID.
         Subject to authenticated user's access.
@@ -61,7 +63,8 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        Details of the group.
+        JSONDict
+            Details of the group.
 
         Raises
         ------
@@ -71,7 +74,7 @@ class Spond(_SpondBase):
         return await self._get_entity(self._GROUP, uid)
 
     @_SpondBase.require_authentication
-    async def get_person(self, user: str) -> dict:
+    async def get_person(self, user: str) -> JSONDict:
         """
         Get a member or guardian by matching various identifiers.
         Subject to authenticated user's access.
@@ -84,7 +87,8 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        Member or guardian's details.
+        JSONDict
+            Member or guardian's details.
 
         Raises
         ------
@@ -118,7 +122,7 @@ class Spond(_SpondBase):
         raise KeyError(errmsg)
 
     @_SpondBase.require_authentication
-    async def get_messages(self, max_chats: int = 100) -> list[dict] | None:
+    async def get_messages(self, max_chats: int = 100) -> list[JSONDict] | None:
         """
         Retrieve messages (chats).
 
@@ -131,7 +135,7 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        list[dict] or None
+        list[JSONDict] or None
             A list of chats, each represented as a dictionary, or None if no chats
             are available.
 
@@ -148,7 +152,7 @@ class Spond(_SpondBase):
         return self.messages
 
     @_SpondBase.require_authentication
-    async def _continue_chat(self, chat_id: str, text: str):
+    async def _continue_chat(self, chat_id: str, text: str) -> JSONDict:
         """
         Send a given text in an existing given chat.
         Subject to authenticated user's access.
@@ -163,7 +167,7 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        dict
+        JSONDict
              Result of the sending.
         """
         if not self.auth:
@@ -240,7 +244,7 @@ class Spond(_SpondBase):
         max_start: datetime | None = None,
         min_start: datetime | None = None,
         max_events: int = 100,
-    ) -> list[dict] | None:
+    ) -> list[JSONDict] | None:
         """
         Retrieve events.
 
@@ -278,7 +282,7 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        list[dict] or None
+       list[JSONDict] or None
             A list of events, each represented as a dictionary, or None if no events
             are available.
 
@@ -307,7 +311,7 @@ class Spond(_SpondBase):
             self.events = await r.json()
             return self.events
 
-    async def get_event(self, uid: str) -> dict:
+    async def get_event(self, uid: str) -> JSONDict:
         """
         Get an event by unique ID.
         Subject to authenticated user's access.
@@ -319,7 +323,8 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        Details of the event.
+        JSONDict
+            Details of the event.
 
         Raises
         ------
@@ -329,7 +334,7 @@ class Spond(_SpondBase):
         return await self._get_entity(self._EVENT, uid)
 
     @_SpondBase.require_authentication
-    async def update_event(self, uid: str, updates: dict):
+    async def update_event(self, uid: str, updates: JSONDict):
         """
         Updates an existing event.
 
@@ -337,7 +342,7 @@ class Spond(_SpondBase):
         ----------
         uid : str
            UID of the event.
-        updates : dict
+        updates : JSONDict
             The changes. e.g. if you want to change the description -> {'description': "New Description with changes"}
 
         Returns
@@ -353,7 +358,7 @@ class Spond(_SpondBase):
 
         url = f"{self.api_url}sponds/{uid}"
 
-        base_event: dict = {
+        base_event: JSONDict = {
             "heading": None,
             "description": None,
             "spondType": "EVENT",
@@ -425,7 +430,7 @@ class Spond(_SpondBase):
             return output_data
 
     @_SpondBase.require_authentication
-    async def change_response(self, uid: str, user: str, payload: dict) -> dict:
+    async def change_response(self, uid: str, user: str, payload: JSONDict) -> JSONDict:
         """change a user's response for an event
 
         Parameters
@@ -436,12 +441,13 @@ class Spond(_SpondBase):
         user : str
             UID of the user
 
-        payload : dict
+        payload : JSONDict
             user response to event, e.g. {"accepted": "true"}
 
         Returns
         -------
-            json: event["responses"] with updated info
+        JSONDict
+            event["responses"] with updated info
         """
         url = f"{self.api_url}sponds/{uid}/responses/{user}"
         async with self.clientsession.put(
@@ -450,7 +456,7 @@ class Spond(_SpondBase):
             return await r.json()
 
     @_SpondBase.require_authentication
-    async def _get_entity(self, entity_type: str, uid: str) -> dict:
+    async def _get_entity(self, entity_type: str, uid: str) -> JSONDict:
         """
         Get an event or group by unique ID.
 
@@ -465,7 +471,8 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        Details of the entity.
+        JSONDict
+            Details of the entity.
 
         Raises
         ------
