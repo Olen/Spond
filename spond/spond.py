@@ -282,9 +282,9 @@ class Spond(_SpondBase):
 
         Returns
         -------
-       list[JSONDict] or None
-            A list of events, each represented as a dictionary, or None if no events
-            are available.
+        list[JSONDict] or None
+             A list of events, each represented as a dictionary, or None if no events
+             are available.
 
         """
         url = f"{self.api_url}sponds/"
