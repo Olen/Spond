@@ -384,8 +384,7 @@ class Spond(_SpondBase):
         """
         url = f"{self.api_url}sponds/{uid}/export"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
-            output_data = await r.read()
-            return output_data
+            return await r.read()
 
     @_SpondBase.require_authentication
     async def change_response(self, uid: str, user: str, payload: JSONDict) -> JSONDict:
