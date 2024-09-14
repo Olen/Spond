@@ -7,13 +7,9 @@ Doesn't yet use `get_person(user)` or any `send_`, `update_` methods."""
 
 import asyncio
 import tempfile
-from typing import TYPE_CHECKING
 
 from config import club_id, password, username
-from spond import club, spond
-
-if TYPE_CHECKING:
-    from spond import JSONDict
+from spond import JSONDict, club, spond
 
 DUMMY_ID = "DUMMY_ID"
 
