@@ -1,6 +1,6 @@
 """Use Spond 'get' functions to summarise available data.
 
-Intended as a simple end-to-end test for assurance when making changes, where there are s
+Intended as a simple end-to-end test for assurance when making changes, where there are
 gaps in test suite coverage.
 
 Doesn't yet use `get_person(user)` or any `send_`, `update_` methods."""
@@ -9,9 +9,13 @@ import asyncio
 import tempfile
 
 from config import club_id, password, username
-from spond import club, spond
+from spond import JSONDict, club, spond
 
 DUMMY_ID = "DUMMY_ID"
+
+MAX_EVENTS = 10
+MAX_CHATS = 10
+MAX_TRANSACTIONS = 10
 
 
 async def main() -> None:
@@ -27,19 +31,19 @@ async def main() -> None:
 
     # EVENTS
 
-    print("\nGetting up to 10 events...")
-    events = await s.get_events(max_events=10)
+    print(f"\nGetting up to {MAX_EVENTS} events...")
+    events = await s.get_events(max_events=MAX_EVENTS)
     print(f"{len(events)} events:")
     for i, event in enumerate(events):
         print(f"[{i}] {_event_summary(event)}")
 
-    # MESSAGES
+    # CHATS (MESSAGES)
 
-    print("\nGetting up to 10 messages...")
-    messages = await s.get_messages()
-    print(f"{len(messages)} messages:")
-    for i, message in enumerate(messages):
-        print(f"[{i}] {_message_summary(message)}")
+    print(f"\nGetting up to {MAX_CHATS} chats...")
+    chats = await s.get_messages(max_chats=MAX_CHATS)
+    print(f"{len(chats)} chats:")
+    for i, chat in enumerate(chats):
+        print(f"[{i}] {_chat_summary(chat)}")
 
     # ATTENDANCE EXPORT
 
@@ -56,19 +60,21 @@ async def main() -> None:
 
     # SPOND CLUB
     sc = club.SpondClub(username=username, password=password)
-    print("\nGetting up to 10 transactions...")
-    transactions = await sc.get_transactions(club_id=club_id, max_items=10)
+    print(f"\nGetting up to {MAX_TRANSACTIONS} transactions...")
+    transactions = await sc.get_transactions(
+        club_id=club_id, max_items=MAX_TRANSACTIONS
+    )
     print(f"{len(transactions)} transactions:")
     for i, t in enumerate(transactions):
         print(f"[{i}] {_transaction_summary(t)}")
     await sc.clientsession.close()
 
 
-def _group_summary(group) -> str:
+def _group_summary(group: JSONDict) -> str:
     return f"id='{group['id']}', " f"name='{group['name']}'"
 
 
-def _event_summary(event) -> str:
+def _event_summary(event: JSONDict) -> str:
     return (
         f"id='{event['id']}', "
         f"heading='{event['heading']}', "
@@ -76,15 +82,16 @@ def _event_summary(event) -> str:
     )
 
 
-def _message_summary(message) -> str:
+def _chat_summary(chat: JSONDict) -> str:
+    msg_text = chat["message"].get("text", "")
     return (
-        f"id='{message['id']}', "
-        f"timestamp='{message['message']['timestamp']}', "
-        f"text={_abbreviate(message['message']['text'] if message['message'].get('text') else '', length=64)}, "
+        f"id='{chat['id']}', "
+        f"timestamp='{chat['message']['timestamp']}', "
+        f"text={_abbreviate(msg_text, length=64)}"
     )
 
 
-def _transaction_summary(transaction) -> str:
+def _transaction_summary(transaction: JSONDict) -> str:
     return (
         f"id='{transaction['id']}', "
         f"timestamp='{transaction['paidAt']}', "

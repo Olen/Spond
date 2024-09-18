@@ -50,8 +50,9 @@ Optional parameters allow filtering by start and end datetimes, group and subgro
 ### get_person()
 Get a member's details.
 
-### get_messages()
-Get all your messages.
+### get_messages(max_chats=100)
+Get chats, limited to 100 by default.
+Optional parameter allows more events to be returned.
 
 ### send_message(text, user=None, group_uid=None, chat_id=None)
 Send a message with content `text`.

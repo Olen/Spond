@@ -1,19 +1,22 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from .base import _SpondBase
+
+if TYPE_CHECKING:
+    from . import JSONDict
 
 
 class SpondClub(_SpondBase):
     def __init__(self, username: str, password: str) -> None:
         super().__init__(username, password, "https://api.spond.com/club/v1/")
-        self.transactions = None
+        self.transactions: list[JSONDict] | None = None
 
     @_SpondBase.require_authentication
     async def get_transactions(
-        self, club_id: str, skip: Optional[int] = None, max_items: int = 100
-    ) -> list[dict]:
+        self, club_id: str, skip: int | None = None, max_items: int = 100
+    ) -> list[JSONDict]:
         """
         Retrieves a list of transactions/payments for a specified club.
 
@@ -33,7 +36,7 @@ class SpondClub(_SpondBase):
 
         Returns
         -------
-        list of dict
+        list[JSONDict]
             A list of transactions, each represented as a dictionary.
         """
         if self.transactions is None:

@@ -2,24 +2,30 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, ClassVar
 
 from .base import _SpondBase
 
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from . import JSONDict
+
 
 class Spond(_SpondBase):
 
     DT_FORMAT = "%Y-%m-%dT00:00:00.000Z"
 
+    _EVENT: ClassVar = "event"
+    _GROUP: ClassVar = "group"
+
     def __init__(self, username: str, password: str) -> None:
         super().__init__(username, password, "https://api.spond.com/core/v1/")
         self.chat_url = None
         self.auth = None
-        self.groups = None
-        self.events = None
+        self.groups: list[JSONDict] | None = None
+        self.events: list[JSONDict] | None = None
+        self.messages: list[JSONDict] | None = None
 
     async def login_chat(self) -> None:
         api_chat_url = f"{self.api_url}chat"
@@ -29,23 +35,23 @@ class Spond(_SpondBase):
         self.auth = result["auth"]
 
     @_SpondBase.require_authentication
-    async def get_groups(self) -> list[dict]:
+    async def get_groups(self) -> list[JSONDict] | None:
         """
-        Get all groups.
-        Subject to authenticated user's access.
+        Retrieve all groups, subject to authenticated user's access.
 
         Returns
         -------
-        list of dict
-            Groups; each group is a dict.
+        list[JSONDict] or None
+            A list of groups, each represented as a dictionary, or None if no groups
+            are available.
+
         """
         url = f"{self.api_url}groups/"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
             self.groups = await r.json()
             return self.groups
 
-    @_SpondBase.require_authentication
-    async def get_group(self, uid: str) -> dict:
+    async def get_group(self, uid: str) -> JSONDict:
         """
         Get a group by unique ID.
         Subject to authenticated user's access.
@@ -57,23 +63,18 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        Details of the group.
+        JSONDict
+            Details of the group.
 
         Raises
         ------
         KeyError if no group is matched.
-        """
 
-        if not self.groups:
-            await self.get_groups()
-        for group in self.groups:
-            if group["id"] == uid:
-                return group
-        errmsg = f"No group with id='{uid}'."
-        raise KeyError(errmsg)
+        """
+        return await self._get_entity(self._GROUP, uid)
 
     @_SpondBase.require_authentication
-    async def get_person(self, user: str) -> dict:
+    async def get_person(self, user: str) -> JSONDict:
         """
         Get a member or guardian by matching various identifiers.
         Subject to authenticated user's access.
@@ -86,7 +87,8 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        Member or guardian's details.
+        JSONDict
+            Member or guardian's details.
 
         Raises
         ------
@@ -120,15 +122,37 @@ class Spond(_SpondBase):
         raise KeyError(errmsg)
 
     @_SpondBase.require_authentication
-    async def get_messages(self) -> list[dict]:
+    async def get_messages(self, max_chats: int = 100) -> list[JSONDict] | None:
+        """
+        Retrieve messages (chats).
+
+        Parameters
+        ----------
+        max_chats : int, optional
+            Set a limit on the number of chats returned.
+            For performance reasons, defaults to 100.
+            Uses `max` API parameter.
+
+        Returns
+        -------
+        list[JSONDict] or None
+            A list of chats, each represented as a dictionary, or None if no chats
+            are available.
+
+        """
         if not self.auth:
             await self.login_chat()
-        url = f"{self.chat_url}/chats/?max=10"
-        async with self.clientsession.get(url, headers={"auth": self.auth}) as r:
-            return await r.json()
+        url = f"{self.chat_url}/chats/"
+        async with self.clientsession.get(
+            url,
+            headers={"auth": self.auth},
+            params={"max": str(max_chats)},
+        ) as r:
+            self.messages = await r.json()
+        return self.messages
 
     @_SpondBase.require_authentication
-    async def _continue_chat(self, chat_id: str, text: str):
+    async def _continue_chat(self, chat_id: str, text: str) -> JSONDict:
         """
         Send a given text in an existing given chat.
         Subject to authenticated user's access.
@@ -143,7 +167,7 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        dict
+        JSONDict
              Result of the sending.
         """
         if not self.auth:
@@ -157,9 +181,9 @@ class Spond(_SpondBase):
     async def send_message(
         self,
         text: str,
-        user: Optional[str] = None,
-        group_uid: Optional[str] = None,
-        chat_id: Optional[str] = None,
+        user: str | None = None,
+        group_uid: str | None = None,
+        chat_id: str | None = None,
     ):
         """
         Start a new chat or continue an existing one.
@@ -212,18 +236,17 @@ class Spond(_SpondBase):
     @_SpondBase.require_authentication
     async def get_events(
         self,
-        group_id: Optional[str] = None,
-        subgroup_id: Optional[str] = None,
+        group_id: str | None = None,
+        subgroup_id: str | None = None,
         include_scheduled: bool = False,
-        max_end: Optional[datetime] = None,
-        min_end: Optional[datetime] = None,
-        max_start: Optional[datetime] = None,
-        min_start: Optional[datetime] = None,
+        max_end: datetime | None = None,
+        min_end: datetime | None = None,
+        max_start: datetime | None = None,
+        min_start: datetime | None = None,
         max_events: int = 100,
-    ) -> list[dict]:
+    ) -> list[JSONDict] | None:
         """
-        Get events.
-        Subject to authenticated user's access.
+        Retrieve events.
 
         Parameters
         ----------
@@ -259,8 +282,10 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        list of dict
-            Events; each event is a dict.
+        list[JSONDict] or None
+             A list of events, each represented as a dictionary, or None if no events
+             are available.
+
         """
         url = f"{self.api_url}sponds/"
         params = {
@@ -286,8 +311,7 @@ class Spond(_SpondBase):
             self.events = await r.json()
             return self.events
 
-    @_SpondBase.require_authentication
-    async def get_event(self, uid: str) -> dict:
+    async def get_event(self, uid: str) -> JSONDict:
         """
         Get an event by unique ID.
         Subject to authenticated user's access.
@@ -299,23 +323,18 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        Details of the event.
+        JSONDict
+            Details of the event.
 
         Raises
         ------
         KeyError if no event is matched.
 
         """
-        if not self.events:
-            await self.get_events()
-        for event in self.events:
-            if event["id"] == uid:
-                return event
-        errmsg = f"No event with id='{uid}'."
-        raise KeyError(errmsg)
+        return await self._get_entity(self._EVENT, uid)
 
     @_SpondBase.require_authentication
-    async def update_event(self, uid: str, updates: dict):
+    async def update_event(self, uid: str, updates: JSONDict):
         """
         Updates an existing event.
 
@@ -323,7 +342,7 @@ class Spond(_SpondBase):
         ----------
         uid : str
            UID of the event.
-        updates : dict
+        updates : JSONDict
             The changes. e.g. if you want to change the description -> {'description': "New Description with changes"}
 
         Returns
@@ -339,7 +358,7 @@ class Spond(_SpondBase):
 
         url = f"{self.api_url}sponds/{uid}"
 
-        base_event: dict = {
+        base_event: JSONDict = {
             "heading": None,
             "description": None,
             "spondType": "EVENT",
@@ -411,7 +430,7 @@ class Spond(_SpondBase):
             return output_data
 
     @_SpondBase.require_authentication
-    async def change_response(self, uid: str, user: str, payload: dict) -> dict:
+    async def change_response(self, uid: str, user: str, payload: JSONDict) -> JSONDict:
         """change a user's response for an event
 
         Parameters
@@ -422,15 +441,59 @@ class Spond(_SpondBase):
         user : str
             UID of the user
 
-        payload : dict
+        payload : JSONDict
             user response to event, e.g. {"accepted": "true"}
 
         Returns
         -------
-            json: event["responses"] with updated info
+        JSONDict
+            event["responses"] with updated info
         """
         url = f"{self.api_url}sponds/{uid}/responses/{user}"
         async with self.clientsession.put(
             url, headers=self.auth_headers, json=payload
         ) as r:
             return await r.json()
+
+    @_SpondBase.require_authentication
+    async def _get_entity(self, entity_type: str, uid: str) -> JSONDict:
+        """
+        Get an event or group by unique ID.
+
+        Subject to authenticated user's access.
+
+        Parameters
+        ----------
+        entity_type : str
+            self._EVENT or self._GROUP.
+        uid : str
+            UID of the entity.
+
+        Returns
+        -------
+        JSONDict
+            Details of the entity.
+
+        Raises
+        ------
+        KeyError if no entity is matched.
+        NotImplementedError if no/unsupported entity type is specified.
+
+        """
+        if entity_type == self._EVENT:
+            if not self.events:
+                await self.get_events()
+            entities = self.events
+        elif entity_type == self._GROUP:
+            if not self.groups:
+                await self.get_groups()
+            entities = self.groups
+        else:
+            err_msg = f"Entity type '{entity_type}' is not supported."
+            raise NotImplementedError(err_msg)
+
+        for entity in entities:
+            if entity["id"] == uid:
+                return entity
+        errmsg = f"No {entity_type} with id='{uid}'."
+        raise KeyError(errmsg)
