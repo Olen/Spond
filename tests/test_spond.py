@@ -41,7 +41,6 @@ def mock_payload():
 
 
 class TestEventMethods:
-
     @pytest.fixture
     def mock_events(self) -> list[JSONDict]:
         """Mock a minimal list of events."""
