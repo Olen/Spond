@@ -27,6 +27,9 @@ target-version = "py39"  # Ruff doesn't yet infer this from [tool.poetry.depende
 # Enable only isort rules
 select = ["I"]
 
+[tool.ruff.lint.per-file-ignores]
+"/*.py" = ["I"]
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
