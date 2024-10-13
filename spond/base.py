@@ -2,7 +2,7 @@ from abc import ABC
 from typing import Callable
 
 import aiohttp
-
+import dummy_import
 
 class AuthenticationError(Exception):
     pass
