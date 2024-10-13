@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import csv
 import os
+import re
 from datetime import date
 
 from config import password, username
@@ -38,8 +39,11 @@ async def main():
         os.makedirs("./exports")
 
     for e in events:
+        filename = f"{e['startTimestamp']}-{e['heading']}.csv"
+        filename = str(filename).strip().replace(" ", "_")
+        filename = re.sub(r"(?u)[^-\w.]", "", filename)
         filename = os.path.join(
-            "./exports", f"{e['startTimestamp']}-{e['heading']}.csv"
+            "./exports", filename
         )
         with open(filename, "w", newline="") as csvfile:
             spamwriter = csv.writer(
@@ -50,8 +54,12 @@ async def main():
                 ["Start", "End", "Description", "Name", "Answer", "Organizer"]
             )
             for o in e["owners"]:
-                person = await s.get_person(o["id"])
-                full_name = person["firstName"] + " " + person["lastName"]
+                try:
+                    person = await s.get_person(o["id"])                    
+                except KeyError:
+                    full_name = o["id"]
+                else:
+                    full_name = person["firstName"] + " " + person["lastName"]
                 spamwriter.writerow(
                     [
                         e["startTimestamp"],
@@ -64,8 +72,12 @@ async def main():
                 )
             if args.a is True:
                 for r in e["responses"]["acceptedIds"]:
-                    person = await s.get_person(r)
-                    full_name = person["firstName"] + " " + person["lastName"]
+                    try:
+                        person = await s.get_person(r)                    
+                    except KeyError:
+                        full_name = r
+                    else:
+                        full_name = person["firstName"] + " " + person["lastName"]
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
@@ -76,8 +88,12 @@ async def main():
                         ]
                     )
                 for r in e["responses"]["declinedIds"]:
-                    person = await s.get_person(r)
-                    full_name = person["firstName"] + " " + person["lastName"]
+                    try:
+                        person = await s.get_person(r)                    
+                    except KeyError:
+                        full_name = r
+                    else:
+                        full_name = person["firstName"] + " " + person["lastName"]
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
@@ -88,8 +104,12 @@ async def main():
                         ]
                     )
                 for r in e["responses"]["unansweredIds"]:
-                    person = await s.get_person(r)
-                    full_name = person["firstName"] + " " + person["lastName"]
+                    try:
+                        person = await s.get_person(r)                    
+                    except KeyError:
+                        full_name = r
+                    else:
+                        full_name = person["firstName"] + " " + person["lastName"]
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
@@ -100,8 +120,12 @@ async def main():
                         ]
                     )
                 for r in e["responses"]["unconfirmedIds"]:
-                    person = await s.get_person(r)
-                    full_name = person["firstName"] + " " + person["lastName"]
+                    try:
+                        person = await s.get_person(r)                    
+                    except KeyError:
+                        full_name = r
+                    else:
+                        full_name = person["firstName"] + " " + person["lastName"]
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
@@ -112,8 +136,12 @@ async def main():
                         ]
                     )
                 for r in e["responses"]["waitinglistIds"]:
-                    person = await s.get_person(r)
-                    full_name = person["firstName"] + " " + person["lastName"]
+                    try:
+                        person = await s.get_person(r)                   
+                    except KeyError:
+                        full_name = r
+                    else:
+                        full_name = person["firstName"] + " " + person["lastName"]
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
