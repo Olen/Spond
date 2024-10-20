@@ -55,7 +55,7 @@ async def main():
             )
             for o in e["owners"]:
                 try:
-                    person = await s.get_person(o["id"])                    
+                    person = await s.get_person(o["id"])
                 except KeyError:
                     full_name = o["id"]
                 else:
@@ -73,7 +73,7 @@ async def main():
             if args.a is True:
                 for r in e["responses"]["acceptedIds"]:
                     try:
-                        person = await s.get_person(r)                    
+                        person = await s.get_person(r)
                     except KeyError:
                         full_name = r
                     else:
@@ -89,7 +89,7 @@ async def main():
                     )
                 for r in e["responses"]["declinedIds"]:
                     try:
-                        person = await s.get_person(r)                    
+                        person = await s.get_person(r)
                     except KeyError:
                         full_name = r
                     else:
@@ -105,7 +105,7 @@ async def main():
                     )
                 for r in e["responses"]["unansweredIds"]:
                     try:
-                        person = await s.get_person(r)                    
+                        person = await s.get_person(r)
                     except KeyError:
                         full_name = r
                     else:
@@ -121,7 +121,7 @@ async def main():
                     )
                 for r in e["responses"]["unconfirmedIds"]:
                     try:
-                        person = await s.get_person(r)                    
+                        person = await s.get_person(r)
                     except KeyError:
                         full_name = r
                     else:
@@ -137,7 +137,7 @@ async def main():
                     )
                 for r in e["responses"]["waitinglistIds"]:
                     try:
-                        person = await s.get_person(r)                   
+                        person = await s.get_person(r)
                     except KeyError:
                         full_name = r
                     else:
