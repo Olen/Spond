@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import csv
 import os
+import re
 from datetime import date
 
 from config import password, username
@@ -31,16 +32,15 @@ args = parser.parse_args()
 
 
 async def main():
-    s = spond.Spond(username=username, password=password)
-    events = await s.get_events(min_start=args.f, max_start=args.t)
+    session = spond.Spond(username=username, password=password)
+    events = await session.get_events(min_start=args.f, max_start=args.t)
 
     if not os.path.exists("./exports"):
         os.makedirs("./exports")
 
     for e in events:
-        filename = os.path.join(
-            "./exports", f"{e['startTimestamp']}-{e['heading']}.csv"
-        )
+        base_filename = _sanitise_filename(f"{e['startTimestamp']}-{e['heading']}")
+        filename = os.path.join("./exports", base_filename + ".csv")
         with open(filename, "w", newline="") as csvfile:
             spamwriter = csv.writer(
                 csvfile, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
@@ -50,81 +50,91 @@ async def main():
                 ["Start", "End", "Description", "Name", "Answer", "Organizer"]
             )
             for o in e["owners"]:
-                person = await s.get_person(o["id"])
-                full_name = person["firstName"] + " " + person["lastName"]
+                name = await _derive_member_name(session, o["id"])
                 spamwriter.writerow(
                     [
                         e["startTimestamp"],
                         e["endTimestamp"],
                         e["heading"],
-                        full_name,
+                        name,
                         o["response"],
                         "X",
                     ]
                 )
             if args.a is True:
                 for r in e["responses"]["acceptedIds"]:
-                    person = await s.get_person(r)
-                    full_name = person["firstName"] + " " + person["lastName"]
+                    name = await _derive_member_name(session, r)
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            full_name,
+                            name,
                             "accepted",
                         ]
                     )
                 for r in e["responses"]["declinedIds"]:
-                    person = await s.get_person(r)
-                    full_name = person["firstName"] + " " + person["lastName"]
+                    name = await _derive_member_name(session, r)
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            full_name,
+                            name,
                             "declined",
                         ]
                     )
                 for r in e["responses"]["unansweredIds"]:
-                    person = await s.get_person(r)
-                    full_name = person["firstName"] + " " + person["lastName"]
+                    name = await _derive_member_name(session, r)
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            full_name,
+                            name,
                             "unanswered",
                         ]
                     )
                 for r in e["responses"]["unconfirmedIds"]:
-                    person = await s.get_person(r)
-                    full_name = person["firstName"] + " " + person["lastName"]
+                    name = await _derive_member_name(session, r)
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            full_name,
+                            name,
                             "unconfirmed",
                         ]
                     )
                 for r in e["responses"]["waitinglistIds"]:
-                    person = await s.get_person(r)
-                    full_name = person["firstName"] + " " + person["lastName"]
+                    name = await _derive_member_name(session, r)
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            full_name,
+                            name,
                             "waitinglist",
                         ]
                     )
 
-    await s.clientsession.close()
+    await session.clientsession.close()
+
+
+async def _derive_member_name(spond_session, member_id: str) -> str:
+    """Return full name, or id if member can't be matched."""
+    try:
+        person = await spond_session.get_person(member_id)
+    except KeyError:
+        return member_id
+    return f"{person['firstName']} {person['lastName']}"
+
+
+def _sanitise_filename(input_str: str) -> str:
+    """Strip leading/trailing whitespace, spaces to underscores, remove chars not
+    alphanumeric/underscore/hyphen."""
+    output_str = str(input_str).strip().replace(" ", "_")
+    return re.sub(r"(?u)[^-\w.]", "", output_str)
 
 
 loop = asyncio.new_event_loop()
