@@ -32,8 +32,8 @@ args = parser.parse_args()
 
 
 async def main():
-    s = spond.Spond(username=username, password=password)
-    events = await s.get_events(min_start=args.f, max_start=args.t)
+    session = spond.Spond(username=username, password=password)
+    events = await session.get_events(min_start=args.f, max_start=args.t)
 
     if not os.path.exists("./exports"):
         os.makedirs("./exports")
@@ -50,105 +50,84 @@ async def main():
                 ["Start", "End", "Description", "Name", "Answer", "Organizer"]
             )
             for o in e["owners"]:
-                try:
-                    person = await s.get_person(o["id"])
-                except KeyError:
-                    full_name = o["id"]
-                else:
-                    full_name = person["firstName"] + " " + person["lastName"]
+                name = await _derive_member_name(session, o["id"])
                 spamwriter.writerow(
                     [
                         e["startTimestamp"],
                         e["endTimestamp"],
                         e["heading"],
-                        full_name,
+                        name,
                         o["response"],
                         "X",
                     ]
                 )
             if args.a is True:
                 for r in e["responses"]["acceptedIds"]:
-                    try:
-                        person = await s.get_person(r)
-                    except KeyError:
-                        full_name = r
-                    else:
-                        full_name = person["firstName"] + " " + person["lastName"]
+                    name = await _derive_member_name(session, r)
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            full_name,
+                            name,
                             "accepted",
                         ]
                     )
                 for r in e["responses"]["declinedIds"]:
-                    try:
-                        person = await s.get_person(r)
-                    except KeyError:
-                        full_name = r
-                    else:
-                        full_name = person["firstName"] + " " + person["lastName"]
+                    name = await _derive_member_name(session, r)
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            full_name,
+                            name,
                             "declined",
                         ]
                     )
                 for r in e["responses"]["unansweredIds"]:
-                    try:
-                        person = await s.get_person(r)
-                    except KeyError:
-                        full_name = r
-                    else:
-                        full_name = person["firstName"] + " " + person["lastName"]
+                    name = await _derive_member_name(session, r)
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            full_name,
+                            name,
                             "unanswered",
                         ]
                     )
                 for r in e["responses"]["unconfirmedIds"]:
-                    try:
-                        person = await s.get_person(r)
-                    except KeyError:
-                        full_name = r
-                    else:
-                        full_name = person["firstName"] + " " + person["lastName"]
+                    name = await _derive_member_name(session, r)
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            full_name,
+                            name,
                             "unconfirmed",
                         ]
                     )
                 for r in e["responses"]["waitinglistIds"]:
-                    try:
-                        person = await s.get_person(r)
-                    except KeyError:
-                        full_name = r
-                    else:
-                        full_name = person["firstName"] + " " + person["lastName"]
+                    name = await _derive_member_name(session, r)
                     spamwriter.writerow(
                         [
                             e["startTimestamp"],
                             e["endTimestamp"],
                             e["heading"],
-                            full_name,
+                            name,
                             "waitinglist",
                         ]
                     )
 
-    await s.clientsession.close()
+    await session.clientsession.close()
+
+
+async def _derive_member_name(spond_session, member_id: str) -> str:
+    """Return full name, or id if member can't be matched."""
+    try:
+        person = await spond_session.get_person(member_id)
+    except KeyError:
+        return member_id
+    return f"{person['firstName']} {person['lastName']}"
 
 
 def _sanitise_filename(input_str: str) -> str:
