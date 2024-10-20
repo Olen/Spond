@@ -39,12 +39,8 @@ async def main():
         os.makedirs("./exports")
 
     for e in events:
-        filename = f"{e['startTimestamp']}-{e['heading']}.csv"
-        filename = str(filename).strip().replace(" ", "_")
-        filename = re.sub(r"(?u)[^-\w.]", "", filename)
-        filename = os.path.join(
-            "./exports", filename
-        )
+        base_filename = _sanitise_chars(f"{e['startTimestamp']}-{e['heading']}")
+        filename = os.path.join("./exports", base_filename + ".csv")
         with open(filename, "w", newline="") as csvfile:
             spamwriter = csv.writer(
                 csvfile, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
@@ -153,6 +149,11 @@ async def main():
                     )
 
     await s.clientsession.close()
+
+
+def _sanitise_chars(input_str: str) -> str:
+    output_str = str(input_str).strip().replace(" ", "_")
+    return re.sub(r"(?u)[^-\w.]", "", output_str)
 
 
 loop = asyncio.new_event_loop()
