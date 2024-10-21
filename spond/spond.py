@@ -350,12 +350,7 @@ class Spond(_SpondBase):
         json results of post command
 
         """
-        if not self.events:
-            await self.get_events()
-        for event in self.events:
-            if event["id"] == uid:
-                break
-
+        event = await self._get_entity(self._EVENT, uid)
         url = f"{self.api_url}sponds/{uid}"
 
         base_event: JSONDict = {
