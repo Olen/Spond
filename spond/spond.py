@@ -100,28 +100,23 @@ class Spond(_SpondBase):
             await self.get_groups()
         for group in self.groups:
             for member in group["members"]:
-                if (
-                    member["id"] == user
-                    or ("email" in member and member["email"]) == user
-                    or member["firstName"] + " " + member["lastName"] == user
-                    or ("profile" in member and member["profile"]["id"] == user)
-                ):
+                if self._match_person(member, user):
                     return member
                 if "guardians" in member:
                     for guardian in member["guardians"]:
-                        if (
-                            guardian["id"] == user
-                            or ("email" in guardian and guardian["email"]) == user
-                            or guardian["firstName"] + " " + guardian["lastName"]
-                            == user
-                            or (
-                                "profile" in guardian
-                                and guardian["profile"]["id"] == user
-                            )
-                        ):
+                        if self._match_person(guardian, user):
                             return guardian
         errmsg = f"No person matched with identifier '{user}'."
         raise KeyError(errmsg)
+
+    @staticmethod
+    def _match_person(person: JSONDict, match_str: str) -> bool:
+        return (
+            person["id"] == match_str
+            or ("email" in person and person["email"]) == match_str
+            or person["firstName"] + " " + person["lastName"] == match_str
+            or ("profile" in person and person["profile"]["id"] == match_str)
+        )
 
     @_SpondBase.require_authentication
     async def get_messages(self, max_chats: int = 100) -> list[JSONDict] | None:
