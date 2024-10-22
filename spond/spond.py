@@ -21,18 +21,18 @@ class Spond(_SpondBase):
 
     def __init__(self, username: str, password: str) -> None:
         super().__init__(username, password, "https://api.spond.com/core/v1/")
-        self.chat_url = None
-        self.auth = None
+        self._chat_url = None
+        self._auth = None
         self.groups: list[JSONDict] | None = None
         self.events: list[JSONDict] | None = None
         self.messages: list[JSONDict] | None = None
 
-    async def login_chat(self) -> None:
+    async def _login_chat(self) -> None:
         api_chat_url = f"{self.api_url}chat"
         r = await self.clientsession.post(api_chat_url, headers=self.auth_headers)
         result = await r.json()
-        self.chat_url = result["url"]
-        self.auth = result["auth"]
+        self._chat_url = result["url"]
+        self._auth = result["auth"]
 
     @_SpondBase.require_authentication
     async def get_groups(self) -> list[JSONDict] | None:
@@ -140,12 +140,12 @@ class Spond(_SpondBase):
             are available.
 
         """
-        if not self.auth:
-            await self.login_chat()
-        url = f"{self.chat_url}/chats/"
+        if not self._auth:
+            await self._login_chat()
+        url = f"{self._chat_url}/chats/"
         async with self.clientsession.get(
             url,
-            headers={"auth": self.auth},
+            headers={"auth": self._auth},
             params={"max": str(max_chats)},
         ) as r:
             self.messages = await r.json()
@@ -170,11 +170,11 @@ class Spond(_SpondBase):
         JSONDict
              Result of the sending.
         """
-        if not self.auth:
-            await self.login_chat()
-        url = f"{self.chat_url}/messages"
+        if not self._auth:
+            await self._login_chat()
+        url = f"{self._chat_url}/messages"
         data = {"chatId": chat_id, "text": text, "type": "TEXT"}
-        r = await self.clientsession.post(url, json=data, headers={"auth": self.auth})
+        r = await self.clientsession.post(url, json=data, headers={"auth": self._auth})
         return await r.json()
 
     @_SpondBase.require_authentication
@@ -208,8 +208,8 @@ class Spond(_SpondBase):
         dict
              Result of the sending.
         """
-        if self.auth is None:
-            await self.login_chat()
+        if self._auth is None:
+            await self._login_chat()
 
         if chat_id is not None:
             return self._continue_chat(chat_id, text)
@@ -223,14 +223,14 @@ class Spond(_SpondBase):
             user_uid = user_obj["profile"]["id"]
         else:
             return False
-        url = f"{self.chat_url}/messages"
+        url = f"{self._chat_url}/messages"
         data = {
             "text": text,
             "type": "TEXT",
             "recipient": user_uid,
             "groupId": group_uid,
         }
-        r = await self.clientsession.post(url, json=data, headers={"auth": self.auth})
+        r = await self.clientsession.post(url, json=data, headers={"auth": self._auth})
         return await r.json()
 
     @_SpondBase.require_authentication
