@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
 
 class Spond(_SpondBase):
-
     DT_FORMAT = "%Y-%m-%dT00:00:00.000Z"
 
     _EVENT: ClassVar = "event"
