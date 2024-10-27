@@ -3,9 +3,7 @@ from typing import Callable
 
 import aiohttp
 
-
-class AuthenticationError(Exception):
-    pass
+from spond import AuthenticationError
 
 
 class _SpondBase(ABC):
