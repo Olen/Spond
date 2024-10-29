@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
+from ._event_template import _EVENT_TEMPLATE
 from .base import _SpondBase
 
 if TYPE_CHECKING:
@@ -14,13 +15,14 @@ if TYPE_CHECKING:
 
 class Spond(_SpondBase):
 
-    DT_FORMAT = "%Y-%m-%dT00:00:00.000Z"
-
+    _API_BASE_URL: ClassVar = "https://api.spond.com/core/v1/"
+    _DT_FORMAT: ClassVar = "%Y-%m-%dT00:00:00.000Z"
+    _EVENT_TEMPLATE: ClassVar = _EVENT_TEMPLATE
     _EVENT: ClassVar = "event"
     _GROUP: ClassVar = "group"
 
     def __init__(self, username: str, password: str) -> None:
-        super().__init__(username, password, "https://api.spond.com/core/v1/")
+        super().__init__(username, password, self._API_BASE_URL)
         self._chat_url = None
         self._auth = None
         self.groups: list[JSONDict] | None = None
@@ -98,28 +100,23 @@ class Spond(_SpondBase):
             await self.get_groups()
         for group in self.groups:
             for member in group["members"]:
-                if (
-                    member["id"] == user
-                    or ("email" in member and member["email"]) == user
-                    or member["firstName"] + " " + member["lastName"] == user
-                    or ("profile" in member and member["profile"]["id"] == user)
-                ):
+                if self._match_person(member, user):
                     return member
                 if "guardians" in member:
                     for guardian in member["guardians"]:
-                        if (
-                            guardian["id"] == user
-                            or ("email" in guardian and guardian["email"]) == user
-                            or guardian["firstName"] + " " + guardian["lastName"]
-                            == user
-                            or (
-                                "profile" in guardian
-                                and guardian["profile"]["id"] == user
-                            )
-                        ):
+                        if self._match_person(guardian, user):
                             return guardian
         errmsg = f"No person matched with identifier '{user}'."
         raise KeyError(errmsg)
+
+    @staticmethod
+    def _match_person(person: JSONDict, match_str: str) -> bool:
+        return (
+            person["id"] == match_str
+            or ("email" in person and person["email"]) == match_str
+            or person["firstName"] + " " + person["lastName"] == match_str
+            or ("profile" in person and person["profile"]["id"] == match_str)
+        )
 
     @_SpondBase.require_authentication
     async def get_messages(self, max_chats: int = 100) -> list[JSONDict] | None:
@@ -213,7 +210,7 @@ class Spond(_SpondBase):
 
         if chat_id is not None:
             return self._continue_chat(chat_id, text)
-        elif group_uid is None or user is None:
+        if group_uid is None or user is None:
             return {
                 "error": "wrong usage, group_id and user_id needed or continue chat with chat_id"
             }
@@ -293,13 +290,13 @@ class Spond(_SpondBase):
             "scheduled": str(include_scheduled),
         }
         if max_end:
-            params["maxEndTimestamp"] = max_end.strftime(self.DT_FORMAT)
+            params["maxEndTimestamp"] = max_end.strftime(self._DT_FORMAT)
         if max_start:
-            params["maxStartTimestamp"] = max_start.strftime(self.DT_FORMAT)
+            params["maxStartTimestamp"] = max_start.strftime(self._DT_FORMAT)
         if min_end:
-            params["minEndTimestamp"] = min_end.strftime(self.DT_FORMAT)
+            params["minEndTimestamp"] = min_end.strftime(self._DT_FORMAT)
         if min_start:
-            params["minStartTimestamp"] = min_start.strftime(self.DT_FORMAT)
+            params["minStartTimestamp"] = min_start.strftime(self._DT_FORMAT)
         if group_id:
             params["groupId"] = group_id
         if subgroup_id:
@@ -353,54 +350,15 @@ class Spond(_SpondBase):
         event = await self._get_entity(self._EVENT, uid)
         url = f"{self.api_url}sponds/{uid}"
 
-        base_event: JSONDict = {
-            "heading": None,
-            "description": None,
-            "spondType": "EVENT",
-            "startTimestamp": None,
-            "endTimestamp": None,
-            "commentsDisabled": False,
-            "maxAccepted": 0,
-            "rsvpDate": None,
-            "location": {
-                "id": None,
-                "feature": None,
-                "address": None,
-                "latitude": None,
-                "longitude": None,
-            },
-            "owners": [{"id": None}],
-            "visibility": "INVITEES",
-            "participantsHidden": False,
-            "autoReminderType": "DISABLED",
-            "autoAccept": False,
-            "payment": {},
-            "attachments": [],
-            "id": None,
-            "tasks": {
-                "openTasks": [],
-                "assignedTasks": [
-                    {
-                        "name": None,
-                        "description": "",
-                        "type": "ASSIGNED",
-                        "id": None,
-                        "adultsOnly": True,
-                        "assignments": {"memberIds": [], "profiles": [], "remove": []},
-                    }
-                ],
-            },
-        }
-
+        base_event = self._EVENT_TEMPLATE.copy()
         for key in base_event:
             if event.get(key) is not None and not updates.get(key):
                 base_event[key] = event[key]
             elif updates.get(key) is not None:
                 base_event[key] = updates[key]
 
-        data = dict(base_event)
         async with self.clientsession.post(
-            url, json=data, headers=self.auth_headers
+            url, json=base_event, headers=self.auth_headers
         ) as r:
             self.events_update = await r.json()
             return self.events
@@ -421,8 +379,7 @@ class Spond(_SpondBase):
         """
         url = f"{self.api_url}sponds/{uid}/export"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
-            output_data = await r.read()
-            return output_data
+            return await r.read()
 
     @_SpondBase.require_authentication
     async def change_response(self, uid: str, user: str, payload: JSONDict) -> JSONDict:
