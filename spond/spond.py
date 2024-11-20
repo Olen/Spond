@@ -236,6 +236,7 @@ class Spond(_SpondBase):
         group_id: str | None = None,
         subgroup_id: str | None = None,
         include_scheduled: bool = False,
+        include_hidden: bool = False,
         max_end: datetime | None = None,
         min_end: datetime | None = None,
         max_start: datetime | None = None,
@@ -256,6 +257,10 @@ class Spond(_SpondBase):
             (TO DO: probably events for which invites haven't been sent yet?)
             Defaults to False for performance reasons.
             Uses `scheduled` API parameter.
+        include_hidden : bool, optional
+            Include hidden events.
+            Uses `includeHidden` API parameter.
+            'includeHidden' filter is only available inside a group
         max_end : datetime, optional
             Only include events which end before or at this datetime.
             Uses `maxEndTimestamp` API parameter; relates to `endTimestamp` event
@@ -301,6 +306,8 @@ class Spond(_SpondBase):
             params["groupId"] = group_id
         if subgroup_id:
             params["subgroupId"] = subgroup_id
+        if include_hidden and group_id:
+            params["includeHidden"] = "true"
 
         async with self.clientsession.get(
             url, headers=self.auth_headers, params=params
