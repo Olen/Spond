@@ -3,8 +3,12 @@
 
 Simple, unofficial library with some example scripts to access data from the [Spond](https://spond.com/) API.
 
-> [!WARNING]
-> Notice breaking changes from versions =< 0.99 to versions >= 1.0
+## Branch info
+
+This branch WILL be a breaking change.
+
+The goal is that all functions will return well defined objects with proper error handling and checks
+
 
 ## Install
 
