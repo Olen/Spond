@@ -300,7 +300,7 @@ class Spond(_SpondBase):
         if group_id:
             params["groupId"] = group_id
         if subgroup_id:
-            params["subgroupId"] = subgroup_id
+            params["subGroupId"] = subgroup_id
 
         async with self.clientsession.get(
             url, headers=self.auth_headers, params=params
