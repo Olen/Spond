@@ -3,9 +3,9 @@
 import asyncio
 import os
 
+from config import password, username
 from ics import Calendar, Event
 
-from config import password, username
 from spond import spond
 
 if not os.path.exists("./exports"):

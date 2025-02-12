@@ -9,6 +9,7 @@ import asyncio
 import tempfile
 
 from config import club_id, password, username
+
 from spond import JSONDict, club, spond
 
 DUMMY_ID = "DUMMY_ID"
