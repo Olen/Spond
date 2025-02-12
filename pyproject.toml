@@ -29,6 +29,7 @@ select = [
     "F",  # Pyflakes
     "I",  # isort
     "SIM",  # flake8-simplify
+    "UP",  # pyupgrade
 ]
 ignore = [
     "E501",  # Line too long: needs code refactors first
