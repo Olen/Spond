@@ -25,7 +25,13 @@ target-version = "py39"  # Ruff doesn't yet infer this from [tool.poetry.depende
 
 [tool.ruff.lint]
 select = [
+    "E",  # pycodestyle
+    "F",  # Pyflakes
     "I",  # isort
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    "E501",  # Line too long: needs code refactors first
 ]
 
 [build-system]
