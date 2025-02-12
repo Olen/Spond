@@ -305,7 +305,7 @@ class Spond(_SpondBase):
         if group_id:
             params["groupId"] = group_id
         if subgroup_id:
-            params["subgroupId"] = subgroup_id
+            params["subGroupId"] = subgroup_id
         if include_hidden and group_id:
             params["includeHidden"] = "true"
 
