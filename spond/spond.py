@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
+from . import JSONDict
 from ._event_template import _EVENT_TEMPLATE
 from .base import _SpondBase
 
 if TYPE_CHECKING:
     from datetime import datetime
-
-    from . import JSONDict
 
 
 class Spond(_SpondBase):
