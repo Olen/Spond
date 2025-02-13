@@ -12,17 +12,36 @@ python = "^3.9"
 aiohttp = "^3.8.5"
 
 [tool.poetry.group.dev.dependencies]
-black = "^24.10.0"
-isort = "^5.11.4"
 pytest = "^8.1.1"
 pytest-asyncio = "^0.23.6"
 
-[tool.black]
-line-length = 88
-target-version = ['py39', 'py310', 'py311', 'py312', 'py313']
+[tool.poetry.group.dev-not-ci.dependencies]
+# Group for dev dependencies which don't require explicit installation in CI,
+# as they are handled by GitHub actions.
+ruff = "^0.9.6"
 
-[tool.isort]
-profile = "black"
+[tool.ruff]
+target-version = "py39"  # Ruff doesn't yet infer this from [tool.poetry.dependencies]
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle
+    "F",  # Pyflakes
+    "I",  # isort
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    "E501",  # Line too long: needs code refactors first
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Don't try to sort imports in example files, as non-existent `config` module causes
+# issues in CI
+"attendance.py" = ["I001"]
+"groups.py" = ["I001"]
+"ical.py" = ["I001"]
+"manual_test_functions.py" = ["I001"]
+"transactions.py" = ["I001"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

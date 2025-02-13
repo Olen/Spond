@@ -4,6 +4,7 @@ import csv
 from pathlib import Path
 
 from config import club_id, password, username
+
 from spond.club import SpondClub
 
 parser = argparse.ArgumentParser(

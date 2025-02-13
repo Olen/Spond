@@ -3,9 +3,9 @@
 import asyncio
 import os
 
+from config import password, username
 from ics import Calendar, Event
 
-from config import password, username
 from spond import spond
 
 if not os.path.exists("./exports"):
@@ -30,7 +30,7 @@ async def main():
         if "cancelled" in event and event["cancelled"]:
             e.status = "Cancelled"
         if "location" in event:
-            e.location = f'{event["location"].get("feature")}, {event["location"].get("address")}'
+            e.location = f"{event['location'].get('feature')}, {event['location'].get('address')}"
         c.events.add(e)
     with open(ics_file, "w") as out_file:
         out_file.writelines(c)

@@ -9,6 +9,7 @@ import asyncio
 import tempfile
 
 from config import club_id, password, username
+
 from spond import JSONDict, club, spond
 
 DUMMY_ID = "DUMMY_ID"
@@ -71,7 +72,7 @@ async def main() -> None:
 
 
 def _group_summary(group: JSONDict) -> str:
-    return f"id='{group['id']}', " f"name='{group['name']}'"
+    return f"id='{group['id']}', name='{group['name']}'"
 
 
 def _event_summary(event: JSONDict) -> str:
