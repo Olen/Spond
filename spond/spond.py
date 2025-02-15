@@ -288,6 +288,12 @@ class Spond(_SpondBase):
              A list of events, each represented as a dictionary, or None if no events
              are available.
 
+        Raises
+        ------
+        RuntimeError
+            Raised when the request to the API fails. This occurs if the response
+            status code indicates an error (e.g., 4xx or 5xx). The error message
+            includes the HTTP status code and the response body for debugging purposes.
         """
         url = f"{self.api_url}sponds/"
         params = {
@@ -306,12 +312,15 @@ class Spond(_SpondBase):
             params["groupId"] = group_id
         if subgroup_id:
             params["subGroupId"] = subgroup_id
-        if include_hidden and group_id:
+        if include_hidden:
             params["includeHidden"] = "true"
 
         async with self.clientsession.get(
             url, headers=self.auth_headers, params=params
         ) as r:
+            if not r.ok:
+                error_details = await r.text()
+                raise RuntimeError(f"Request failed with status {r.status}: {error_details}")
             self.events = await r.json()
             return self.events
 
