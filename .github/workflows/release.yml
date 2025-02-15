@@ -84,7 +84,4 @@ jobs:
 
       - name: 🚀 Publish to PyPI with OpenID
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          # No API token needed! OpenID handles authentication.
-          repository-url: https://upload.pypi.org/legacy/
 
