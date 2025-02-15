@@ -9,6 +9,7 @@ on:
       - "pyproject.toml"  # 👈 Ignore commits that ONLY update pyproject.toml
   pull_request:
     branches: [ "main" ]
+      - "pyproject.toml"  # 👈 Ignore commits that ONLY update pyproject.toml
 
 
 jobs:

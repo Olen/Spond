@@ -26,15 +26,18 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: 📦 Install dependencies
-        run: pip install toml build
+      - name: 🎭 Install Poetry
+        run: pipx install poetry
 
-      - name: 🔍 Extract version from pyproject.toml
+      - name: 🏗️ Install Dependencies
+        run: poetry install --no-interaction --no-root
+
+      - name: 🔍 Extract version from Poetry
         id: get_version
         run: |
-          VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['tool']['poetry']['version'])")
+          VERSION=$(poetry version -s)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "🔢 Version extracted: $VERSION"
+          echo "🔢 Extracted version: $VERSION"
 
       - name: 🔍 Check if Git tag exists
         id: check_tag
@@ -76,19 +79,12 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: 🏗️ Build package
-        run: python -m build
-
-      - name: 🏗️ Build package
-        run: |
-          python setup.py sdist bdist_wheel
-          echo "📦 Package built successfully!"
+      - name: 🏗️ Build package with Poetry
+        run: poetry build
 
       - name: 🚀 Publish to PyPI with OpenID
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           # No API token needed! OpenID handles authentication.
           repository-url: https://upload.pypi.org/legacy/
-
-
 
