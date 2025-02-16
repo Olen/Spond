@@ -9,7 +9,6 @@ if TYPE_CHECKING:
 
 
 class SpondClub(_SpondBase):
-
     _API_BASE_URL: ClassVar = "https://api.spond.com/club/v1/"
 
     def __init__(self, username: str, password: str) -> None:

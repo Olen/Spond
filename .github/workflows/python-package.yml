@@ -30,23 +30,19 @@ jobs:
         virtualenvs-create: true
         virtualenvs-in-project: true
     - name: Install project
-      run: poetry install
-    - name: Lint imports with isort
-      # Use command line due to bugs/docs gaps with official `isort/isort-action`.
-      # Exit with error if the code is not properly formatted; show diffs;
-      # `black` compatibility.
-      # Only target files in `spond` and `test` due to unreliable behaviour on files in
-      # root directory.
-      # Diffs reported for these files should be the same as fixes made by running
-      # `isort .` in the root project folder, which picks up config from
+      # Don't install dependencies that are handled within actions
+      run: poetry install --without dev-not-ci
+    - name: Lint with ruff
+      # By default, exit with error if rule violations, report issues.
+      # Equivalent to `ruff check`. Picks up config from `pyproject.toml`.
+      uses: astral-sh/ruff-action@v3
+    - name: Check format with ruff
+      # By default, exit with error if the code is not properly formatted.
+      # Equivalent to `ruff format --check --diff`. Picks up config from
       # `pyproject.toml`.
-      run: |
-        source $VENV
-        isort spond --check-only --diff --profile black
-        isort tests --check-only --diff --profile black
-    - name: Lint with black
-      # by default: exit with error if the code is not properly formatted; show diffs
-      uses: psf/black@stable
+      uses: astral-sh/ruff-action@v3
+      with:
+        args: "format --check --diff"
     - name: Test with pytest
       run: |
         source $VENV

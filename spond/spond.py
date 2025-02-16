@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 
 class Spond(_SpondBase):
-
     _API_BASE_URL: ClassVar = "https://api.spond.com/core/v1/"
     _DT_FORMAT: ClassVar = "%Y-%m-%dT00:00:00.000Z"
     _EVENT_TEMPLATE: ClassVar = _EVENT_TEMPLATE
