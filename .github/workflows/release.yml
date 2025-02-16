@@ -27,10 +27,14 @@ jobs:
           python-version: '3.x'
 
       - name: 🎭 Install Poetry
-        run: pipx install poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
 
-      - name: 🏗️ Install Dependencies
-        run: poetry install --no-interaction --no-root
+      - name: 🏗️ Install project
+        # Don't install dependencies that are handled within actions
+        run: poetry install --without dev-not-ci
 
       - name: 🔍 Extract version from Poetry
         id: get_version
@@ -68,7 +72,6 @@ jobs:
           sinceTag: ${{ steps.last_release.outputs.tag_name }}
           headerLabel: "# Notable changes since ${{ steps.last_release.outputs.tag_name }}"
           stripGeneratorNotice: true
-
 
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v1
