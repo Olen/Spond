@@ -319,7 +319,9 @@ class Spond(_SpondBase):
         ) as r:
             if not r.ok:
                 error_details = await r.text()
-                raise RuntimeError(f"Request failed with status {r.status}: {error_details}")
+                raise RuntimeError(
+                    f"Request failed with status {r.status}: {error_details}"
+                )
             self.events = await r.json()
             return self.events
 
