@@ -289,7 +289,7 @@ class Spond(_SpondBase):
 
         Raises
         ------
-        RuntimeError
+        ValueError
             Raised when the request to the API fails. This occurs if the response
             status code indicates an error (e.g., 4xx or 5xx). The error message
             includes the HTTP status code and the response body for debugging purposes.
@@ -319,7 +319,7 @@ class Spond(_SpondBase):
         ) as r:
             if not r.ok:
                 error_details = await r.text()
-                raise RuntimeError(
+                raise ValueError(
                     f"Request failed with status {r.status}: {error_details}"
                 )
             self.events = await r.json()
