@@ -5,13 +5,8 @@ name: Python package
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      - "pyproject.toml"  # 👈 Ignore commits that ONLY update pyproject.toml
   pull_request:
     branches: [ "main" ]
-    paths-ignore:
-      - "pyproject.toml"  # 👈 Ignore commits that ONLY update pyproject.toml
-
 
 jobs:
   build:
