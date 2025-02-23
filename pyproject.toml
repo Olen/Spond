@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spond"
-version = "1.1.3"
+version = "1.1.1"
 description = "Simple, unofficial library with some example scripts to access data from the Spond API."
 authors = ["Ola Thoresen <ola@nytt.no>"]
 license = "GPL 3.0"
