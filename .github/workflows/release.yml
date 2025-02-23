@@ -80,7 +80,7 @@ jobs:
         with:
           tag_name: v${{ env.VERSION }}
           name: 🎉 Release v${{ env.VERSION }}
-          body: "🚀 Automated release of version **v${{ env.VERSION }}**"
+          body: "${{ steps.changelog.outputs.changelog }}"
           draft: false
           prerelease: false
 
