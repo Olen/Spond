@@ -58,11 +58,13 @@ jobs:
           myToken: ${{ github.token }}
           exclude_types: "draft|prerelease"
 
-      - name: 🏷️ Create and push Git tag
-        run: |
-          git tag v${VERSION}
-          git push origin v${VERSION}
-          echo "✅ Tag v${VERSION} created and pushed!"
+      - name: "🏷️ Create new tag"
+        uses: rickstaa/action-create-tag@v1
+        id: "tag_create"
+        with:
+          tag: "v${{ VERSION }}"
+          tag_exists_error: false
+          message: "✅ Tag Version v${{ VERSION }} created"
 
       - name: "🗒️ Generate release changelog"
         id: changelog
