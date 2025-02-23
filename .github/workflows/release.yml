@@ -62,9 +62,9 @@ jobs:
         uses: rickstaa/action-create-tag@v1
         id: "tag_create"
         with:
-          tag: "v${{ VERSION }}"
+          tag: "v${{ env.VERSION }}"
           tag_exists_error: false
-          message: "✅ Tag Version v${{ VERSION }} created"
+          message: "✅ Tag Version v${{ env.VERSION }} created"
 
       - name: "🗒️ Generate release changelog"
         id: changelog
