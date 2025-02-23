@@ -9,7 +9,7 @@ on:
 
 permissions:
   id-token: write  # Required for OIDC authentication
-  contents: read
+  contents: write
 
 
 jobs:
