@@ -1,15 +1,19 @@
-[tool.poetry]
+[project]
 name = "spond"
 version = "1.1.1"
 description = "Simple, unofficial library with some example scripts to access data from the Spond API."
-authors = ["Ola Thoresen <ola@nytt.no>"]
-license = "GPL 3.0"
-readme = 'README.md'
-repository = 'https://github.com/Olen/Spond'
+license = "GPL-3.0-only"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "Ola Thoresen", email = "ola@nytt.no" },
+]
+dependencies = [
+    "aiohttp>=3.8.5"
+]
 
-[tool.poetry.dependencies]
-python = "^3.9"
-aiohttp = "^3.8.5"
+[project.urls]
+repository = "https://github.com/Olen/Spond"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.1.1"
@@ -19,9 +23,6 @@ pytest-asyncio = ">=0.23.6,<0.26.0"
 # Group for dev dependencies which don't require explicit installation in CI,
 # as they are handled by GitHub actions.
 ruff = "^0.9.6"
-
-[tool.ruff]
-target-version = "py39"  # Ruff doesn't yet infer this from [tool.poetry.dependencies]
 
 [tool.ruff.lint]
 select = [
