@@ -14,10 +14,6 @@ aiohttp = "^3.8.5"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.1.1"
 pytest-asyncio = ">=0.23.6,<0.26.0"
-
-[tool.poetry.group.dev-not-ci.dependencies]
-# Group for dev dependencies which don't require explicit installation in CI,
-# as they are handled by GitHub actions.
 ruff = "^0.9.6"
 
 [tool.ruff]
