@@ -33,8 +33,7 @@ jobs:
           virtualenvs-in-project: true
 
       - name: 🏗️ Install project
-        # Don't install dependencies that are handled within actions
-        run: poetry install --without dev-not-ci
+        run: poetry install
 
       - name: 🔍 Extract version from Poetry
         id: get_version
