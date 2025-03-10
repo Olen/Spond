@@ -16,6 +16,7 @@ jobs:
   release:
     name: 🎯 Create Release & Publish to PyPI
     runs-on: ubuntu-latest
+    if: github.repository_owner == 'Olen'  # Make sure this is not a fork
 
     steps:
       - name: 🛎️ Checkout repository
