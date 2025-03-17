@@ -14,7 +14,7 @@ aiohttp = "^3.8.5"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.1.1"
 pytest-asyncio = ">=0.23.6,<0.26.0"
-ruff = "^0.9.6"
+ruff = ">=0.9.6,<0.12.0"
 
 [tool.ruff]
 target-version = "py39"  # Ruff doesn't yet infer this from [tool.poetry.dependencies]
