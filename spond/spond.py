@@ -465,3 +465,50 @@ class Spond(_SpondBase):
                 return entity
         errmsg = f"No {entity_type} with id='{uid}'."
         raise KeyError(errmsg)
+
+    @_SpondBase.require_authentication
+    async def update_member(self, group_id: str, member: dict):
+        """
+        Update member details.
+        Subject to authenticated user's access permissions.
+
+        Use by first getting the member data with either the get_groups()
+        or get_personb(), modify some value and write back with this
+        method.
+
+        Parameters
+        ----------
+        group_id : str
+            Group ID of the member
+        member : dict
+            Member data to update 
+
+        Returns
+        -------
+        dict
+             The response from the Spond server which is the Updated memberi
+             data on success or an error message on failure.
+        """
+
+        url = f"{self.api_url}group/{group_id}/member"
+        data = member
+        r = await self.clientsession.post(url, json=data, headers=self.auth_headers)
+        return await r.json()
+
+    @_SpondBase.require_authentication
+    async def get_members_xlsx(self, group_id: str) -> bytes:
+        """Get the Excel member export that is downloadable from the Spond web page.
+                
+        Parameters
+        ----------
+        group_id : str
+            Group ID of the members
+
+        Returns:
+        -------
+            bytes: XLSX binary data
+        """
+        url = f"{self.api_url}group/{group_id}/exportMembers"
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+            output_data = await r.read()
+            return output_data
