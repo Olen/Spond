@@ -481,7 +481,7 @@ class Spond(_SpondBase):
         group_id : str
             Group ID of the member
         member : dict
-            Member data to update 
+            Member data to update
 
         Returns
         -------
@@ -498,7 +498,7 @@ class Spond(_SpondBase):
     @_SpondBase.require_authentication
     async def get_members_xlsx(self, group_id: str) -> bytes:
         """Get the Excel member export that is downloadable from the Spond web page.
-                
+
         Parameters
         ----------
         group_id : str
