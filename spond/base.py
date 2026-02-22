@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Callable
+from collections.abc import Callable
 
 import aiohttp
 
