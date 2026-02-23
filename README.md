@@ -87,3 +87,10 @@ Generates a csv-file for transactions / payments appeared in [Spond Club](https:
 
 [This article](https://realpython.com/async-io-python/) will give a nice introduction to both why, when and how to use asyncio in projects.
 
+## Development
+
+To open a browser with API documentation, assuming you have Poetry installed:
+
+```shell
+poetry run pdoc spond
+```
