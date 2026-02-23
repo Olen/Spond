@@ -36,11 +36,11 @@ ignore = [
 # In example files:
 # - Don't try to sort imports as non-existent `config` module causes issues in CI
 # - Don't enforce type annotations for now
-"attendance.py" = ["ANN", "I001"]
-"groups.py" = ["ANN", "I001"]
-"ical.py" = ["ANN", "I001"]
-"manual_test_functions.py" = ["I001"]
-"transactions.py" = ["ANN", "I001"]
+"examples/attendance.py" = ["ANN", "I001"]
+"examples/groups.py" = ["ANN", "I001"]
+"examples/ical.py" = ["ANN", "I001"]
+"examples/manual_test_functions.py" = ["I001"]
+"examples/transactions.py" = ["ANN", "I001"]
 
 # In tests:
 # - Don't enforce type annotations for now
