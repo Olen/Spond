@@ -8,16 +8,16 @@ readme = 'README.md'
 repository = 'https://github.com/Olen/Spond'
 
 [tool.poetry.dependencies]
-python = "^3.9"
-aiohttp = "^3.8.5"
+python = ">=3.10"
+aiohttp = ">=3.8.5"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.1.1"
-pytest-asyncio = ">=0.23.6,<0.26.0"
-ruff = "^0.9.6"
+pytest = ">=9.0.2"
+pytest-asyncio = ">=1.3.0"
+ruff = ">=0.15.0"
 
 [tool.ruff]
-target-version = "py39"  # Ruff doesn't yet infer this from [tool.poetry.dependencies]
+target-version = "py310"  # Ruff doesn't yet infer this from [tool.poetry.dependencies]
 
 [tool.ruff.lint]
 select = [
@@ -36,11 +36,11 @@ ignore = [
 # In example files:
 # - Don't try to sort imports as non-existent `config` module causes issues in CI
 # - Don't enforce type annotations for now
-"attendance.py" = ["ANN", "I001"]
-"groups.py" = ["ANN", "I001"]
-"ical.py" = ["ANN", "I001"]
-"manual_test_functions.py" = ["I001"]
-"transactions.py" = ["ANN", "I001"]
+"examples/attendance.py" = ["ANN", "I001"]
+"examples/groups.py" = ["ANN", "I001"]
+"examples/ical.py" = ["ANN", "I001"]
+"examples/manual_test_functions.py" = ["I001"]
+"examples/transactions.py" = ["ANN", "I001"]
 
 # In tests:
 # - Don't enforce type annotations for now
