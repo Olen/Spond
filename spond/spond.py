@@ -26,6 +26,7 @@ class Spond(_SpondBase):
         self.groups: list[JSONDict] | None = None
         self.events: list[JSONDict] | None = None
         self.messages: list[JSONDict] | None = None
+        self.profile: JSONDict | None = None
 
     async def _login_chat(self) -> None:
         api_chat_url = f"{self.api_url}chat"
@@ -33,6 +34,22 @@ class Spond(_SpondBase):
         result = await r.json()
         self._chat_url = result["url"]
         self._auth = result["auth"]
+
+    @_SpondBase.require_authentication
+    async def get_profile(self) -> JSONDict:
+        """
+        Retrieves all information connected to the user's account, subject to authenticated user's access.
+
+        Returns
+        -------
+        JSONDict
+            information connected to the user's account
+
+        """
+        url = f"{self._API_BASE_URL}profile"
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+            self.profile = await r.json()
+            return self.profile
 
     @_SpondBase.require_authentication
     async def get_groups(self) -> list[JSONDict] | None:
