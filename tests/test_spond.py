@@ -303,9 +303,7 @@ class TestPostMethods:
         s.token = mock_token
 
         mock_get.return_value.__aenter__.return_value.ok = True
-        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
-            return_value=[]
-        )
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
 
         await s.get_posts(max_posts=5)
 
@@ -320,9 +318,7 @@ class TestPostMethods:
         s.token = mock_token
 
         mock_get.return_value.__aenter__.return_value.ok = True
-        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
-            return_value=[]
-        )
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
 
         await s.get_posts(include_comments=False)
 
