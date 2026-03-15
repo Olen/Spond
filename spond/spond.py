@@ -25,6 +25,7 @@ class Spond(_SpondBase):
         self._auth = None
         self.groups: list[JSONDict] | None = None
         self.events: list[JSONDict] | None = None
+        self.posts: list[JSONDict] | None = None
         self.messages: list[JSONDict] | None = None
         self.profile: JSONDict | None = None
 
@@ -132,6 +133,63 @@ class Spond(_SpondBase):
             or person["firstName"] + " " + person["lastName"] == match_str
             or ("profile" in person and person["profile"]["id"] == match_str)
         )
+
+    @_SpondBase.require_authentication
+    async def get_posts(
+        self,
+        group_id: str | None = None,
+        max_posts: int = 20,
+        include_comments: bool = True,
+    ) -> list[JSONDict] | None:
+        """
+        Retrieve posts from group walls.
+
+        Posts are announcements/messages posted to group walls, as opposed to
+        chat messages or events.
+
+        Parameters
+        ----------
+        group_id : str, optional
+            Filter by group. Uses `groupId` API parameter.
+        max_posts : int, optional
+            Set a limit on the number of posts returned.
+            For performance reasons, defaults to 20.
+            Uses `max` API parameter.
+        include_comments : bool, optional
+            Include comments on posts.
+            Defaults to True.
+            Uses `includeComments` API parameter.
+
+        Returns
+        -------
+        list[JSONDict] or None
+            A list of posts, each represented as a dictionary, or None if no
+            posts are available.
+
+        Raises
+        ------
+        ValueError
+            Raised when the request to the API fails.
+        """
+        url = f"{self.api_url}posts"
+        params: dict[str, str] = {
+            "type": "PLAIN",
+            "max": str(max_posts),
+            "includeComments": str(include_comments).lower(),
+        }
+        if group_id:
+            params["groupId"] = group_id
+
+        async with self.clientsession.get(
+            url, headers=self.auth_headers, params=params
+        ) as r:
+            if not r.ok:
+                error_details = await r.text()
+                raise ValueError(
+                    f"Request failed with status {r.status}: {error_details}"
+                )
+            self.posts = await r.json()
+            return self.posts
 
     @_SpondBase.require_authentication
     async def get_messages(self, max_chats: int = 100) -> list[JSONDict] | None:
