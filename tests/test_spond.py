@@ -250,7 +250,7 @@ class TestPostMethods:
 
         posts = await s.get_posts()
 
-        mock_url = "https://api.spond.com/core/v1/posts"
+        mock_url = "https://api.spond.com/core/v1/posts/"
         mock_get.assert_called_once_with(
             mock_url,
             headers={
@@ -281,7 +281,7 @@ class TestPostMethods:
         posts = await s.get_posts(group_id="GID1")
 
         mock_get.assert_called_once_with(
-            "https://api.spond.com/core/v1/posts",
+            "https://api.spond.com/core/v1/posts/",
             headers={
                 "content-type": "application/json",
                 "Authorization": f"Bearer {mock_token}",

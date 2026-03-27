@@ -171,7 +171,7 @@ class Spond(_SpondBase):
         ValueError
             Raised when the request to the API fails.
         """
-        url = f"{self.api_url}posts"
+        url = f"{self.api_url}posts/"
         params: dict[str, str] = {
             "type": "PLAIN",
             "max": str(max_posts),
