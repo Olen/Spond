@@ -16,6 +16,7 @@ DUMMY_ID = "DUMMY_ID"
 
 MAX_EVENTS = 10
 MAX_CHATS = 10
+MAX_POSTS = 10
 MAX_TRANSACTIONS = 10
 
 
@@ -49,6 +50,13 @@ async def main() -> None:
     print(f"{len(chats)} chats:")
     for i, chat in enumerate(chats):
         print(f"[{i}] {_chat_summary(chat)}")
+
+    # Posts
+    print(f"\nGetting up to {MAX_POSTS} posts...")
+    posts = await s.get_posts(max_posts=MAX_POSTS)
+    print(f"{len(posts)} posts:")
+    for i, post in enumerate(posts):
+        print(f"[{i}] {_post_summary(post)}")
 
     # Attendance export
     print("\nGetting attendance report for the first event...")
@@ -106,6 +114,12 @@ def _chat_summary(chat: JSONDict) -> str:
         f"id='{chat['id']}', "
         f"timestamp='{chat['message']['timestamp']}', "
         f"text={_abbreviate(msg_text, length=64)}"
+    )
+
+
+def _post_summary(post: JSONDict) -> str:
+    return (
+        f"id='{post['id']}', timestamp='{post['timestamp']}', title='{post['title']}'"
     )
 
 
