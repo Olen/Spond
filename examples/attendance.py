@@ -1,13 +1,15 @@
 import argparse
 import asyncio
 import csv
-import os
 import re
 from datetime import date
+from pathlib import Path
 
 from config import password, username
 
 from spond import spond
+
+EXPORT_DIRPATH = Path("./exports")
 
 parser = argparse.ArgumentParser(
     description="Creates an attendance.csv for organizers of events."
@@ -32,17 +34,15 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-async def main():
+async def main() -> None:
     session = spond.Spond(username=username, password=password)
     events = await session.get_events(min_start=args.f, max_start=args.t)
-
-    if not os.path.exists("./exports"):
-        os.makedirs("./exports")
+    EXPORT_DIRPATH.mkdir(exist_ok=True)
 
     for e in events:
         base_filename = _sanitise_filename(f"{e['startTimestamp']}-{e['heading']}")
-        filename = os.path.join("./exports", base_filename + ".csv")
-        with open(filename, "w", newline="") as csvfile:
+        filepath = EXPORT_DIRPATH / f"{base_filename}.csv"
+        with filepath.open("w", newline="") as csvfile:
             spamwriter = csv.writer(
                 csvfile, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
             )
