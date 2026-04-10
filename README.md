@@ -64,6 +64,14 @@ Get Excel attendance report for a single event, available via the web client.
 ### change_response()
 Change a member's response for an event (e.g. accept/decline)
 
+### update_member()
+Change details about a member. First use get_groups() to get all the member details,
+find the member you what to change and make the changes, then use this method to
+update in Spond.
+
+### get_members_xlsx()
+Get the Excel member export that is downloadable from the Spond web page.
+
 ## Example scripts
 
 The following scripts are included in `examples/`.  Some of the scripts might require additional packages to be installed (csv, ical etc).
