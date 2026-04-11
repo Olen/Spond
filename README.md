@@ -3,9 +3,6 @@
 
 Simple, unofficial library with some example scripts to access data from the [Spond](https://spond.com/) API.
 
-> [!WARNING]
-> Notice breaking changes from versions =< 0.99 to versions >= 1.0
-
 ## Install
 
 `pip install spond`
@@ -13,8 +10,6 @@ Simple, unofficial library with some example scripts to access data from the [Sp
 ## Usage
 
 You need a username and password from Spond
-
-
 
 ### Example code
 
@@ -64,6 +59,12 @@ Get Excel attendance report for a single event, available via the web client.
 ### change_response()
 Change a member's response for an event (e.g. accept/decline)
 
+### get_posts()
+Retrieve posts from group walls.
+
+### get_profile()
+Retrieve information connected to the user's account.
+
 ## Example scripts
 
 The following scripts are included in `examples/`.  Some of the scripts might require additional packages to be installed (csv, ical etc).
@@ -82,8 +83,10 @@ Generates a csv-file for each event between `from_date` and `to_date` with atten
 ### transactions.py
 Generates a csv-file for transactions / payments appeared in [Spond Club](https://www.spond.com/spond-club-overview/) > Finance > Payments.
 
+### manual_test_functions.py
+Demonstrates most `get...()` methods.
+
 ## AsyncIO
 [Asyncio](https://docs.python.org/3/library/asyncio.html) might seem intimidating in the beginning, but for basic stuff, it is quite easy to follow the examples above, and just remeber to prefix functions that use the API with `async def ...` and to `await` all API-calls and all calls to said functions.
 
 [This article](https://realpython.com/async-io-python/) will give a nice introduction to both why, when and how to use asyncio in projects.
-
