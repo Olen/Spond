@@ -535,8 +535,11 @@ class Spond(_SpondBase):
             err_msg = f"Entity type '{entity_type}' is not supported."
             raise NotImplementedError(err_msg)
 
+        errmsg = f"No {entity_type} with id='{uid}'."
+        if not entities:
+            raise KeyError(errmsg)
+
         for entity in entities:
             if entity["id"] == uid:
                 return entity
-        errmsg = f"No {entity_type} with id='{uid}'."
         raise KeyError(errmsg)
