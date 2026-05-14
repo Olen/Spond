@@ -215,3 +215,25 @@ All four are answerable mid-impl with live API probing using credentials at `/ho
 ## Versioning
 
 Land as v1.3 — minor bump (return-type change is technically breaking, but the DictCompatMixin makes it soft). Legacy `Spond.*_event*` methods removed in v2.0 after a grace period.
+
+## Implementation notes for maintainers
+
+### Periodic API field-drift audit
+
+Spond keeps adding fields to its responses. The original SDK reverse-engineering captured what was visible at the time, but several models had accumulated gaps by the time the OO rewrite landed (Profile was missing 4 fields, Group was missing 17, Responses was missing 1). Two-thirds of those gaps were invisible to ordinary use because `extra="allow"` silently preserves unknown fields — they were stored on `__pydantic_extra__` but not surfaced in pdoc, attribute autocompletion, or static type-checking.
+
+A periodic audit closes the gap. The technique is mechanical:
+
+1. Authenticate a live `Spond` client against a real account.
+2. For each modelled endpoint, fetch the raw response and compute `set(api_keys) - set(model_field_aliases)`.
+3. Add any newly-discovered fields to the model with sentinel defaults (so the model stays resilient when the field eventually disappears too), with API aliases preserved, and a one-line docstring categorising each (user-facing vs internal).
+
+`Spond.get_*` methods naturally surface the data needed for the audit, and `<ModelClass>.model_fields[name].alias or name` enumerates the model's expected key set. Re-run before each minor release, or whenever Spond ships a noticeable app update.
+
+### Subclass identity in `Event.update()`
+
+`Event.update()` builds the next instance via `type(self).from_api(new_data, self._client)` — **not** the literal `Event.from_api`. This preserves subclass identity for the `Match` subclass (and any future subclasses). Without `type(self)`, a `Match.update(...)` call returns a plain `Event`, the cache replacement loop writes the demoted instance, and subsequent `spond.get_event(uid)` silently serves the wrong type. Regression test: `TestMatch.test_match_update_preserves_match_type`.
+
+### Read-only field policy on Event
+
+`spond/event.py` defines `_EVENT_READ_ONLY_FIELDS` — a frozenset of Python field names that `Event.update()` strips from the POST payload before sending. The list mirrors the pre-OO `_EVENT_TEMPLATE` writable scope (with reasoning grouped by category: server-managed timestamps, derived flags, series wiring, nested sub-resources with their own endpoints). When adding new fields to `Event`, decide at declaration time whether they should be writable on update, and add them to the frozenset if not. `Match.match_info` deliberately does **not** appear in this set — score updates flow through `Event.update()`.
