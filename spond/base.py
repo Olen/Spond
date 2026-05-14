@@ -1,3 +1,13 @@
+"""Shared base class for Spond API clients.
+
+`_SpondBase` is the abstract parent of both `spond.spond.Spond` (consumer API)
+and `spond.club.SpondClub` (Spond Club finance API). It owns the credentials,
+the underlying aiohttp `ClientSession`, the access token, and the lazy login
+flow used by the `require_authentication` decorator.
+
+Not intended to be instantiated directly — use a subclass.
+"""
+
 from abc import ABC
 from collections.abc import Callable
 
@@ -7,7 +17,27 @@ from spond import AuthenticationError
 
 
 class _SpondBase(ABC):
+    """Abstract base for Spond API clients.
+
+    Subclasses provide the API base URL via the third constructor argument
+    and inherit lazy authentication, the `auth_headers` property, the
+    `require_authentication` decorator, and the `login()` flow.
+    """
+
     def __init__(self, username: str, password: str, api_url: str) -> None:
+        """Initialise credentials and open the aiohttp session.
+
+        Parameters
+        ----------
+        username : str
+            Spond account email address.
+        password : str
+            Spond account password.
+        api_url : str
+            Base URL for the API family this client targets (consumer or
+            club). Must end with a trailing slash so relative paths can be
+            concatenated.
+        """
         self.username = username
         self.password = password
         self.api_url = api_url
@@ -58,6 +88,29 @@ class _SpondBase(ABC):
 
     @staticmethod
     def _extract_access_token(login_result: dict) -> str:
+        """Pull the access-token string out of a `/auth2/login` response.
+
+        The response shape is
+        `{"accessToken": {"token": "<JWT>", "expiration": "..."}, ...}`.
+        This helper validates that shape and returns the bearer string used
+        for subsequent API calls.
+
+        Parameters
+        ----------
+        login_result : dict
+            Parsed JSON body from the login endpoint.
+
+        Returns
+        -------
+        str
+            The bearer-token string.
+
+        Raises
+        ------
+        AuthenticationError
+            The response is malformed or doesn't carry a usable token (e.g.
+            wrong credentials, account locked, 2FA required).
+        """
         access = login_result.get("accessToken")
         if isinstance(access, dict):
             token = access.get("token")

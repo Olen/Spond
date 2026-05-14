@@ -11,6 +11,19 @@ JSONDict: TypeAlias = dict[str, Any]
 
 
 class AuthenticationError(Exception):
-    """Error raised on Spond authentication failure."""
+    """Raised when login to the Spond API fails.
+
+    Typical causes:
+
+    - Incorrect username/password.
+    - 2FA enabled on the account (the library does not currently support
+      Spond's TOTP flow — see #205).
+    - The account has hit Spond's login rate limit (`outOfLoginAttempts`).
+    - The Spond login API has changed shape and the response no longer
+      contains an `accessToken`.
+
+    The exception message includes the raw login response, which usually
+    indicates which of the above applies.
+    """
 
     pass
