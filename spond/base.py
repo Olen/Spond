@@ -16,6 +16,8 @@ class _SpondBase(ABC):
 
     @property
     def auth_headers(self) -> dict:
+        """Headers required for authenticated requests: JSON content-type plus
+        a Bearer token from `self.token`."""
         return {
             "content-type": "application/json",
             "Authorization": f"Bearer {self.token}",
@@ -23,6 +25,10 @@ class _SpondBase(ABC):
 
     @staticmethod
     def require_authentication(func: Callable):
+        """Decorator that calls `self.login()` before invoking `func` if the
+        client is not yet authenticated. On `AuthenticationError`, closes the
+        underlying aiohttp session before re-raising."""
+
         async def wrapper(self, *args, **kwargs):
             if not self.token:
                 try:
@@ -35,6 +41,15 @@ class _SpondBase(ABC):
         return wrapper
 
     async def login(self) -> None:
+        """Authenticate against the Spond API and store the access token on
+        `self.token`. Called automatically by the `require_authentication`
+        decorator; rarely needs to be called explicitly.
+
+        Raises
+        ------
+        AuthenticationError
+            If the server response does not include a usable access token.
+        """
         login_url = f"{self.api_url}auth2/login"
         data = {"email": self.username, "password": self.password}
         async with self.clientsession.post(login_url, json=data) as r:

@@ -1,3 +1,9 @@
+"""Unofficial Python SDK for the Spond API.
+
+The main entry point is `spond.spond.Spond` for general account/event/group/
+messaging access, and `spond.club.SpondClub` for the Spond Club finance API.
+"""
+
 from typing import Any, TypeAlias
 
 JSONDict: TypeAlias = dict[str, Any]
