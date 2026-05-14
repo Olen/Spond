@@ -94,8 +94,13 @@ Demonstrates most `get...()` methods.
 ## API documentation
 
 The library's API documentation is generated from the docstrings in `spond/`
-using [pdoc](https://pdoc.dev/). To browse it locally, install the dev
-dependencies and start the pdoc dev server:
+using [pdoc](https://pdoc.dev/) and published to GitHub Pages on every push
+to `main`:
+
+**[https://olen.github.io/Spond/](https://olen.github.io/Spond/)**
+
+To browse the same docs locally (useful when iterating on docstrings),
+install the dev dependencies and start the pdoc dev server:
 
 ```shell
 poetry install
