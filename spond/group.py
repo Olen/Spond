@@ -124,6 +124,15 @@ class Group(DictCompatModel):
             f"Group(uid={self.uid!r}, name={self.name!r}, members={len(self.members)})"
         )
 
+    def _natural_key(self) -> tuple | None:
+        """uid when set; otherwise the group `name` distinguishes
+        unsaved groups."""
+        if self.uid:
+            return ("Group", self.uid)
+        if self.name:
+            return ("Group", None, self.name)
+        return None
+
     @classmethod
     def from_api(cls, data: dict[str, Any], client: Spond) -> Group:
         """Construct a `Group` from raw API data and wire `_client` through.

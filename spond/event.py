@@ -198,6 +198,18 @@ class Event(DictCompatModel):
         start = self.start_time.isoformat() if self.start_time else "?"
         return f"Event(uid={self.uid!r}, heading={self.heading!r}, start_time={start})"
 
+    def _natural_key(self) -> tuple | None:
+        """Entity-identity tuple. uid-based when set; otherwise the
+        `(heading, start_time)` pair lets a freshly-constructed event
+        compare equal to itself across copies (useful when staging an
+        event before `Spond.create_event()` is called).
+        """
+        if self.uid:
+            return ("Event", self.uid)
+        if self.heading or self.start_time:
+            return ("Event", None, self.heading, self.start_time)
+        return None
+
     @property
     def url(self) -> str:
         """Web URL of the event (for opening in a browser)."""

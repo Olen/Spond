@@ -72,3 +72,12 @@ class Profile(DictCompatModel):
 
     def __str__(self) -> str:
         return f"Profile(uid={self.uid!r}, name={self.full_name!r})"
+
+    def _natural_key(self) -> tuple | None:
+        """uid when set; otherwise full_name distinguishes
+        freshly-constructed profile instances."""
+        if self.uid:
+            return ("Profile", self.uid)
+        if self.full_name:
+            return ("Profile", None, self.full_name)
+        return None

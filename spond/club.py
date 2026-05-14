@@ -44,6 +44,21 @@ class Transaction(DictCompatModel):
             f"paid_by={self.paid_by_name!r})"
         )
 
+    def _natural_key(self) -> tuple | None:
+        """uid when set; otherwise (paid_at, payment_name, paid_by_name)
+        as the natural composite key Spond's UI exposes."""
+        if self.uid:
+            return ("Transaction", self.uid)
+        if self.paid_at or self.payment_name or self.paid_by_name:
+            return (
+                "Transaction",
+                None,
+                self.paid_at,
+                self.payment_name,
+                self.paid_by_name,
+            )
+        return None
+
 
 class SpondClub(_SpondBase):
     """Async client for the Spond Club finance API.

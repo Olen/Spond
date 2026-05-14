@@ -68,6 +68,20 @@ class Person(DictCompatModel):
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(uid={self.uid!r}, name={self.full_name!r})"
 
+    def _natural_key(self) -> tuple | None:
+        """uid when set; otherwise full_name + email. Returns the same
+        kind tag (`"Person"`) for Member and Guardian, so two records
+        for the same human (one a member, one a guardian elsewhere)
+        compare unequal only if their identifiers differ — matching
+        Spond's data model where the same uid never appears in both
+        roles for the same account."""
+        if self.uid:
+            return ("Person", self.uid)
+        email = getattr(self, "email", None)
+        if self.full_name or email:
+            return ("Person", None, self.full_name, email)
+        return None
+
 
 class Guardian(Person):
     """A guardian attached to a `Member`.

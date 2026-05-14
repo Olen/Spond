@@ -179,3 +179,103 @@ class DictCompatModel(BaseModel):
         for extra_key, extra_value in self._pydantic_extras().items():
             result.append((extra_key, extra_value))
         return result
+
+    # -----------------------------------------------------------------
+    # Identity / equality / hashing
+    #
+    # Pydantic's default `__eq__` compares every field; two `Event`
+    # instances with the same `uid` but slightly different (e.g.
+    # `updated`) state are considered different. That's the wrong
+    # semantics for entity types served by a remote API — most callers
+    # want "same uid → same entity", and want to use Event instances as
+    # set members or dict keys.
+    #
+    # `_natural_key()` is the override hook. Subclasses return a tuple
+    # of (entity_kind, *identifying_fields). The default uses
+    # `(class-tree-root.__name__, uid)` when uid is set so `Match("X")`
+    # and `Event("X")` are equal (Match's MRO walks back to Event).
+    # When uid is absent (a freshly-constructed instance not yet
+    # persisted), subclasses provide a fallback natural key derived
+    # from user-visible fields (e.g. heading + start_time for Event).
+    # Returning `None` falls back to Pydantic's full-field equality.
+    # -----------------------------------------------------------------
+
+    def _natural_key(self) -> tuple | None:
+        """Return a tuple uniquely identifying this entity, or `None` to
+        fall back to Pydantic's full-field equality.
+
+        Default implementation: if the instance has a non-empty `uid`,
+        the key is `(top-level entity class name, uid)`. This makes
+        `Match(uid="X") == Event(uid="X")` evaluate True — a sensible
+        outcome since they refer to the same Spond record.
+
+        Subclasses override to provide a natural key for instances
+        without a uid yet (e.g. an `Event` about to be created):
+
+        ```python
+        def _natural_key(self) -> tuple | None:
+            if self.uid:
+                return ("Event", self.uid)
+            if self.heading or self.start_time:
+                return ("Event", None, self.heading, self.start_time)
+            return None
+        ```
+        """
+        uid = getattr(self, "uid", None)
+        if uid:
+            return (_entity_kind_of(type(self)), uid)
+        return None
+
+    def __eq__(self, other: object) -> bool:
+        # Falls outside the typed-model graph — let Python try the
+        # other operand's __eq__ via NotImplemented.
+        if not isinstance(other, DictCompatModel):
+            return NotImplemented
+        a = self._natural_key()
+        b = other._natural_key()
+        if a is not None and b is not None:
+            return a == b
+        # One or both lack a natural key — fall back to Pydantic's
+        # full-field equality, but only between same-class instances
+        # (cross-class full-field equality is rarely meaningful).
+        if type(self) is not type(other):
+            return False
+        return BaseModel.__eq__(self, other)
+
+    def __hash__(self) -> int:
+        key = self._natural_key()
+        if key is not None:
+            return hash(key)
+        # No natural key (e.g. partially-constructed instance) — fall
+        # back to identity-based hash so the object is at least
+        # hashable. Two such instances are unequal under __eq__'s
+        # full-field-fallback path anyway, so this preserves the
+        # equality/hash invariant.
+        return object.__hash__(self)
+
+
+def _entity_kind_of(cls: type) -> str:
+    """Walk the MRO to find the nearest non-`DictCompatModel`,
+    non-`BaseModel` ancestor — that's the "entity kind."
+
+    For `Match` (which inherits from `Event`), this returns `"Event"`
+    so `Match` and `Event` instances with the same uid compare equal.
+    For `Member`/`Guardian` (both inheriting from `Person`), this
+    returns `"Person"` for the same reason.
+    """
+    for ancestor in cls.__mro__:
+        if ancestor is DictCompatModel or ancestor is BaseModel:
+            break
+        # The most-derived "non-base" class with a name is the entity
+        # kind. We walk further up to find the most general one.
+    # Find the top-most user-defined class in the MRO before DictCompatModel.
+    user_classes = [
+        c
+        for c in cls.__mro__
+        if c not in (DictCompatModel, BaseModel, object)
+        and c.__module__.startswith("spond")
+    ]
+    if not user_classes:
+        return cls.__name__
+    # The last one in MRO before DictCompatModel is the root entity kind.
+    return user_classes[-1].__name__

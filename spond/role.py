@@ -24,3 +24,10 @@ class Role(DictCompatModel):
 
     def __str__(self) -> str:
         return f"Role(uid={self.uid!r}, name={self.name!r})"
+
+    def _natural_key(self) -> tuple | None:
+        if self.uid:
+            return ("Role", self.uid)
+        if self.name:
+            return ("Role", None, self.name)
+        return None

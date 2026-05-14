@@ -26,3 +26,10 @@ class Subgroup(DictCompatModel):
 
     def __str__(self) -> str:
         return f"Subgroup(uid={self.uid!r}, name={self.name!r})"
+
+    def _natural_key(self) -> tuple | None:
+        if self.uid:
+            return ("Subgroup", self.uid)
+        if self.name:
+            return ("Subgroup", None, self.name)
+        return None

@@ -16,6 +16,12 @@ from . import JSONDict
 from .base import _SpondBase
 from .chat import Chat
 from .event import Event
+from .exceptions import (
+    EventNotFoundError,
+    GroupNotFoundError,
+    PersonNotFoundError,
+    SpondAPIError,
+)
 from .group import Group
 from .match import Match
 from .person import Member, Person
@@ -242,7 +248,7 @@ class Spond(_SpondBase):
         # type so existing `except KeyError:` callers keep working, but
         # the message tells the caller which situation they're in.
         if not self.groups:
-            raise KeyError(
+            raise PersonNotFoundError(
                 f"No person matched with identifier {user!r}: account has "
                 f"no groups, so there are no members to search."
             )
@@ -253,7 +259,7 @@ class Spond(_SpondBase):
                 for guardian in member.guardians:
                     if self._match_person(guardian, user):
                         return guardian
-        raise KeyError(
+        raise PersonNotFoundError(
             f"No person matched with identifier {user!r}: scanned "
             f"{sum(len(g.members) for g in self.groups)} member(s) across "
             f"{len(self.groups)} group(s)."
@@ -352,9 +358,7 @@ class Spond(_SpondBase):
         ) as r:
             if not r.ok:
                 error_details = await r.text()
-                raise ValueError(
-                    f"Request failed with status {r.status}: {error_details}"
-                )
+                raise SpondAPIError(r.status, error_details, url)
             raw = await r.json()
         if raw is None:
             self.posts = None
@@ -612,9 +616,7 @@ class Spond(_SpondBase):
         ) as r:
             if not r.ok:
                 error_details = await r.text()
-                raise ValueError(
-                    f"Request failed with status {r.status}: {error_details}"
-                )
+                raise SpondAPIError(r.status, error_details, url)
             raw = await r.json()
         if raw is None:
             self.events = None
@@ -791,10 +793,16 @@ class Spond(_SpondBase):
             raise NotImplementedError(errmsg)
 
         errmsg = f"No {entity_type} with id='{uid}'."
+        # Pick the typed subclass so callers can `except EventNotFoundError`
+        # (or `except GroupNotFoundError`) specifically. Both still inherit
+        # from KeyError for pre-OO compat.
+        exc_cls = (
+            EventNotFoundError if entity_type == self._EVENT else GroupNotFoundError
+        )
         if not entities:
-            raise KeyError(errmsg)
+            raise exc_cls(errmsg)
 
         for entity in entities:
             if entity.uid == uid:
                 return entity
-        raise KeyError(errmsg)
+        raise exc_cls(errmsg)

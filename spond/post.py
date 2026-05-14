@@ -50,3 +50,11 @@ class Post(DictCompatModel):
         # `start_time`. Avoids `AttributeError` when Spond omits the field.
         ts = self.timestamp.isoformat() if self.timestamp else "?"
         return f"Post(uid={self.uid!r}, title={self.title!r}, timestamp={ts})"
+
+    def _natural_key(self) -> tuple | None:
+        """uid when set; otherwise (title, timestamp) for unsaved posts."""
+        if self.uid:
+            return ("Post", self.uid)
+        if self.title or self.timestamp:
+            return ("Post", None, self.title, self.timestamp)
+        return None

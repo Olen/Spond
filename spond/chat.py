@@ -75,6 +75,13 @@ class Message(DictCompatModel):
     spond: dict[str, Any] | None = None
     """Set when `type=="SPOND"` — embedded event share."""
 
+    def _natural_key(self) -> tuple | None:
+        """Messages have no `uid` — identity is `(chat_id, msg_num)`, the
+        composite key Spond uses to address an individual message."""
+        if self.chat_id is not None and self.msg_num is not None:
+            return ("Message", self.chat_id, self.msg_num)
+        return None
+
 
 class Chat(DictCompatModel):
     """A chat thread — group, direct message, system channel, or campaign.
@@ -122,6 +129,14 @@ class Chat(DictCompatModel):
 
     def __str__(self) -> str:
         return f"Chat(uid={self.uid!r}, name={self.name!r}, type={self.type!r})"
+
+    def _natural_key(self) -> tuple | None:
+        """uid when set; otherwise (name, type) for unsaved threads."""
+        if self.uid:
+            return ("Chat", self.uid)
+        if self.name or self.type:
+            return ("Chat", None, self.name, self.type)
+        return None
 
     @classmethod
     def from_api(cls, data: dict[str, Any], client: Spond | None) -> Chat:
