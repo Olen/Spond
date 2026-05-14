@@ -8,12 +8,41 @@ class for this API and `spond.spond.Spond` for everything else.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar
 
+from pydantic import ConfigDict, Field
+
+from ._compat import DictCompatModel
 from .base import _SpondBase
 
 if TYPE_CHECKING:
     from . import JSONDict
+
+
+class Transaction(DictCompatModel):
+    """A Spond Club payment/transaction record.
+
+    Returned as elements of `SpondClub.get_transactions()`. Conservatively
+    modelled around the four fields the Spond Club UI guarantees on every
+    transaction: `id`, `paidAt`, `paymentName`, `paidByName`. Everything else
+    Spond emits passes through `extra="ignore"` and is accessible via the
+    dict-compat fallback (`transaction["someField"]`) until those fields are
+    explicitly modelled.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    uid: str = Field(alias="id")
+    paid_at: datetime = Field(alias="paidAt")
+    payment_name: str = Field(alias="paymentName")
+    paid_by_name: str = Field(alias="paidByName")
+
+    def __str__(self) -> str:
+        return (
+            f"Transaction(uid={self.uid!r}, payment={self.payment_name!r}, "
+            f"paid_by={self.paid_by_name!r})"
+        )
 
 
 class SpondClub(_SpondBase):

@@ -1,0 +1,289 @@
+"""Typed `Event` model with ActiveRecord-style behaviour.
+
+`Event` instances are returned from `spond.spond.Spond.get_event()` and
+`Spond.get_events()`. Each instance carries a reference back to the Spond
+client (`_client`) so its methods can issue HTTP calls without the caller
+having to thread the client through.
+
+The class inherits from `DictCompatModel`, so existing dict-style consumers
+(`event["heading"]`, `event["startTimestamp"]`, `event.get("id")`) keep
+working with a `DeprecationWarning`.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any
+
+from pydantic import ConfigDict, Field, PrivateAttr
+
+from ._compat import DictCompatModel
+from ._event_template import _EVENT_TEMPLATE
+
+if TYPE_CHECKING:
+    from .spond import Spond
+
+
+class EventType(StrEnum):
+    """Kind of event, as reported by Spond's `type` field.
+
+    Values may extend over time as Spond introduces new event variants.
+    """
+
+    EVENT = "EVENT"
+    """A one-off event."""
+    RECURRING = "RECURRING"
+    """An occurrence of a recurring event."""
+    AVAILABILITY = "AVAILABILITY"
+    """An availability request (no fixed time)."""
+
+
+class Responses(DictCompatModel):
+    """The attendance-response lists attached to an `Event`.
+
+    Each list holds raw member UIDs (`str`), not `Member` objects — resolving
+    them to members requires a `Group` context which an Event doesn't carry
+    standalone. To get `Member` objects, walk the parent group's `members`
+    list and filter, or call `await event.accepted_members(spond)` (planned
+    follow-up).
+    """
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    accepted_uids: list[str] = Field(default_factory=list, alias="acceptedIds")
+    """UIDs of members who accepted the invitation."""
+    declined_uids: list[str] = Field(default_factory=list, alias="declinedIds")
+    """UIDs of members who declined."""
+    unanswered_uids: list[str] = Field(default_factory=list, alias="unansweredIds")
+    """UIDs of members who have not yet responded."""
+    waiting_list_uids: list[str] = Field(default_factory=list, alias="waitinglistIds")
+    """UIDs of members on the waiting list (event is full)."""
+    unconfirmed_uids: list[str] = Field(default_factory=list, alias="unconfirmedIds")
+    """UIDs of members whose response needs confirmation."""
+
+
+class Event(DictCompatModel):
+    """A Spond event with attached operations.
+
+    Construct via `Spond.get_event(uid)` or as elements of
+    `Spond.get_events()` — both wire `_client` for you. Don't instantiate
+    directly unless you also set `_client` (the ActiveRecord methods need
+    it for HTTP).
+
+    Example
+    -------
+    ```python
+    event = await spond.get_event(uid)
+    print(event.heading, event.start_time)
+    for member_uid in event.responses.accepted_uids:
+        print(member_uid)
+
+    await event.update(description="Updated description")
+    await event.change_response(member_uid, accepted=True)
+    xlsx = await event.attendance_xlsx()
+    ```
+    """
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        extra="ignore",
+        arbitrary_types_allowed=True,
+    )
+
+    # Core fields (always present in API data)
+    uid: str = Field(alias="id")
+    heading: str
+    start_time: datetime = Field(alias="startTimestamp")
+    end_time: datetime = Field(alias="endTimestamp")
+    created_time: datetime = Field(alias="createdTime")
+    type: EventType
+    responses: Responses
+
+    # Owner / creator metadata
+    creator_uid: str | None = Field(default=None, alias="creatorId")
+    owners: list[dict[str, Any]] = Field(default_factory=list)
+    """Raw owner objects (typed `Owner` class is a possible future refinement)."""
+
+    # Commonly present but treated as optional
+    description: str | None = None
+    visibility: str = "INVITEES"
+    expired: bool = False
+    hidden: bool = False
+    cancelled: bool = False
+    auto_accept: bool = Field(default=False, alias="autoAccept")
+    auto_reminder_type: str = Field(default="DISABLED", alias="autoReminderType")
+    participants_hidden: bool = Field(default=False, alias="participantsHidden")
+    registered: bool = False
+    comments_disabled: bool = Field(default=False, alias="commentsDisabled")
+    match_event: bool = Field(default=False, alias="matchEvent")
+    modified_from_series: bool = Field(default=False, alias="modifiedFromSeries")
+
+    # Series fields (only for recurring events)
+    series_uid: str | None = Field(default=None, alias="seriesId")
+    series_ordinal: int | None = Field(default=None, alias="seriesOrdinal")
+
+    # Update timestamp (Spond uses milliseconds since epoch here)
+    updated: int | None = None
+
+    # Behalf-of (members someone else can respond for)
+    behalf_of_uids: list[str] = Field(default_factory=list, alias="behalfOfIds")
+
+    # Nested data we keep as raw dicts for now (modelling these is follow-up work)
+    location: dict[str, Any] | None = None
+    """Location dict with `address`, `latitude`, `longitude`, etc. Unmodelled for now."""
+    recipients: dict[str, Any] | None = None
+    """Recipients dict with `group`, `profiles`, `guardians`. Unmodelled for now."""
+    tasks: dict[str, Any] | None = None
+    """Tasks dict with `openTasks`, `assignedTasks`. Unmodelled for now."""
+    attachments: list[Any] = Field(default_factory=list)
+    """Attachment objects. Unmodelled for now."""
+    comments: list[Any] = Field(default_factory=list)
+    """Comment objects. Only populated when fetched with `?includeComments=true`."""
+
+    # Non-serialised reference back to the Spond client for HTTP calls.
+    _client: Any = PrivateAttr(default=None)
+
+    def __str__(self) -> str:
+        return (
+            f"Event(uid={self.uid!r}, heading={self.heading!r}, "
+            f"start_time={self.start_time.isoformat()})"
+        )
+
+    @property
+    def url(self) -> str:
+        """Web URL of the event (for opening in a browser)."""
+        return f"https://spond.com/client/sponds/{self.uid}/"
+
+    @classmethod
+    def from_api(cls, data: dict[str, Any], client: Spond) -> Event:
+        """Construct an `Event` from a raw API response and bind the client.
+
+        Used internally by `Spond.get_event()` and `Spond.get_events()`.
+        Sets `_client` on the instance so the ActiveRecord methods can
+        issue HTTP calls.
+        """
+        instance = cls.model_validate(data)
+        instance._client = client
+        return instance
+
+    def _resolve_field_for_update(self, key: str) -> tuple[str, str]:
+        """Translate either a Python attribute name or an API alias to both.
+
+        Returns `(python_name, api_name)`. Raises `ValueError` if neither
+        form matches a field in this model.
+        """
+        py_name = self._resolve_dict_key(key)
+        if py_name is None:
+            raise ValueError(
+                f"Event has no field {key!r}; valid names are "
+                f"{sorted(self.__class__.model_fields)}"
+            )
+        field_info = self.__class__.model_fields[py_name]
+        api_name = field_info.alias or py_name
+        return py_name, api_name
+
+    async def update(self, **fields: Any) -> Event:
+        """POST changes to this event back to Spond and return the updated event.
+
+        Accepts either Python-style attribute names (`description="..."`) or
+        API-style aliases (`startTimestamp="..."`). Unknown keys raise
+        `ValueError`.
+
+        Parameters
+        ----------
+        **fields
+            Field updates to send. Only fields present in `_EVENT_TEMPLATE`
+            actually reach the server — others are silently dropped by Spond.
+
+        Returns
+        -------
+        Event
+            A new `Event` reflecting the persisted state. The original
+            instance is **not** mutated.
+        """
+        api_updates: dict[str, Any] = {}
+        for key, value in fields.items():
+            _, api_name = self._resolve_field_for_update(key)
+            api_updates[api_name] = value
+
+        # Build the payload from _EVENT_TEMPLATE, falling back to current state
+        # for fields the caller didn't provide. Matches the existing
+        # `Spond.update_event` semantics exactly.
+        current = self.model_dump(by_alias=True)
+        payload = _EVENT_TEMPLATE.copy()
+        for key in payload:
+            if api_updates.get(key) is not None:
+                payload[key] = api_updates[key]
+            elif current.get(key) is not None:
+                payload[key] = current[key]
+
+        url = f"{self._client.api_url}sponds/{self.uid}"
+        async with self._client.clientsession.post(
+            url, json=payload, headers=self._client.auth_headers
+        ) as r:
+            new_data = await r.json()
+
+        return Event.from_api(new_data, self._client)
+
+    async def change_response(
+        self,
+        member_uid: str,
+        *,
+        accepted: bool,
+        decline_message: str | None = None,
+    ) -> dict[str, Any]:
+        """Set a member's response on this event.
+
+        Parameters
+        ----------
+        member_uid : str
+            UID of the member whose response to set. This is the **member's**
+            id (`group["members"][i]["id"]`), not a profile id and not the
+            authenticated user's id.
+        accepted : bool
+            True to accept, False to decline.
+        decline_message : str, optional
+            Reason for declining. Ignored unless `accepted=False`.
+
+        Returns
+        -------
+        dict
+            The event's `responses` object as returned by the API, with the
+            updated id lists (`acceptedIds`, `declinedIds`, …).
+        """
+        payload: dict[str, Any] = {"accepted": str(accepted).lower()}
+        if not accepted and decline_message is not None:
+            payload["declineMessage"] = decline_message
+
+        url = f"{self._client.api_url}sponds/{self.uid}/responses/{member_uid}"
+        async with self._client.clientsession.put(
+            url, headers=self._client.auth_headers, json=payload
+        ) as r:
+            return await r.json()
+
+    async def attendance_xlsx(self) -> bytes:
+        """Download Spond's attendance-history XLSX for this event.
+
+        Thin wrapper around Spond's web-UI "Export attendance history"
+        feature — the columns and format are determined by Spond, not by
+        this library, and notably the export does not include member ids.
+        For a customisable CSV alternative, see `examples/attendance.py`.
+
+        Returns
+        -------
+        bytes
+            Raw XLSX bytes, typically written directly to disk:
+
+            ```python
+            import pathlib
+
+            data = await event.attendance_xlsx()
+            pathlib.Path(f"{event.uid}.xlsx").write_bytes(data)
+            ```
+        """
+        url = f"{self._client.api_url}sponds/{self.uid}/export"
+        async with self._client.clientsession.get(
+            url, headers=self._client.auth_headers
+        ) as r:
+            return await r.read()
