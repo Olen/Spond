@@ -166,8 +166,5 @@ cython_debug/
 ########################################################################################
 
 # Project specific
-exports/*
-config.py
-
-
-
+examples/config.py
+examples/exports/

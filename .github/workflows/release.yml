@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: 🛎️ Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Requried to check if a tag exists already
 
@@ -78,7 +78,7 @@ jobs:
           stripGeneratorNotice: true
 
       - name: 🚀 Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.VERSION }}
           name: 🎉 Release v${{ env.VERSION }}

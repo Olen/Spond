@@ -1,29 +1,34 @@
 #!/usr/bin/env python3
 
 import asyncio
-import os
+from pathlib import Path
 
 from config import password, username
 from ics import Calendar, Event
 
 from spond import spond
 
-if not os.path.exists("./exports"):
-    os.makedirs("./exports")
-
-ics_file = os.path.join("./exports", "spond.ics")
+EXPORT_DIRPATH = Path("./exports")
 
 
-async def main():
+async def main() -> None:
     s = spond.Spond(username=username, password=password)
     c = Calendar()
     c.method = "PUBLISH"
     events = await s.get_events()
+    EXPORT_DIRPATH.mkdir(exist_ok=True)
+    ics_filepath = EXPORT_DIRPATH / "spond.ics"
+
     for event in events:
         e = Event()
         e.uid = event["id"]
         e.name = event["heading"]
-        e.begin = event["startTimestamp"]
+        # Match events expose two start times: `startTimestamp` is the
+        # kickoff, while `meetupTimestamp` is when participants are expected
+        # to arrive (Norwegian: "oppmøtetid"). Training events only have
+        # `startTimestamp`. We prefer the meet-up time so calendar
+        # subscribers see when to show up, and fall back to kickoff.
+        e.begin = event.get("meetupTimestamp", event["startTimestamp"])
         e.end = event["endTimestamp"]
         e.sequence = event["updated"]
         e.description = event.get("description")
@@ -32,8 +37,10 @@ async def main():
         if "location" in event:
             e.location = f"{event['location'].get('feature')}, {event['location'].get('address')}"
         c.events.add(e)
-    with open(ics_file, "w") as out_file:
+
+    with ics_filepath.open("w") as out_file:
         out_file.writelines(c)
+
     await s.clientsession.close()
 
 
