@@ -546,9 +546,16 @@ class Spond(_SpondBase):
         raise KeyError(errmsg)
 
     async def _fetch_event_by_uid(self, uid: str) -> JSONDict:
-        """Fetch a single event from the singular endpoint."""
+        """Fetch a single event from the singular endpoint.
+
+        `includeComments=true` makes the response shape match a list-endpoint
+        element (the singular endpoint otherwise omits the `comments` field).
+        """
         url = f"{self.api_url}sponds/{uid}"
-        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+        params = {"includeComments": "true"}
+        async with self.clientsession.get(
+            url, headers=self.auth_headers, params=params
+        ) as r:
             if r.status == 404:
                 raise KeyError(f"No event with id='{uid}'.")
             if not r.ok:

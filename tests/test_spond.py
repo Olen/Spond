@@ -72,6 +72,7 @@ class TestEventMethods:
                 "content-type": "application/json",
                 "Authorization": f"Bearer {mock_token}",
             },
+            params={"includeComments": "true"},
         )
         assert event == self.MOCK_EVENT
 
