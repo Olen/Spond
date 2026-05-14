@@ -8,6 +8,7 @@ their respective typed objects when the Group is constructed via
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from pydantic import ConfigDict, Field, PrivateAttr
@@ -70,6 +71,51 @@ class Group(DictCompatModel):
     event_visibility: str | None = Field(default=None, alias="eventVisibility")
     country_code: str | None = Field(default=None, alias="countryCode")
     type: int | None = None
+
+    # Fields observed in the live API but absent from the original Spond
+    # SDK's reverse-engineered shape. Most are admin-relevant metadata
+    # (permissions, contact policy, address layout); all are optional so a
+    # future field-drop doesn't crash get_groups().
+    created_time: datetime | None = Field(default=None, alias="createdTime")
+    member_permissions: list[str] = Field(
+        default_factory=list, alias="memberPermissions"
+    )
+    """Permission strings granted to regular members (e.g. `["posts"]`)."""
+    guardian_permissions: list[str] = Field(
+        default_factory=list, alias="guardianPermissions"
+    )
+    """Permission strings granted to guardians (e.g. `["posts"]`)."""
+    membership_requests: list[dict[str, Any]] = Field(
+        default_factory=list, alias="membershipRequests"
+    )
+    """Pending join requests. Each entry is unmodelled."""
+    chat_age_limit: int | None = Field(default=None, alias="chatAgeLimit")
+    """Minimum age allowed in group chats."""
+    share_contact_info: bool = Field(default=False, alias="shareContactInfo")
+    """Whether member contact info is visible to other members."""
+    contact_info_hidden: bool = Field(default=False, alias="contactInfoHidden")
+    admins_can_add_members: bool = Field(default=False, alias="adminsCanAddMembers")
+    address_format: list[str] = Field(default_factory=list, alias="addressFormat")
+    """Field-order hint for displaying member addresses, e.g.
+    `["street", "zip", "city"]`."""
+    allow_sms_nag: bool = Field(default=False, alias="allowSmsNag")
+    bonus_enabled: bool = Field(default=False, alias="bonusEnabled")
+    invited_to_app_time: datetime | None = Field(default=None, alias="invitedToAppTime")
+
+    # Less user-facing — admin/finance internals. Kept as raw containers
+    # because their nested shapes vary by Spond Club configuration and
+    # we don't want to over-promise a structure.
+    field_defs: list[Any] = Field(default_factory=list, alias="fieldDefs")
+    """Custom-field definitions configured on the group. Unmodelled."""
+    default_fields: dict[str, Any] = Field(default_factory=dict, alias="defaultFields")
+    """Default per-member field metadata. Unmodelled."""
+    payout_accounts: list[Any] = Field(default_factory=list, alias="payoutAccounts")
+    """Spond Club payout accounts attached to the group."""
+    allow_private_payout_accounts: bool = Field(
+        default=False, alias="allowPrivatePayoutAccounts"
+    )
+    experiments: dict[str, Any] = Field(default_factory=dict)
+    """A/B experiment flags Spond has enabled for this group. Internal."""
 
     _client: Any = PrivateAttr(default=None)
 

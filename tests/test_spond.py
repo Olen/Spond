@@ -1016,3 +1016,32 @@ class TestMatch:
         bare = _typed_event({**_MIN_EVENT_PAYLOAD, "matchEvent": True}, None)
         assert isinstance(bare, Match)
         assert bare.match_info is None
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_match_update_preserves_match_type(
+        self, mock_post, mock_token
+    ) -> None:
+        """`match.update(...)` must return a `Match` instance, not a plain
+        `Event` — otherwise subclass identity is silently dropped and the
+        cache replacement loop demotes the entry to a non-Match. Regression
+        guard for the `type(self).from_api(...)` fix."""
+        from spond.match import Match
+        from spond.spond import _typed_event
+
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        original = _typed_event(self._MATCH_PAYLOAD, s)
+        assert isinstance(original, Match)
+        s.events = [original]
+
+        response = {**self._MATCH_PAYLOAD, "heading": "Updated Match"}
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=response
+        )
+
+        result = await original.update(heading="Updated Match")
+        assert isinstance(result, Match), f"Got {type(result).__name__}, expected Match"
+        # And the cache entry got swapped to the new Match instance, not a demoted Event.
+        assert isinstance(s.events[0], Match)
+        assert s.events[0] is result

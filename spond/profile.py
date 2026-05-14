@@ -48,6 +48,21 @@ class Profile(DictCompatModel):
     preferences: dict[str, Any] | None = None
     """Nested preference settings (push, email, locale, etc.). Unmodelled."""
 
+    # Fields observed in the live API but absent from the original Spond SDK's
+    # reverse-engineered shape. All optional so a future field-drop doesn't
+    # crash get_profile().
+    tos_version: int | None = Field(default=None, alias="tosVersion")
+    """Version of the Spond Terms of Service the user has accepted."""
+    contact: bool = False
+    """Whether the user can be listed as a group contact person."""
+
+    # Internal/analytics fields — preserved for completeness but not part of
+    # the user-meaningful API surface. Treat as opaque.
+    tracking_id: str | None = Field(default=None, alias="trackingId")
+    """Internal analytics identifier. Opaque; do not rely on the shape."""
+    unsubscribe_code: str | None = Field(default=None, alias="unsubscribeCode")
+    """Email-unsubscribe token. Internal."""
+
     @property
     def full_name(self) -> str:
         """Convenience: `first_name` + ` ` + `last_name`."""

@@ -22,10 +22,15 @@ from .post import Post
 from .profile import Profile
 
 
-def _typed_event(data: JSONDict, client: Spond) -> Event:
+def _typed_event(data: JSONDict, client: Spond | None) -> Event:
     """Construct a `Match` if `matchEvent` is True on the raw payload, else
     a plain `Event`. Centralises the typed-vs-typed dispatch so both
     `get_events()` and any future singular-fetch path use the same logic.
+
+    `client` is optional to make this helper usable in tests (which
+    construct events without a live Spond client). At runtime, every
+    production call site passes a real `Spond`; only tests pass `None`,
+    and they never invoke methods that would dereference `_client`.
     """
     cls = Match if data.get("matchEvent") else Event
     return cls.from_api(data, client)
@@ -231,15 +236,27 @@ class Spond(_SpondBase):
         """
         if not self.groups:
             await self.get_groups()
-        for group in self.groups or []:
+        # Distinct error path for "the account has no groups at all" vs.
+        # "groups exist but no member/guardian matched" — same exception
+        # type so existing `except KeyError:` callers keep working, but
+        # the message tells the caller which situation they're in.
+        if not self.groups:
+            raise KeyError(
+                f"No person matched with identifier {user!r}: account has "
+                f"no groups, so there are no members to search."
+            )
+        for group in self.groups:
             for member in group.members:
                 if self._match_person(member, user):
                     return member
                 for guardian in member.guardians:
                     if self._match_person(guardian, user):
                         return guardian
-        errmsg = f"No person matched with identifier '{user}'."
-        raise KeyError(errmsg)
+        raise KeyError(
+            f"No person matched with identifier {user!r}: scanned "
+            f"{sum(len(g.members) for g in self.groups)} member(s) across "
+            f"{len(self.groups)} group(s)."
+        )
 
     @staticmethod
     def _match_person(person: Person, match_str: str) -> bool:

@@ -64,6 +64,12 @@ class Responses(DictCompatModel):
     """UIDs of members on the waiting list (event is full)."""
     unconfirmed_uids: list[str] = Field(default_factory=list, alias="unconfirmedIds")
     """UIDs of members whose response needs confirmation."""
+    decline_messages: dict[str, dict[str, Any]] = Field(
+        default_factory=dict, alias="declineMessages"
+    )
+    """Per-member decline-reason map. Keys are member UIDs (subset of
+    `declined_uids`); each value is a `{profileId, message}` dict
+    describing who entered the message and what they said."""
 
 
 # Python field names that `Event.update()` strips from the POST payload.
@@ -285,11 +291,18 @@ class Event(DictCompatModel):
         # cache entry first so the fallback `get_events()` actually
         # re-fetches from the API rather than returning the stale `self`
         # that's still in the cache.
+        #
+        # `type(self)` (not literal `Event`) preserves subclass identity —
+        # a `Match` updated via Event.update stays a `Match` so subsequent
+        # `spond.get_event(uid)` doesn't silently demote to plain Event
+        # (which would lose `match_info`).
         try:
-            new_event = Event.from_api(new_data, self._client)
+            new_event = type(self).from_api(new_data, self._client)
         except ValidationError:
             # Drop the whole events cache so `get_event()` re-fetches via
             # `get_events()` instead of resolving from the stale cache.
+            # That re-fetch routes through `_typed_event` and picks the
+            # right subclass automatically.
             self._client.events = None
             new_event = await self._client.get_event(self.uid)
 
@@ -324,7 +337,12 @@ class Event(DictCompatModel):
         accepted : bool
             True to accept, False to decline.
         decline_message : str, optional
-            Reason for declining. Ignored unless `accepted=False`.
+            Reason for declining. When `accepted=False`, the message is
+            forwarded to Spond if provided. When `accepted=True`, the
+            message is **not** auto-cleared — any prior decline message
+            stays on the response server-side unless you explicitly pass
+            `decline_message=""` to clear it, or follow up with a separate
+            edit through Spond's UI.
 
         Returns
         -------
@@ -333,7 +351,10 @@ class Event(DictCompatModel):
             updated id lists (`acceptedIds`, `declinedIds`, …).
         """
         payload: dict[str, Any] = {"accepted": str(accepted).lower()}
-        if not accepted and decline_message is not None:
+        if decline_message is not None:
+            # Forward unconditionally if explicitly provided — lets callers
+            # pass `decline_message=""` to clear a prior message when
+            # flipping accepted=True.
             payload["declineMessage"] = decline_message
 
         url = f"{self._client.api_url}sponds/{self.uid}/responses/{member_uid}"
