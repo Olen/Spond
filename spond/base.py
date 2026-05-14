@@ -8,6 +8,7 @@ flow used by the `require_authentication` decorator.
 Not intended to be instantiated directly — use a subclass.
 """
 
+import contextlib
 import functools
 from abc import ABC
 from collections.abc import Callable
@@ -50,6 +51,35 @@ class _SpondBase(ABC):
         self.api_url = api_url
         self.clientsession = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar())
         self.token = None
+
+    async def __aenter__(self):
+        """Async context-manager entry — returns self.
+
+        Enables the idiomatic `async with Spond(...) as s:` shape so the
+        underlying aiohttp session is closed cleanly on exit, even if the
+        body raises:
+
+        ```python
+        async with Spond(username, password) as s:
+            events = await s.get_events()
+        # session closed automatically here
+        ```
+
+        Replaces the older `await s.clientsession.close()` cleanup that
+        every example used to require.
+        """
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        """Async context-manager exit — close the aiohttp client session.
+
+        Silently swallows any `RuntimeError` raised by `close()` (e.g.
+        "session is already closed" if the caller closed it manually
+        before exiting the `with` block) — defensive cleanup shouldn't
+        mask the original exception that triggered the exit.
+        """
+        with contextlib.suppress(RuntimeError):
+            await self.clientsession.close()
 
     @property
     def auth_headers(self) -> dict:

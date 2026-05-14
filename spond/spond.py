@@ -61,13 +61,23 @@ class Spond(_SpondBase):
     refresh, set the relevant attribute to `None` and call the `get_*` method
     again, or call the underlying `get_*s()` method directly.
 
-    Remember to close the underlying aiohttp session when finished:
+    `Spond` is an async context manager — the idiomatic shape closes the
+    underlying aiohttp session automatically:
+
+    ```python
+    async with Spond(username="...", password="...") as s:
+        groups = await s.get_groups()
+        ...
+    # session closed automatically on exit, even if the body raises
+    ```
+
+    The older explicit-cleanup shape still works for callers that need
+    a long-lived client outside a `with` block:
 
     ```python
     s = Spond(username="...", password="...")
     try:
         groups = await s.get_groups()
-        ...
     finally:
         await s.clientsession.close()
     ```
@@ -79,11 +89,11 @@ class Spond(_SpondBase):
     from spond import spond
 
     async def main():
-        s = spond.Spond(username="me@example.invalid", password="secret")
-        groups = await s.get_groups() or []
-        for g in groups:
-            print(g.name)
-        await s.clientsession.close()
+        async with spond.Spond(username="me@example.invalid",
+                               password="secret") as s:
+            groups = await s.get_groups() or []
+            for g in groups:
+                print(g.name)
 
     asyncio.run(main())
     ```
@@ -99,9 +109,9 @@ class Spond(_SpondBase):
 
         The credentials are stored on the instance and used to obtain an access
         token on the first authenticated call. An aiohttp `ClientSession` is
-        opened immediately; close it via `await s.clientsession.close()`
-        (where `s` is the constructed instance) when finished, to avoid
-        `Unclosed client session` warnings.
+        opened immediately; use `Spond` as an `async with` context manager to
+        close it automatically, or call `await s.clientsession.close()` when
+        finished to avoid `Unclosed client session` warnings.
 
         Parameters
         ----------

@@ -76,11 +76,11 @@ class SpondClub(_SpondBase):
     from spond import club
 
     async def main():
-        sc = club.SpondClub(username="me@example.invalid", password="secret")
-        txs = await sc.get_transactions(club_id="ABCD1234...", max_items=50)
-        for t in txs:
-            print(t["paidAt"], t["paymentName"], t["paidByName"])
-        await sc.clientsession.close()
+        async with club.SpondClub(username="me@example.invalid",
+                                  password="secret") as sc:
+            txs = await sc.get_transactions(club_id="ABCD1234...", max_items=50)
+            for t in txs:
+                print(t.paid_at, t.payment_name, t.paid_by_name)
 
     asyncio.run(main())
     ```
