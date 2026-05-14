@@ -524,10 +524,11 @@ class Spond(_SpondBase):
 
         """
         if entity_type == self._EVENT:
-            if not self.events:
-                await self.get_events()
-            entities = self.events
-        elif entity_type == self._GROUP:
+            # Direct fetch by uid, so this is not constrained by
+            # `get_events()`'s default `max_events` cap or its
+            # `include_scheduled=False` filter.
+            return await self._fetch_event_by_uid(uid)
+        if entity_type == self._GROUP:
             if not self.groups:
                 await self.get_groups()
             entities = self.groups
@@ -543,3 +544,16 @@ class Spond(_SpondBase):
             if entity["id"] == uid:
                 return entity
         raise KeyError(errmsg)
+
+    async def _fetch_event_by_uid(self, uid: str) -> JSONDict:
+        """Fetch a single event from the singular endpoint."""
+        url = f"{self.api_url}sponds/{uid}"
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+            if r.status == 404:
+                raise KeyError(f"No event with id='{uid}'.")
+            if not r.ok:
+                error_details = await r.text()
+                raise ValueError(
+                    f"Request failed with status {r.status}: {error_details}"
+                )
+            return await r.json()
