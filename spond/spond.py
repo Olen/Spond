@@ -52,7 +52,7 @@ class Spond(_SpondBase):
 
     async def main():
         s = spond.Spond(username="me@example.invalid", password="secret")
-        groups = await s.get_groups()
+        groups = await s.get_groups() or []
         for g in groups:
             print(g["name"])
         await s.clientsession.close()
@@ -452,9 +452,13 @@ class Spond(_SpondBase):
         and by visibility (scheduled, hidden). The full response is cached on
         `self.events`.
 
-        Note: when looking up a single event by id, prefer `get_event(uid)` —
-        it queries the singular endpoint directly and isn't bound by
-        `max_events` or `include_scheduled` defaults.
+        Note: `get_event(uid)` is a wrapper around this method via the cache,
+        so it inherits these defaults — an event that doesn't appear in the
+        first `max_events` results or is excluded by `include_scheduled=False`
+        is unreachable through `get_event()` on current main. PR #236 changes
+        `get_event()` to fetch the singular `sponds/{uid}` endpoint directly,
+        removing that coupling; until it lands, pass appropriate filters here
+        when you need broader visibility.
 
         Parameters
         ----------
@@ -462,7 +466,7 @@ class Spond(_SpondBase):
             Restrict to events belonging to this group. Uses `groupId` API
             parameter.
         subgroup_id : str, optional
-            Restrict to events within this subgroup. Uses `subgroupId` API
+            Restrict to events within this subgroup. Uses `subGroupId` API
             parameter.
         include_scheduled : bool, optional
             Include scheduled events (events whose invitations are queued to be
@@ -588,15 +592,22 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        JSONDict
-            Intended to be the Spond API response from the POST. **Known
-            bug**: due to #239 the method currently returns `self.events`
-            (the cached events list) rather than the update response.
+        list[JSONDict] or None
+            Currently returns `self.events` (the cached events list, or
+            `None` if no `get_events()` call has populated it). This is a
+            bug — see Notes.
 
         Notes
         -----
-        See also issue #239 for the return-value bug. The API response is
-        still stored on `self.events_update` for inspection in the meantime.
+        Known bug #239: the return value should be the Spond API response
+        from the POST, not the cached events list. The API response *is*
+        captured on `self.events_update`, so the data is still accessible
+        as a workaround until #239 is fixed:
+
+        ```python
+        await s.update_event(uid, {"description": "..."})
+        result = s.events_update  # the actual API response
+        ```
         """
         event = await self._get_entity(self._EVENT, uid)
         url = f"{self.api_url}sponds/{uid}"
