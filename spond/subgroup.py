@@ -20,7 +20,7 @@ class Subgroup(DictCompatModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     uid: str = Field(alias="id")
-    name: str
+    name: str = ""
     color: str | None = None
     image_url: str | None = Field(default=None, alias="imageUrl")
 

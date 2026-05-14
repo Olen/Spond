@@ -256,11 +256,19 @@ class Event(DictCompatModel):
                 field_info = self.__class__.model_fields[py_name]
                 api_updates[field_info.alias or py_name] = value
 
-        # Dump the current state, then strip read-only fields (creator,
-        # timestamps, server-managed flags, responses) so the update body
-        # only carries fields the API actually accepts on POST.
+        # Dump the current state, then strip:
+        #   * read-only fields (creator, timestamps, server-managed flags,
+        #     `responses`) — sending these back risks Spond treating stale
+        #     local state as authoritative.
+        #   * `None`-valued declared fields — Spond may interpret an
+        #     explicit JSON `null` as "clear this field" rather than
+        #     "leave unchanged", so we only send fields that have a real
+        #     value or have been explicitly provided by the caller below.
         payload = self.model_dump(
-            by_alias=True, mode="json", exclude=_EVENT_READ_ONLY_FIELDS
+            by_alias=True,
+            mode="json",
+            exclude=_EVENT_READ_ONLY_FIELDS,
+            exclude_none=True,
         )
         payload.update(api_updates)
 

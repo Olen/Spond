@@ -27,7 +27,7 @@ class Post(DictCompatModel):
     type: str = "PLAIN"
     title: str | None = None
     body: str | None = None
-    timestamp: datetime
+    timestamp: datetime | None = None
     group_uid: str | None = Field(default=None, alias="groupId")
     subgroup_uids: list[str] = Field(default_factory=list, alias="subGroupIds")
     owner_uid: str | None = Field(default=None, alias="ownerId")

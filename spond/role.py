@@ -18,7 +18,7 @@ class Role(DictCompatModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     uid: str = Field(alias="id")
-    name: str
+    name: str = ""
     permissions: list[str] = Field(default_factory=list)
     """API permission strings, e.g. `["members", "events", "posts"]`."""
 

@@ -25,8 +25,10 @@ class Profile(DictCompatModel):
     model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     uid: str = Field(alias="id")
-    first_name: str = Field(alias="firstName")
-    last_name: str = Field(alias="lastName")
+    # Defaulted to "" so a missing field on the authenticated user's
+    # profile response can't crash `get_profile()` outright.
+    first_name: str = Field(default="", alias="firstName")
+    last_name: str = Field(default="", alias="lastName")
     primary_email: str | None = Field(default=None, alias="primaryEmail")
     phone_number: str | None = Field(default=None, alias="phoneNumber")
     formatted_phone_number: str | None = Field(

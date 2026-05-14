@@ -52,7 +52,7 @@ class Group(DictCompatModel):
     )
 
     uid: str = Field(alias="id")
-    name: str
+    name: str = ""
     activity: str | None = None
     """The group's sport/activity tag, e.g. `"football"`."""
 

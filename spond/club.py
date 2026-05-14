@@ -21,19 +21,22 @@ class Transaction(DictCompatModel):
     """A Spond Club payment/transaction record.
 
     Returned as elements of `SpondClub.get_transactions()`. Conservatively
-    modelled around the four fields the Spond Club UI guarantees on every
-    transaction: `id`, `paidAt`, `paymentName`, `paidByName`. Everything else
-    Spond emits passes through `extra="ignore"` and is accessible via the
-    dict-compat fallback (`transaction["someField"]`) until those fields are
-    explicitly modelled.
+    modelled around the four fields the Spond Club UI typically shows for
+    every transaction: `id`, `paidAt`, `paymentName`, `paidByName`. All
+    other fields Spond emits are preserved via `extra="allow"` and remain
+    accessible both as attributes (`transaction.someExtra`) and through the
+    dict-compat shim (`transaction["someExtra"]`) until they're explicitly
+    modelled. Only `uid` is strictly required so an API drift that drops
+    one of the other fields doesn't crash the entire `get_transactions()`
+    call.
     """
 
-    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     uid: str = Field(alias="id")
-    paid_at: datetime = Field(alias="paidAt")
-    payment_name: str = Field(alias="paymentName")
-    paid_by_name: str = Field(alias="paidByName")
+    paid_at: datetime | None = Field(default=None, alias="paidAt")
+    payment_name: str = Field(default="", alias="paymentName")
+    paid_by_name: str = Field(default="", alias="paidByName")
 
     def __str__(self) -> str:
         return (

@@ -42,12 +42,17 @@ class Person(DictCompatModel):
     )
 
     uid: str = Field(alias="id")
-    first_name: str = Field(alias="firstName")
-    last_name: str = Field(alias="lastName")
+    # `first_name` and `last_name` are present on every member/guardian
+    # we've seen in the wild, but defaulted to "" so a missing field in
+    # one record can't crash the entire `get_groups()` payload.
+    first_name: str = Field(default="", alias="firstName")
+    last_name: str = Field(default="", alias="lastName")
     profile: dict[str, Any] | None = None
-    """Profile reference dict — `{id, contactMethod, ...}`. Unmodelled for now;
-    use `Spond.get_profile()` to fetch the full profile of the authenticated
-    user."""
+    """Profile reference dict — `{id, contactMethod, ...}`. Kept as a raw
+    dict (not a typed `Profile` model) because Spond's `members[].profile`
+    payload is a sparse reference, not the rich account record that
+    `Spond.get_profile()` returns. The two have different shapes; modelling
+    them as one type would create false equivalence."""
     phone_number: str | None = Field(default=None, alias="phoneNumber")
 
     # Non-serialised reference back to the Spond client for HTTP calls.

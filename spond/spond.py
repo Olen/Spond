@@ -207,6 +207,12 @@ class Spond(_SpondBase):
             The first matching `Member` or `Guardian`. Use `isinstance` to
             distinguish if needed.
 
+            Note: the returned object's `.profile` attribute is a raw
+            `dict[str, Any] | None` (a sparse reference shape Spond serves
+            inside `members[]`), NOT a typed `Profile` model. That latter
+            shape is only what `Spond.get_profile()` returns for the
+            authenticated user — different endpoint, richer response.
+
         Raises
         ------
         KeyError

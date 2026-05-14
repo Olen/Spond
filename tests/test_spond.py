@@ -686,6 +686,50 @@ class TestDictCompat:
         assert value == "preserved"
         assert any(issubclass(w.category, DeprecationWarning) for w in caught)
 
+    def test_models_survive_missing_optional_fields(self) -> None:
+        """A previously-required field dropping to a default must not crash
+        the typed model. Locks in the resilience relaxation done after
+        rounds of review feedback."""
+        from spond.person import Member
+        from spond.post import Post
+        from spond.profile import Profile
+
+        # Member with no name fields — used to crash, now defaults to ""
+        m = Member.model_validate({"id": "M1"})
+        assert m.first_name == ""
+        assert m.last_name == ""
+        # Post without timestamp — used to crash, now None
+        p = Post.model_validate({"id": "P1"})
+        assert p.timestamp is None
+        # Profile with no name fields — same relaxation
+        pr = Profile.model_validate({"id": "PR1"})
+        assert pr.first_name == ""
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_event_update_excludes_none_fields(
+        self, mock_post, mock_token
+    ) -> None:
+        """`Event.update()` must NOT send `null` for optional fields that
+        Spond didn't populate — Spond could interpret `null` as 'clear this
+        field' rather than 'leave unchanged'."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        # _MIN_EVENT_PAYLOAD has no `description`, so Event.description=None.
+        event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
+        assert event.description is None
+
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=_MIN_EVENT_PAYLOAD
+        )
+        await event.update(heading="Renamed")
+
+        # The POST payload must contain `heading` (caller updated it) but
+        # NOT `description` (it was None and shouldn't be cleared).
+        posted = mock_post.call_args[1]["json"]
+        assert posted["heading"] == "Renamed"
+        assert "description" not in posted
+
     def test_extra_allow_on_profile_and_group(self) -> None:
         """`extra="allow"` must work uniformly across top-level types, not
         just Event — this is the forward-compat invariant for the whole
