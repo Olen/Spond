@@ -42,75 +42,73 @@ def mock_payload() -> JSONDict:
 
 
 class TestEventMethods:
-    @pytest.fixture
-    def mock_events(self) -> list[JSONDict]:
-        """Mock a minimal list of events."""
-        return [
-            {
-                "id": "ID1",
-                "name": "Event One",
+    MOCK_EVENT: JSONDict = {
+        "id": "ID1",
+        "heading": "Event One",
+    }
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_event__happy_path(self, mock_get, mock_token) -> None:
+        """`get_event()` fetches the singular `sponds/{uid}` endpoint
+        (not the list endpoint with filters), so it is not constrained
+        by `get_events()`'s default `max_events` cap or
+        `include_scheduled=False` filter."""
+
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.status = 200
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=self.MOCK_EVENT
+        )
+
+        event = await s.get_event("ID1")
+
+        mock_get.assert_called_once_with(
+            "https://api.spond.com/core/v1/sponds/ID1",
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {mock_token}",
             },
-            {
-                "id": "ID2",
-                "name": "Event Two",
-            },
-        ]
+            params={"includeComments": "true"},
+        )
+        assert event == self.MOCK_EVENT
 
     @pytest.mark.asyncio
-    async def test_get_event__happy_path(
-        self, mock_events: list[JSONDict], mock_token
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_event__not_found_raises_keyerror(
+        self, mock_get, mock_token
     ) -> None:
-        """Test that a valid `id` returns the matching event."""
+        """A 404 from the singular endpoint surfaces as KeyError."""
 
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
-        s.events = mock_events
         s.token = mock_token
-        g = await s.get_event("ID1")
 
-        assert g == {
-            "id": "ID1",
-            "name": "Event One",
-        }
-
-    @pytest.mark.asyncio
-    async def test_get_event__no_match_raises_exception(
-        self, mock_events: list[JSONDict], mock_token
-    ) -> None:
-        """Test that a non-matched `id` raises KeyError."""
-
-        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
-        s.events = mock_events
-        s.token = mock_token
+        mock_get.return_value.__aenter__.return_value.ok = False
+        mock_get.return_value.__aenter__.return_value.status = 404
 
         with pytest.raises(KeyError):
-            await s.get_event("ID3")
+            await s.get_event("UNKNOWN")
 
     @pytest.mark.asyncio
-    async def test_get_event__blank_id_match_raises_exception(
-        self, mock_events: list[JSONDict], mock_token
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_event__api_error_raises_valueerror(
+        self, mock_get, mock_token
     ) -> None:
-        """Test that a blank `id` raises KeyError."""
-
-        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
-        s.events = mock_events
-        s.token = mock_token
-
-        with pytest.raises(KeyError):
-            await s.get_event("")
-
-    @pytest.mark.asyncio
-    async def test_get_event__no_events_available_raises_keyerror(
-        self, mock_token
-    ) -> None:
-        """`get_events()` is documented to return None when no events exist;
-        `get_event()` should surface this as KeyError, not TypeError."""
+        """Other non-2xx responses surface as ValueError with the status."""
 
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
-        s.events = None
-        s.get_events = AsyncMock()  # leaves self.events as None
 
-        with pytest.raises(KeyError):
+        mock_get.return_value.__aenter__.return_value.ok = False
+        mock_get.return_value.__aenter__.return_value.status = 500
+        mock_get.return_value.__aenter__.return_value.text = AsyncMock(
+            return_value="Internal Server Error"
+        )
+
+        with pytest.raises(ValueError, match="500"):
             await s.get_event("ID1")
 
     @pytest.mark.asyncio
