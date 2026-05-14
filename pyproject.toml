@@ -16,6 +16,11 @@ pytest = ">=9.0.2"
 pytest-asyncio = ">=1.3.0"
 ruff = ">=0.15.0"
 
+[tool.pytest.ini_options]
+# Pinned explicitly: pytest-asyncio's default is currently unset and will
+# flip to "function" in a future release — set now so behaviour can't drift.
+asyncio_default_fixture_loop_scope = "function"
+
 [tool.ruff]
 target-version = "py310"  # Ruff doesn't yet infer this from [tool.poetry.dependencies]
 
