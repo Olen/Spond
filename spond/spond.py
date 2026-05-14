@@ -82,7 +82,7 @@ class Spond(_SpondBase):
             Spond account email address.
         password : str
             Spond account password. For accounts with 2FA enabled, login will
-            currently fail — see #205.
+            currently fail — Spond's TOTP flow is not yet supported.
         """
         super().__init__(username, password, self._API_BASE_URL)
         self._chat_url = None
@@ -449,13 +449,11 @@ class Spond(_SpondBase):
         and by visibility (scheduled, hidden). The full response is cached on
         `self.events`.
 
-        Note: `get_event(uid)` is a wrapper around this method via the cache,
-        so it inherits these defaults — an event that doesn't appear in the
+        Note: `get_event(uid)` looks up events via this method's cache, so
+        it inherits these defaults — an event that doesn't appear in the
         first `max_events` results or is excluded by `include_scheduled=False`
-        is unreachable through `get_event()` on current main. PR #236 changes
-        `get_event()` to fetch the singular `sponds/{uid}` endpoint directly,
-        removing that coupling; until it lands, pass appropriate filters here
-        when you need broader visibility.
+        is unreachable through `get_event()`. If you need broader visibility,
+        call this method directly with appropriate filters.
 
         Parameters
         ----------
@@ -542,11 +540,11 @@ class Spond(_SpondBase):
     async def get_event(self, uid: str) -> JSONDict:
         """Look up a single event by its unique id.
 
-        Currently routes through the cached events list (populated by
-        `get_events()`). Note this means events outside the `max_events=100`
-        default or with `scheduled=true` may not be findable — see #137 and
-        #138 (fix in PR #236 routes this through the singular `sponds/{uid}`
-        endpoint instead).
+        Routes through the cached events list (populated by `get_events()`),
+        which means events outside the `max_events=100` default or those
+        with `scheduled=true` may not be findable. To reach those events,
+        call `get_events()` directly with appropriate filters first to
+        populate the cache, then call this method.
 
         Parameters
         ----------
@@ -614,9 +612,9 @@ class Spond(_SpondBase):
 
         Thin wrapper around Spond's own "Export attendance history" feature
         in the web UI. The columns and format are determined by Spond, not by
-        this library — for example, the export does not include member ids
-        (see closed issue #227). For a customisable CSV alternative built
-        from `get_event()` data, see `examples/attendance.py`.
+        this library — for example, the export does not include member ids.
+        For a customisable CSV alternative built from `get_event()` data,
+        see `examples/attendance.py`.
 
         Parameters
         ----------
@@ -680,9 +678,10 @@ class Spond(_SpondBase):
 
         Routes to the relevant cache (`self.events` or `self.groups`),
         triggers a fetch via `get_events()` / `get_groups()` if the cache is
-        empty, then linearly scans for a matching `id`. The empty-cache case
-        is handled explicitly to avoid the `TypeError: 'NoneType' object is
-        not iterable` that previously occurred (see #136, fixed in #235).
+        empty, then linearly scans for a matching `id`. Raises `KeyError`
+        cleanly (rather than `TypeError`) when the cache remains empty after
+        the fetch attempt — the underlying `get_*s()` method may legitimately
+        return `None` if the account has no events/groups available.
 
         Parameters
         ----------
