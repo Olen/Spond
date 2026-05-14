@@ -20,6 +20,7 @@ from pydantic import ConfigDict, Field, PrivateAttr, ValidationError
 from pydantic_core import to_jsonable_python
 
 from ._compat import DictCompatModel
+from .exceptions import SpondAPIError
 
 if TYPE_CHECKING:
     from .spond import Spond
@@ -563,3 +564,145 @@ class Event(DictCompatModel):
             url, headers=self._client.auth_headers
         ) as r:
             return await r.read()
+
+    async def save(self, client: Spond | None = None) -> Event:
+        """Persist this event to Spond — universal create-or-update.
+
+        - When `self.uid` is empty (a freshly-constructed instance):
+          POSTs to `/sponds/` to create. Spond returns the new event
+          with `uid` populated; the result is **applied to self in
+          place** so the same instance can be used for subsequent
+          calls.
+        - When `self.uid` is set: POSTs to `/sponds/{uid}` (the same
+          path `update()` uses) to persist whatever local state the
+          caller has mutated.
+
+        On first save of an unbound instance, pass `client=spond` to
+        bind a Spond client. Subsequent saves use the bound client.
+
+        Example
+        -------
+        ```python
+        # Create
+        event = Event(heading="Match vs Rivals",
+                      start_time=..., end_time=...,
+                      recipients={"group": {"id": "GROUPUID"}},
+                      owners=[{"id": my_profile_uid, "response": "accepted"}])
+        await event.save(client=spond)
+        assert event.uid  # populated by Spond
+
+        # Mutate + save
+        event.heading = "Renamed"
+        await event.save()
+        ```
+
+        Returns `self` (mutated in place) for chaining. Compare with
+        `update(**fields)` which returns a *new* instance — both shapes
+        are supported; pick whichever matches your code style.
+
+        Raises
+        ------
+        RuntimeError
+            No client is bound and `client` was not supplied.
+        SpondAPIError
+            Spond rejected the create or update.
+        """
+        if client is not None:
+            self._client = client
+        if self._client is None:
+            raise RuntimeError(
+                "Event has no client bound. Pass `client=spond` to "
+                "`event.save(client=...)` on first save."
+            )
+
+        if self.uid:
+            # Update path — round-trip through `update()` so all the
+            # payload-discipline machinery (exclude_unset, read-only
+            # filter, JSON-encoding of caller values) applies. Then
+            # mutate self with the refreshed state.
+            refreshed = await self.update()
+        else:
+            # Create path — POST to /sponds/ (collection endpoint).
+            # We do NOT apply `_EVENT_READ_ONLY_FIELDS` here: that
+            # filter exists to prevent stale-state round-tripping on
+            # update, but on create the caller's explicit state is
+            # all we have to work with — `recipients` in particular
+            # is required by Spond's create endpoint.
+            # Server-managed fields (creator_uid, created_time,
+            # updated, expired, registered, …) are still excluded
+            # because they default to None and exclude_none=True
+            # drops them, OR they're in model_fields_set as None and
+            # exclude_none=True drops them.
+            payload = self.model_dump(
+                by_alias=True,
+                mode="json",
+                exclude_unset=True,
+                exclude_none=True,
+            )
+            # Drop the empty `id` if it slipped through — Spond mints
+            # a fresh uid on create.
+            payload.pop("id", None)
+            url = f"{self._client.api_url}sponds/"
+            async with self._client.clientsession.post(
+                url, json=payload, headers=self._client.auth_headers
+            ) as r:
+                if not r.ok:
+                    raise SpondAPIError(r.status, await r.text(), url)
+                new_data = await r.json()
+            refreshed = type(self).from_api(new_data, self._client)
+            # Append to the client cache so subsequent `get_event(uid)`
+            # resolves the new event without a re-fetch.
+            if self._client.events is None:
+                self._client.events = [refreshed]
+            else:
+                self._client.events.insert(0, refreshed)
+
+        # Apply the refreshed state to self IN PLACE — this is the
+        # ActiveRecord contract: after `save()`, `self` is the
+        # authoritative live record.
+        for field_name in type(self).model_fields:
+            object.__setattr__(self, field_name, getattr(refreshed, field_name))
+        # Capture any extras Spond added that we don't model.
+        extras = refreshed._pydantic_extras()
+        if extras and self.__pydantic_extra__ is not None:
+            self.__pydantic_extra__.update(extras)
+        # Sync `model_fields_set` so subsequent `exclude_unset=True`
+        # dumps reflect what Spond actually emitted (not our pre-save
+        # snapshot).
+        self.__pydantic_fields_set__ = set(refreshed.__pydantic_fields_set__)
+        return self
+
+    async def delete(self) -> None:
+        """Delete this event from Spond.
+
+        Issues `DELETE /sponds/{uid}` and removes the event from the
+        client's `events` cache. After this call, `self.uid` is left
+        in place (so callers can still reference what was deleted),
+        but any subsequent `save()` would attempt to update a no-longer-
+        existing event and fail.
+
+        Raises
+        ------
+        RuntimeError
+            The event has no client bound or no `uid` (i.e. it was
+            never persisted to begin with).
+        SpondAPIError
+            Spond rejected the delete.
+        """
+        if self._client is None:
+            raise RuntimeError("Event has no client bound; cannot delete.")
+        if not self.uid:
+            raise RuntimeError(
+                "Cannot delete an unsaved Event (no uid). Call save() first "
+                "or construct the instance via Spond.get_event()."
+            )
+        url = f"{self._client.api_url}sponds/{self.uid}"
+        async with self._client.clientsession.delete(
+            url, headers=self._client.auth_headers
+        ) as r:
+            if not r.ok:
+                raise SpondAPIError(r.status, await r.text(), url)
+        # Remove from cache so subsequent get_event(uid) raises rather
+        # than serving a stale entry.
+        if self._client.events is not None:
+            self._client.events = [e for e in self._client.events if e.uid != self.uid]
