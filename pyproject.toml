@@ -8,7 +8,7 @@ readme = 'README.md'
 repository = 'https://github.com/Olen/Spond'
 
 [tool.poetry.dependencies]
-python = ">=3.10"
+python = ">=3.11"
 aiohttp = ">=3.8.5"
 
 [tool.poetry.group.dev.dependencies]
@@ -25,7 +25,7 @@ ruff = ">=0.15.0"
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
-target-version = "py310"  # Ruff doesn't yet infer this from [tool.poetry.dependencies]
+target-version = "py311"  # Ruff doesn't yet infer this from [tool.poetry.dependencies]
 
 [tool.ruff.lint]
 select = [
