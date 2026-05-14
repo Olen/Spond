@@ -20,9 +20,36 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Iterator
-from typing import Any
+from datetime import date
+from typing import Annotated, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, BeforeValidator
+
+
+def _parse_date_lenient(value: Any) -> date | None:
+    """Parse a date string tolerantly — return `None` for unparseable input.
+
+    Spond's API occasionally returns malformed `dateOfBirth` values (e.g.
+    `'2012-03-99'` with an impossible day). Strict ISO-8601 parsing would
+    raise; we want callers to keep working with `None` for that field.
+    """
+    if value is None or isinstance(value, date):
+        return value
+    if not isinstance(value, str):
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+LenientDate = Annotated[date | None, BeforeValidator(_parse_date_lenient)]
+"""Type alias for `dateOfBirth`-shaped fields that may contain malformed data.
+
+Use this in place of `date | None` for any field where Spond's API has been
+observed to return values that fail strict ISO-8601 parsing. Unparseable
+values become `None` rather than raising `ValidationError`.
+"""
 
 
 class DictCompatModel(BaseModel):

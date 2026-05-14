@@ -8,12 +8,11 @@ Members and Guardians, which is a sparse subset.
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Any
 
 from pydantic import ConfigDict, Field
 
-from ._compat import DictCompatModel
+from ._compat import DictCompatModel, LenientDate
 
 
 class Profile(DictCompatModel):
@@ -34,7 +33,7 @@ class Profile(DictCompatModel):
         default=None, alias="formattedPhoneNumber"
     )
     image_url: str | None = Field(default=None, alias="imageUrl")
-    date_of_birth: date | None = Field(default=None, alias="dateOfBirth")
+    date_of_birth: LenientDate = Field(default=None, alias="dateOfBirth")
     gender: str | None = None
     locale: str | None = None
     country_code: str | None = Field(default=None, alias="countryCode")

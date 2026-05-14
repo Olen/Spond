@@ -9,15 +9,12 @@ class for this API and `spond.spond.Spond` for everything else.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
 from pydantic import ConfigDict, Field
 
 from ._compat import DictCompatModel
 from .base import _SpondBase
-
-if TYPE_CHECKING:
-    from . import JSONDict
 
 
 class Transaction(DictCompatModel):
@@ -86,12 +83,12 @@ class SpondClub(_SpondBase):
             Spond account password.
         """
         super().__init__(username, password, self._API_BASE_URL)
-        self.transactions: list[JSONDict] | None = None
+        self.transactions: list[Transaction] | None = None
 
     @_SpondBase.require_authentication
     async def get_transactions(
         self, club_id: str, skip: int | None = None, max_items: int = 100
-    ) -> list[JSONDict]:
+    ) -> list[Transaction]:
         """Retrieve transactions/payments for a Spond Club.
 
         Spond's transactions endpoint returns at most 25 records per request,
@@ -127,9 +124,10 @@ class SpondClub(_SpondBase):
 
         Returns
         -------
-        list[JSONDict]
+        list[Transaction]
             All transactions accumulated so far (across recursive page
-            fetches). Empty list if the club has no transactions.
+            fetches), as typed `Transaction` instances. Empty list if the
+            club has no transactions.
         """
         if self.transactions is None:
             self.transactions = []
@@ -140,15 +138,15 @@ class SpondClub(_SpondBase):
 
         async with self.clientsession.get(url, headers=headers, params=params) as r:
             if r.status == 200:
-                t = await r.json()
-                if len(t) == 0:
+                raw = await r.json()
+                if len(raw) == 0:
                     return self.transactions
 
-                self.transactions.extend(t)
+                self.transactions.extend(Transaction.model_validate(t) for t in raw)
                 if len(self.transactions) < max_items:
                     return await self.get_transactions(
                         club_id=club_id,
-                        skip=len(t) if skip is None else skip + len(t),
+                        skip=len(raw) if skip is None else skip + len(raw),
                         max_items=max_items,
                     )
 

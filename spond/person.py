@@ -18,12 +18,12 @@ Construct via `Spond.get_groups()` and walk `group.members`; or via
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from pydantic import ConfigDict, Field, PrivateAttr
 
-from ._compat import DictCompatModel
+from ._compat import DictCompatModel, LenientDate
 
 if TYPE_CHECKING:
     from .spond import Spond
@@ -109,7 +109,7 @@ class Member(Person):
     email: str | None = None
     """Email address. May be absent on minor members."""
 
-    date_of_birth: date | None = Field(default=None, alias="dateOfBirth")
+    date_of_birth: LenientDate = Field(default=None, alias="dateOfBirth")
 
     created_time: datetime | None = Field(default=None, alias="createdTime")
 

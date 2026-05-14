@@ -9,10 +9,31 @@ import pytest
 
 from spond import AuthenticationError
 from spond.base import _SpondBase
+from spond.event import Event
+from spond.group import Group
 from spond.spond import Spond
 
 if TYPE_CHECKING:
     from spond import JSONDict
+
+
+# Minimum-viable Event API payload — all required fields filled with placeholder
+# data. Tests that need an Event object can spread/override.
+_MIN_EVENT_PAYLOAD: dict = {
+    "id": "ID1",
+    "heading": "Event One",
+    "startTimestamp": "2026-01-01T10:00:00Z",
+    "endTimestamp": "2026-01-01T11:00:00Z",
+    "createdTime": "2025-12-01T10:00:00Z",
+    "type": "EVENT",
+    "responses": {
+        "acceptedIds": [],
+        "declinedIds": [],
+        "unansweredIds": [],
+        "waitinglistIds": [],
+        "unconfirmedIds": [],
+    },
+}
 
 
 MOCK_USERNAME, MOCK_PASSWORD = "MOCK_USERNAME", "MOCK_PASSWORD"
@@ -43,22 +64,20 @@ def mock_payload() -> JSONDict:
 
 class TestEventMethods:
     @pytest.fixture
-    def mock_events(self) -> list[JSONDict]:
-        """Mock a minimal list of events."""
+    def mock_events(self) -> list[Event]:
+        """Two typed Event instances with placeholder data."""
         return [
-            {
-                "id": "ID1",
-                "name": "Event One",
-            },
-            {
-                "id": "ID2",
-                "name": "Event Two",
-            },
+            Event.model_validate(
+                {**_MIN_EVENT_PAYLOAD, "id": "ID1", "heading": "Event One"}
+            ),
+            Event.model_validate(
+                {**_MIN_EVENT_PAYLOAD, "id": "ID2", "heading": "Event Two"}
+            ),
         ]
 
     @pytest.mark.asyncio
     async def test_get_event__happy_path(
-        self, mock_events: list[JSONDict], mock_token
+        self, mock_events: list[Event], mock_token
     ) -> None:
         """Test that a valid `id` returns the matching event."""
 
@@ -67,14 +86,13 @@ class TestEventMethods:
         s.token = mock_token
         g = await s.get_event("ID1")
 
-        assert g == {
-            "id": "ID1",
-            "name": "Event One",
-        }
+        assert isinstance(g, Event)
+        assert g.uid == "ID1"
+        assert g.heading == "Event One"
 
     @pytest.mark.asyncio
     async def test_get_event__no_match_raises_exception(
-        self, mock_events: list[JSONDict], mock_token
+        self, mock_events: list[Event], mock_token
     ) -> None:
         """Test that a non-matched `id` raises KeyError."""
 
@@ -87,7 +105,7 @@ class TestEventMethods:
 
     @pytest.mark.asyncio
     async def test_get_event__blank_id_match_raises_exception(
-        self, mock_events: list[JSONDict], mock_token
+        self, mock_events: list[Event], mock_token
     ) -> None:
         """Test that a blank `id` raises KeyError."""
 
@@ -118,32 +136,37 @@ class TestEventMethods:
     async def test_update_event__returns_api_response(
         self, mock_post, mock_token
     ) -> None:
-        """`update_event()` should return the POST response, not the cached
-        events list (regression test for #239)."""
+        """Deprecated `Spond.update_event()` should still return the POST response
+        as a dict for backward compatibility (delegates to `Event.update()`)."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
-        s.events = [{"id": "ID1", "heading": "Old"}]  # cached event for _get_entity
+        s.events = [Event.from_api(_MIN_EVENT_PAYLOAD, s)]
 
-        api_response = {
-            "id": "ID1",
-            "heading": "New",
-            "updated": "2026-05-14T13:00:00Z",
-        }
+        api_response = {**_MIN_EVENT_PAYLOAD, "heading": "New"}
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             return_value=api_response
         )
 
-        result = await s.update_event(uid="ID1", updates={"heading": "New"})
+        import warnings as _warnings
 
-        assert result == api_response
-        # The cached events list should NOT be what we returned.
-        assert result is not s.events
+        with _warnings.catch_warnings(record=True) as caught:
+            _warnings.simplefilter("always")
+            result = await s.update_event(uid="ID1", updates={"heading": "New"})
+
+        # Deprecation warning fired
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+        # Result is a dict (model_dump output), with the updated heading
+        assert isinstance(result, dict)
+        assert result["heading"] == "New"
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.put")
     async def test_change_response(self, mock_put, mock_payload, mock_token) -> None:
+        """Deprecated `Spond.change_response()` should still PUT to the same URL
+        and return the API response (delegates to `Event.change_response()`)."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
+        s.events = [Event.from_api(_MIN_EVENT_PAYLOAD, s)]
 
         mock_response_data = {
             "acceptedIds": ["PID1", "PID2"],
@@ -158,38 +181,37 @@ class TestEventMethods:
             return_value=mock_response_data
         )
 
-        response = await s.change_response(uid="ID1", user="PID3", payload=mock_payload)
+        import warnings as _warnings
 
+        with _warnings.catch_warnings(record=True) as caught:
+            _warnings.simplefilter("always")
+            response = await s.change_response(
+                uid="ID1", user="PID3", payload=mock_payload
+            )
+
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
         mock_url = "https://api.spond.com/core/v1/sponds/ID1/responses/PID3"
-        mock_put.assert_called_once_with(
-            mock_url,
-            headers={
-                "content-type": "application/json",
-                "Authorization": f"Bearer {mock_token}",
-            },
-            json=mock_payload,
-        )
+        # The wrapper translates the payload dict into Event.change_response kwargs,
+        # which rebuilds the payload — so the json= arg here is the rebuilt form.
+        call_args = mock_put.call_args
+        assert call_args[0][0] == mock_url
+        assert call_args[1]["json"]["accepted"] == "false"
+        assert call_args[1]["json"]["declineMessage"] == "sick cannot make it"
         assert response == mock_response_data
 
 
 class TestGroupMethods:
     @pytest.fixture
-    def mock_groups(self) -> list[JSONDict]:
-        """Mock a minimal list of groups."""
+    def mock_groups(self) -> list[Group]:
+        """Two typed Group instances with placeholder data."""
         return [
-            {
-                "id": "ID1",
-                "name": "Group One",
-            },
-            {
-                "id": "ID2",
-                "name": "Group Two",
-            },
+            Group.model_validate({"id": "ID1", "name": "Group One"}),
+            Group.model_validate({"id": "ID2", "name": "Group Two"}),
         ]
 
     @pytest.mark.asyncio
     async def test_get_group__happy_path(
-        self, mock_groups: list[JSONDict], mock_token
+        self, mock_groups: list[Group], mock_token
     ) -> None:
         """Test that a valid `id` returns the matching group."""
 
@@ -198,14 +220,13 @@ class TestGroupMethods:
         s.token = mock_token
         g = await s.get_group("ID2")
 
-        assert g == {
-            "id": "ID2",
-            "name": "Group Two",
-        }
+        assert isinstance(g, Group)
+        assert g.uid == "ID2"
+        assert g.name == "Group Two"
 
     @pytest.mark.asyncio
     async def test_get_group__no_match_raises_exception(
-        self, mock_groups: list[JSONDict], mock_token
+        self, mock_groups: list[Group], mock_token
     ) -> None:
         """Test that a non-matched `id` raises KeyError."""
 
@@ -218,7 +239,7 @@ class TestGroupMethods:
 
     @pytest.mark.asyncio
     async def test_get_group__blank_id_raises_exception(
-        self, mock_groups: list[JSONDict], mock_token
+        self, mock_groups: list[Group], mock_token
     ) -> None:
         """Test that a blank `id` raises KeyError."""
 
@@ -297,8 +318,12 @@ class TestExportMethod:
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
     async def test_get_export(self, mock_get, mock_token) -> None:
+        """Deprecated `Spond.get_event_attendance_xlsx()` should still GET the
+        export endpoint and return raw bytes (delegates to
+        `Event.attendance_xlsx()`)."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
+        s.events = [Event.from_api(_MIN_EVENT_PAYLOAD, s)]
 
         mock_binary = b"\x68\x65\x6c\x6c\x6f\x77\x6f\x72\x6c\x64"  # helloworld
         mock_get.return_value.__aenter__.return_value.status = 200
@@ -306,8 +331,13 @@ class TestExportMethod:
             return_value=mock_binary
         )
 
-        data = await s.get_event_attendance_xlsx(uid="ID1")
+        import warnings as _warnings
 
+        with _warnings.catch_warnings(record=True) as caught:
+            _warnings.simplefilter("always")
+            data = await s.get_event_attendance_xlsx(uid="ID1")
+
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
         mock_url = "https://api.spond.com/core/v1/sponds/ID1/export"
         mock_get.assert_called_once_with(
             mock_url,
@@ -368,8 +398,12 @@ class TestPostMethods:
                 "includeComments": "true",
             },
         )
-        assert posts == self.MOCK_POSTS
-        assert s.posts == self.MOCK_POSTS
+        assert posts is not None
+        assert len(posts) == 2
+        assert posts[0].uid == "POST1"
+        assert posts[0].title == "Post One"
+        assert posts[1].uid == "POST2"
+        assert s.posts is posts  # cache identity
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
@@ -553,3 +587,191 @@ class TestRequireAuthenticationDecorator:
     def test_decorator_preserves_name(self) -> None:
         """`__name__` must be the method's, not 'wrapper'."""
         assert Spond.get_events.__name__ == "get_events"
+
+
+# =============================================================================
+# OO rewrite tests — typed-object ActiveRecord surface, dict-compat shim,
+# inter-dependency navigation. See DESIGN-oo-rewrite.md for context.
+# =============================================================================
+
+
+class TestDictCompat:
+    """The DictCompatModel shim makes typed models behave like the dicts they
+    replaced, with a DeprecationWarning on subscript and `.get()`."""
+
+    def test_subscript_via_alias_warns_and_returns_value(self) -> None:
+        import warnings as _w
+
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        with _w.catch_warnings(record=True) as caught:
+            _w.simplefilter("always")
+            value = e["id"]  # API alias
+        assert value == "ID1"
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+
+    def test_subscript_via_python_name_warns_and_returns_value(self) -> None:
+        import warnings as _w
+
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        with _w.catch_warnings(record=True) as caught:
+            _w.simplefilter("always")
+            value = e["heading"]
+        assert value == "Event One"
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
+
+    def test_subscript_missing_key_raises_keyerror(self) -> None:
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        with pytest.raises(KeyError):
+            _ = e["does_not_exist"]
+
+    def test_get_with_default_returns_default_for_missing_key(self) -> None:
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        sentinel = object()
+        assert e.get("does_not_exist", sentinel) is sentinel
+
+    def test_contains_works_for_alias_and_python_name(self) -> None:
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        assert "id" in e  # alias
+        assert "heading" in e  # python name
+        assert "startTimestamp" in e  # alias
+        assert "start_time" in e  # python name
+        assert "does_not_exist" not in e
+
+    def test_iter_yields_api_shaped_keys(self) -> None:
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        keys = list(e)
+        assert "id" in keys  # alias, not "uid"
+        assert "startTimestamp" in keys  # alias, not "start_time"
+
+
+class TestEventOOMethods:
+    """ActiveRecord methods on Event."""
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_event_update_returns_new_event(self, mock_post, mock_token) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
+
+        api_response = {**_MIN_EVENT_PAYLOAD, "heading": "Updated"}
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=api_response
+        )
+
+        result = await event.update(heading="Updated")
+        assert isinstance(result, Event)
+        assert result.heading == "Updated"
+        assert result is not event  # immutable: returns new
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.put")
+    async def test_event_change_response_accepts(self, mock_put, mock_token) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
+
+        mock_put.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={"acceptedIds": ["MID1"]}
+        )
+        result = await event.change_response("MID1", accepted=True)
+        assert result == {"acceptedIds": ["MID1"]}
+        call_args = mock_put.call_args
+        assert call_args[0][0].endswith("/sponds/ID1/responses/MID1")
+        assert call_args[1]["json"]["accepted"] == "true"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.put")
+    async def test_event_change_response_declines_with_message(
+        self, mock_put, mock_token
+    ) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
+
+        mock_put.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={"declinedIds": ["MID1"]}
+        )
+        await event.change_response("MID1", accepted=False, decline_message="busy")
+        sent = mock_put.call_args[1]["json"]
+        assert sent["accepted"] == "false"
+        assert sent["declineMessage"] == "busy"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_event_attendance_xlsx_returns_bytes(
+        self, mock_get, mock_token
+    ) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
+
+        mock_get.return_value.__aenter__.return_value.read = AsyncMock(
+            return_value=b"PKxlsx-bytes"
+        )
+        data = await event.attendance_xlsx()
+        assert data == b"PKxlsx-bytes"
+        assert mock_get.call_args[0][0].endswith("/sponds/ID1/export")
+
+
+class TestGroupNavigation:
+    """Group → Member → Guardian wiring."""
+
+    def test_group_materializes_typed_members_and_guardians(self) -> None:
+        raw = {
+            "id": "GID",
+            "name": "Test Group",
+            "members": [
+                {
+                    "id": "M1",
+                    "firstName": "Alice",
+                    "lastName": "Smith",
+                    "email": "alice@example.invalid",
+                    "guardians": [
+                        {
+                            "id": "G1",
+                            "firstName": "Bob",
+                            "lastName": "Smith",
+                            "phoneNumber": "+1",
+                        }
+                    ],
+                },
+            ],
+        }
+        from spond.person import Guardian, Member
+
+        group = Group.model_validate(raw)
+        assert isinstance(group.members[0], Member)
+        assert group.members[0].full_name == "Alice Smith"
+        assert isinstance(group.members[0].guardians[0], Guardian)
+        assert group.members[0].guardians[0].full_name == "Bob Smith"
+
+    def test_find_member_by_email(self) -> None:
+        group = Group.model_validate(
+            {
+                "id": "GID",
+                "name": "G",
+                "members": [
+                    {
+                        "id": "M1",
+                        "firstName": "A",
+                        "lastName": "B",
+                        "email": "a@b.invalid",
+                    },
+                ],
+            }
+        )
+        found = group.find_member(email="a@b.invalid")
+        assert found is not None
+        assert found.uid == "M1"
+
+    def test_find_member_returns_none_when_no_match(self) -> None:
+        group = Group.model_validate({"id": "GID", "name": "G", "members": []})
+        assert group.find_member(uid="missing") is None
+
+    def test_find_member_requires_exactly_one_criterion(self) -> None:
+        group = Group.model_validate({"id": "GID", "name": "G", "members": []})
+        with pytest.raises(ValueError, match="exactly one"):
+            group.find_member()
+        with pytest.raises(ValueError, match="exactly one"):
+            group.find_member(uid="X", email="a@b.invalid")

@@ -9,11 +9,17 @@ events, posts, and chats. For the separate Spond Club finance API, see
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, ClassVar
 
 from . import JSONDict
 from ._event_template import _EVENT_TEMPLATE
 from .base import _SpondBase
+from .event import Event
+from .group import Group
+from .person import Member, Person
+from .post import Post
+from .profile import Profile
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -87,11 +93,11 @@ class Spond(_SpondBase):
         super().__init__(username, password, self._API_BASE_URL)
         self._chat_url = None
         self._auth = None
-        self.groups: list[JSONDict] | None = None
-        self.events: list[JSONDict] | None = None
-        self.posts: list[JSONDict] | None = None
+        self.groups: list[Group] | None = None
+        self.events: list[Event] | None = None
+        self.posts: list[Post] | None = None
         self.messages: list[JSONDict] | None = None
-        self.profile: JSONDict | None = None
+        self.profile: Profile | None = None
 
     async def _login_chat(self) -> None:
         """Perform the secondary handshake with Spond's chat server.
@@ -110,45 +116,48 @@ class Spond(_SpondBase):
         self._auth = result["auth"]
 
     @_SpondBase.require_authentication
-    async def get_profile(self) -> JSONDict:
+    async def get_profile(self) -> Profile:
         """Retrieve the authenticated user's profile.
 
-        The profile dict includes at least the user's `id`, `firstName`, and
-        `lastName`, plus contact details and account preferences. The full
+        Returns a `Profile` instance with the user's account details (id,
+        first/last name, email, phone, timezone, preferences). The full
         response is cached on `self.profile`.
 
         Returns
         -------
-        JSONDict
-            The profile object as returned by the Spond API.
+        Profile
+            The authenticated user's profile.
         """
         url = f"{self._API_BASE_URL}profile"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
-            self.profile = await r.json()
-            return self.profile
+            raw = await r.json()
+        self.profile = Profile.model_validate(raw)
+        return self.profile
 
     @_SpondBase.require_authentication
-    async def get_groups(self) -> list[JSONDict] | None:
+    async def get_groups(self) -> list[Group] | None:
         """Retrieve every group the authenticated user is a member of.
 
-        Each group dict includes a `members` list, with each member dict
-        containing `id`, `firstName`, `lastName`, and (for child profiles
-        managed by another account) a nested `guardians` list of the same
-        shape. The full response is cached on `self.groups` and reused by
-        `get_group(uid)` and `get_person(user)`.
+        Each `Group` carries its `members` (typed `Member` instances, each
+        with their own `guardians: list[Guardian]`), `subgroups: list[Subgroup]`,
+        and `roles: list[Role]`. The full list is cached on `self.groups` and
+        reused by `get_group(uid)` and `get_person(user)`.
 
         Returns
         -------
-        list[JSONDict] or None
-            A list of groups, each represented as a dictionary. `None` if the
-            account has no groups at all.
+        list[Group] or None
+            A list of groups, or `None` if the account has no groups at all.
         """
         url = f"{self.api_url}groups/"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
-            self.groups = await r.json()
-            return self.groups
+            raw = await r.json()
+        if not raw:
+            self.groups = None
+            return None
+        self.groups = [Group.from_api(g, self) for g in raw]
+        return self.groups
 
-    async def get_group(self, uid: str) -> JSONDict:
+    async def get_group(self, uid: str) -> Group:
         """Look up a single group by its unique id.
 
         Searches the cached `self.groups` (populated by `get_groups()` on
@@ -161,9 +170,9 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        JSONDict
-            The group's details, with the same shape as elements returned by
-            `get_groups()`.
+        Group
+            The group, with members/subgroups/roles materialised as typed
+            objects.
 
         Raises
         ------
@@ -173,7 +182,7 @@ class Spond(_SpondBase):
         return await self._get_entity(self._GROUP, uid)
 
     @_SpondBase.require_authentication
-    async def get_person(self, user: str) -> JSONDict:
+    async def get_person(self, user: str) -> Person:
         """Look up a member or guardian by any of several identifiers.
 
         Searches every member of every cached group (and each member's
@@ -185,17 +194,18 @@ class Spond(_SpondBase):
         user : str
             Identifier to match against. Accepted forms:
 
-            - the member's `id`
-            - the member's email (exact match)
+            - the person's `uid`
+            - the person's `email` (Members only — exact match)
             - first and last name joined by a single space
               (e.g. `"Ola Thoresen"`)
-            - the member's `profile.id` (different from `id` for child profiles)
+            - the person's `profile.id` (different from `uid` for child
+              members managed by another account)
 
         Returns
         -------
-        JSONDict
-            The first matching member or guardian dict. Shape matches the
-            entries in a group's `members` list from `get_groups()`.
+        Person
+            The first matching `Member` or `Guardian`. Use `isinstance` to
+            distinguish if needed.
 
         Raises
         ------
@@ -204,19 +214,18 @@ class Spond(_SpondBase):
         """
         if not self.groups:
             await self.get_groups()
-        for group in self.groups:
-            for member in group["members"]:
+        for group in self.groups or []:
+            for member in group.members:
                 if self._match_person(member, user):
                     return member
-                if "guardians" in member:
-                    for guardian in member["guardians"]:
-                        if self._match_person(guardian, user):
-                            return guardian
+                for guardian in member.guardians:
+                    if self._match_person(guardian, user):
+                        return guardian
         errmsg = f"No person matched with identifier '{user}'."
         raise KeyError(errmsg)
 
     @staticmethod
-    def _match_person(person: JSONDict, match_str: str) -> bool:
+    def _match_person(person: Person, match_str: str) -> bool:
         """Return True if `match_str` matches any of the person's identifiers.
 
         Used internally by `get_person` to scan group members and guardians.
@@ -224,8 +233,9 @@ class Spond(_SpondBase):
 
         Parameters
         ----------
-        person : JSONDict
-            A member or guardian dict from a group's `members` list.
+        person : Person
+            A `Member` or `Guardian` from a group's `members` list (or one
+            of its nested `guardians`).
         match_str : str
             The identifier to test against.
 
@@ -234,12 +244,14 @@ class Spond(_SpondBase):
         bool
             True on first matching identifier; False otherwise.
         """
-        return (
-            person["id"] == match_str
-            or ("email" in person and person["email"]) == match_str
-            or person["firstName"] + " " + person["lastName"] == match_str
-            or ("profile" in person and person["profile"]["id"] == match_str)
-        )
+        if person.uid == match_str:
+            return True
+        if person.full_name == match_str:
+            return True
+        if person.profile is not None and person.profile.get("id") == match_str:
+            return True
+        # Members have email; Guardians don't.
+        return isinstance(person, Member) and person.email == match_str
 
     @_SpondBase.require_authentication
     async def get_posts(
@@ -247,9 +259,8 @@ class Spond(_SpondBase):
         group_id: str | None = None,
         max_posts: int = 20,
         include_comments: bool = True,
-    ) -> list[JSONDict] | None:
-        """
-        Retrieve posts from group walls.
+    ) -> list[Post] | None:
+        """Retrieve posts from group walls.
 
         Posts are announcements/messages posted to group walls, as opposed to
         chat messages or events.
@@ -269,9 +280,8 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        list[JSONDict] or None
-            A list of posts, each represented as a dictionary, or None if no
-            posts are available.
+        list[Post] or None
+            A list of posts, or `None` if the account has no posts.
 
         Raises
         ------
@@ -295,8 +305,12 @@ class Spond(_SpondBase):
                 raise ValueError(
                     f"Request failed with status {r.status}: {error_details}"
                 )
-            self.posts = await r.json()
-            return self.posts
+            raw = await r.json()
+        if not raw:
+            self.posts = None
+            return None
+        self.posts = [Post.model_validate(p) for p in raw]
+        return self.posts
 
     @_SpondBase.require_authentication
     async def get_messages(self, max_chats: int = 100) -> list[JSONDict] | None:
@@ -419,7 +433,12 @@ class Spond(_SpondBase):
             )
 
         user_obj = await self.get_person(user)
-        user_uid = user_obj["profile"]["id"]
+        if user_obj.profile is None or "id" not in user_obj.profile:
+            raise ValueError(
+                f"Person {user_obj.uid} has no profile id; Spond cannot route "
+                f"a message without one."
+            )
+        user_uid = user_obj.profile["id"]
         url = f"{self._chat_url}/messages"
         data = {
             "text": text,
@@ -442,7 +461,7 @@ class Spond(_SpondBase):
         max_start: datetime | None = None,
         min_start: datetime | None = None,
         max_events: int = 100,
-    ) -> list[JSONDict] | None:
+    ) -> list[Event] | None:
         """Retrieve events visible to the authenticated user.
 
         Filters can narrow by group/subgroup, by start/end timestamp window,
@@ -495,9 +514,8 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        list[JSONDict] or None
-             A list of events, each represented as a dictionary, or None if no events
-             are available.
+        list[Event] or None
+            A list of `Event` instances, or `None` if no events match.
 
         Raises
         ------
@@ -534,10 +552,14 @@ class Spond(_SpondBase):
                 raise ValueError(
                     f"Request failed with status {r.status}: {error_details}"
                 )
-            self.events = await r.json()
-            return self.events
+            raw = await r.json()
+        if not raw:
+            self.events = None
+            return None
+        self.events = [Event.from_api(e, self) for e in raw]
+        return self.events
 
-    async def get_event(self, uid: str) -> JSONDict:
+    async def get_event(self, uid: str) -> Event:
         """Look up a single event by its unique id.
 
         Routes through the cached events list (populated by `get_events()`),
@@ -553,9 +575,8 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        JSONDict
-            The event's details, with the same shape as elements returned by
-            `get_events()`.
+        Event
+            The matching event.
 
         Raises
         ------
@@ -564,113 +585,86 @@ class Spond(_SpondBase):
         """
         return await self._get_entity(self._EVENT, uid)
 
-    @_SpondBase.require_authentication
     async def update_event(self, uid: str, updates: JSONDict) -> JSONDict:
-        """Update an existing event by merging changes into the current state.
+        """Deprecated — use `Event.update()` on the typed object instead.
 
-        The implementation fetches the event via `_get_entity()`, copies the
-        fields present in `_EVENT_TEMPLATE` from the existing event as the
-        base, then overlays any keys provided in `updates`. The merged event
-        is POSTed back to `sponds/{uid}`.
+        ```python
+        # Old:
+        await spond.update_event(uid, {"description": "..."})
 
-        Parameters
-        ----------
-        uid : str
-            UID of the event to update.
-        updates : JSONDict
-            Mapping of keys to new values. Only keys present in
-            `_EVENT_TEMPLATE` are honoured. Example:
+        # New:
+        event = await spond.get_event(uid)
+        await event.update(description="...")
+        ```
 
-            ```python
-            await s.update_event(uid, {"description": "New description"})
-            ```
-
-        Returns
-        -------
-        JSONDict
-            The Spond API response from the POST — the updated event as
-            persisted server-side.
+        Kept temporarily for backward compatibility; emits `DeprecationWarning`.
+        Internally delegates to `Event.update()` and returns the updated
+        event as a dict (via `model_dump(by_alias=True)`) for shape parity
+        with the pre-OO API.
         """
-        event = await self._get_entity(self._EVENT, uid)
-        url = f"{self.api_url}sponds/{uid}"
+        warnings.warn(
+            "Spond.update_event() is deprecated; use Event.update() on the "
+            "object returned by Spond.get_event() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        event = await self.get_event(uid)
+        new_event = await event.update(**updates)
+        return new_event.model_dump(by_alias=True)
 
-        base_event = self._EVENT_TEMPLATE.copy()
-        for key in base_event:
-            if event.get(key) is not None and not updates.get(key):
-                base_event[key] = event[key]
-            elif updates.get(key) is not None:
-                base_event[key] = updates[key]
-
-        async with self.clientsession.post(
-            url, json=base_event, headers=self.auth_headers
-        ) as r:
-            return await r.json()
-
-    @_SpondBase.require_authentication
     async def get_event_attendance_xlsx(self, uid: str) -> bytes:
-        """Download the attendance report for an event as XLSX bytes.
+        """Deprecated — use `Event.attendance_xlsx()` on the typed object instead.
 
-        Thin wrapper around Spond's own "Export attendance history" feature
-        in the web UI. The columns and format are determined by Spond, not by
-        this library — for example, the export does not include member ids.
-        For a customisable CSV alternative built from `get_event()` data,
-        see `examples/attendance.py`.
+        ```python
+        # Old:
+        data = await spond.get_event_attendance_xlsx(uid)
 
-        Parameters
-        ----------
-        uid : str
-            UID of the event whose attendance report to fetch.
+        # New:
+        event = await spond.get_event(uid)
+        data = await event.attendance_xlsx()
+        ```
 
-        Returns
-        -------
-        bytes
-            Raw XLSX file contents. Typically written directly to disk:
-
-            ```python
-            import pathlib
-
-            data = await s.get_event_attendance_xlsx(uid)
-            pathlib.Path(f"{uid}.xlsx").write_bytes(data)
-            ```
+        Kept temporarily for backward compatibility; emits `DeprecationWarning`.
+        Internally delegates to `Event.attendance_xlsx()`.
         """
-        url = f"{self.api_url}sponds/{uid}/export"
-        async with self.clientsession.get(url, headers=self.auth_headers) as r:
-            return await r.read()
+        warnings.warn(
+            "Spond.get_event_attendance_xlsx() is deprecated; use "
+            "Event.attendance_xlsx() on the object returned by "
+            "Spond.get_event() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        event = await self.get_event(uid)
+        return await event.attendance_xlsx()
 
-    @_SpondBase.require_authentication
     async def change_response(self, uid: str, user: str, payload: JSONDict) -> JSONDict:
-        """Update a single member's response (accept/decline) for an event.
+        """Deprecated — use `Event.change_response()` on the typed object instead.
 
-        Useful for managing attendance on someone else's behalf (e.g. a coach
-        accepting on behalf of a player who can't reach the app). The caller
-        must have permission on the event.
+        ```python
+        # Old:
+        await spond.change_response(uid, member_uid, {"accepted": "true"})
 
-        Parameters
-        ----------
-        uid : str
-            UID of the event.
-        user : str
-            UID of the member whose response to change. Note: this is the
-            *member's* id (as seen in `group["members"][i]["id"]`), not the
-            authenticated user's id.
-        payload : JSONDict
-            The response body. Common shapes:
+        # New:
+        event = await spond.get_event(uid)
+        await event.change_response(member_uid, accepted=True)
+        ```
 
-            - `{"accepted": "true"}` — accept the invitation
-            - `{"accepted": "false"}` — decline (Spond may also accept a
-              `"declineMessage"` field with a reason)
-
-        Returns
-        -------
-        JSONDict
-            The event's `responses` object with the updated id lists
-            (`acceptedIds`, `declinedIds`, `unansweredIds`, etc.).
+        Kept temporarily for backward compatibility; emits `DeprecationWarning`.
+        Internally delegates to `Event.change_response()`.
         """
-        url = f"{self.api_url}sponds/{uid}/responses/{user}"
-        async with self.clientsession.put(
-            url, headers=self.auth_headers, json=payload
-        ) as r:
-            return await r.json()
+        warnings.warn(
+            "Spond.change_response() is deprecated; use Event.change_response() "
+            "on the object returned by Spond.get_event() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        event = await self.get_event(uid)
+        accepted_raw = payload.get("accepted", "false")
+        accepted = str(accepted_raw).lower() in ("true", "1", "yes")
+        decline_message = payload.get("declineMessage")
+        return await event.change_response(
+            user, accepted=accepted, decline_message=decline_message
+        )
 
     @_SpondBase.require_authentication
     async def _get_entity(self, entity_type: str, uid: str) -> JSONDict:
@@ -720,6 +714,6 @@ class Spond(_SpondBase):
             raise KeyError(errmsg)
 
         for entity in entities:
-            if entity["id"] == uid:
+            if entity.uid == uid:
                 return entity
         raise KeyError(errmsg)
