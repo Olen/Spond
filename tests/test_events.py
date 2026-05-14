@@ -224,6 +224,32 @@ class TestEventOOMethods:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
+    async def test_event_update_converts_native_python_values(
+        self, mock_post, mock_token
+    ) -> None:
+        """Caller-supplied native Python values (datetime, date, …) must be
+        JSON-serialised before they hit aiohttp's `json.dumps`. Without
+        this, `event.update(start_time=datetime(...))` crashes with
+        `TypeError: Object of type datetime is not JSON serializable`."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
+
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=_MIN_EVENT_PAYLOAD
+        )
+
+        new_start = datetime(2027, 3, 15, 10, 0, tzinfo=UTC)
+        await event.update(start_time=new_start)
+
+        posted = mock_post.call_args[1]["json"]
+        # The datetime must have been converted to its ISO string form
+        # (no naked `datetime` instance leaks into the JSON payload).
+        assert isinstance(posted["startTimestamp"], str)
+        assert posted["startTimestamp"].startswith("2027-03-15T10:00")
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
     async def test_event_update_refreshes_client_cache(
         self, mock_post, mock_token
     ) -> None:

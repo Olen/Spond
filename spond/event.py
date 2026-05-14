@@ -17,6 +17,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 from pydantic import ConfigDict, Field, PrivateAttr, ValidationError
+from pydantic_core import to_jsonable_python
 
 from ._compat import DictCompatModel
 
@@ -297,7 +298,13 @@ class Event(DictCompatModel):
             exclude_unset=True,
             exclude_none=True,
         )
-        payload.update(api_updates)
+        # `model_dump(mode="json")` converts native Python types (datetime,
+        # UUID, Decimal, sets, …) to JSON-safe equivalents, but the
+        # caller's `api_updates` haven't been through that pass. Run them
+        # through the same encoder so callers can pass typed values
+        # naturally — `event.update(start_time=datetime.now())` is the
+        # obvious shape, given the field is itself a `datetime`.
+        payload.update({k: to_jsonable_python(v) for k, v in api_updates.items()})
 
         url = f"{self._client.api_url}sponds/{self.uid}"
         async with self._client.clientsession.post(
