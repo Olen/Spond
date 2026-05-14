@@ -532,8 +532,8 @@ class Spond(_SpondBase):
                 await self.get_groups()
             entities = self.groups
         else:
-            err_msg = f"Entity type '{entity_type}' is not supported."
-            raise NotImplementedError(err_msg)
+            errmsg = f"Entity type '{entity_type}' is not supported."
+            raise NotImplementedError(errmsg)
 
         errmsg = f"No {entity_type} with id='{uid}'."
         if not entities:
