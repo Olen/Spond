@@ -22,26 +22,97 @@ password = 'Pa55worD'
 group_id = 'C9DC791FFE63D7914D6952BE10D97B46'  # fake
 
 async def main():
-    s = spond.Spond(username=username, password=password)
-    group = await s.get_group(group_id)
-    print(group.name)
-    for member in group.members:
-        print(f"  {member.full_name}")
-        for guardian in member.guardians:
-            print(f"    guardian: {guardian.full_name}")
-    await s.clientsession.close()
+    async with spond.Spond(username=username, password=password) as s:
+        group = await s.get_group(group_id)
+        print(group.name)
+        for member in group.members:
+            print(f"  {member.full_name}")
+            for guardian in member.guardians:
+                print(f"    guardian: {guardian.full_name}")
 
 asyncio.run(main())
 ```
 
-> **Typed objects from the next minor release onwards.** `get_groups()`,
-> `get_event()`, `get_posts()`, etc. now return typed `Group` / `Event` /
-> `Post` objects with attribute access and per-instance methods
-> (`event.update(...)`, `event.change_response(...)`,
-> `member.send_message(...)`). Existing dict-style access (`group["name"]`)
-> still works for one major version with a `DeprecationWarning`. See
+> **Typed objects from v2.0 onwards.** `get_groups()`, `get_event()`,
+> `get_posts()`, etc. now return typed `Group` / `Event` / `Post` objects
+> with attribute access and per-instance methods. Existing dict-style
+> access (`group["name"]`) still works with a `DeprecationWarning`
+> through the v2.x line; the shim is removed in v3.0. See
 > [`DESIGN-oo-rewrite.md`](DESIGN-oo-rewrite.md) for the full design and
 > migration story.
+
+### Working with the typed objects
+
+```python
+async with spond.Spond(username, password) as s:
+    # Read: typed instances with attribute access
+    event = await s.get_event(uid)
+    print(event.heading, event.start_time, event.duration)
+
+    # Convenience properties — synchronous, no HTTP
+    if event.is_upcoming and not event.has_responded(my_uid):
+        print("you haven't responded yet")
+
+    # Resolve response uids to typed Member/Guardian objects
+    for member in await event.accepted_members():
+        print(f"  ✓ {member.full_name}")
+
+    # Update via kwargs (returns a new instance)
+    new_event = await event.update(heading="Renamed")
+
+    # ActiveRecord-style write surface
+    new = Event(heading="My new event",
+                start_time=start, end_time=end, type="EVENT",
+                owners=[{"id": my_pid, "response": "accepted"}],
+                recipients={"group": {"id": group_id}})
+    await new.save(client=s)   # POST → uid populated; cache updated
+    assert new.uid
+
+    new.description = "Some details"
+    await new.save()           # PATCH (mutate-in-place, then save)
+
+    await new.delete()         # DELETE → pruned from cache
+```
+
+### Identity / equality
+
+Typed instances use natural-key equality so they behave correctly in
+sets and as dict keys:
+
+```python
+a = await s.get_event(uid)
+b = await s.get_event(uid)
+assert a == b                  # same uid → equal, even if state differs
+assert {a, b} == {a}           # dedups via __hash__
+
+# Match is a subclass of Event; same uid → same entity
+assert isinstance(match, Event)
+assert match == event_with_same_uid
+```
+
+For callers who need the old field-by-field comparison (e.g. "has the
+server state changed?"), use `model_equals(other)`.
+
+### Exception hierarchy
+
+```python
+from spond import (
+    SpondError,             # base — catch this for any SDK error
+    AuthenticationError,    # login failures
+    EventNotFoundError,     # also a KeyError, for backward compat
+    GroupNotFoundError,     # also a KeyError
+    PersonNotFoundError,    # also a KeyError
+    SpondAPIError,          # HTTP failures; also a ValueError
+)
+
+try:
+    event = await s.get_event(uid)
+except EventNotFoundError:
+    ...
+```
+
+Pre-OO `except KeyError:` / `except ValueError:` patterns continue to
+work — the typed exceptions multi-inherit from the stdlib classes.
 
 ## Key methods
 
