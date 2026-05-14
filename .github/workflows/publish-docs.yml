@@ -42,7 +42,9 @@ jobs:
       - name: 📝 Generate static HTML
         # `./spond` (not `spond`) forces pdoc to document the local checkout
         # instead of any same-named module that might be importable.
-        run: poetry run pdoc -o site/ ./spond
+        # `--docformat numpy` parses NumPy-style Parameters/Returns/Raises
+        # sections as structured lists rather than flat paragraphs.
+        run: poetry run pdoc --docformat numpy -o site/ ./spond
 
       - name: ⚙️ Configure Pages
         uses: actions/configure-pages@v5
