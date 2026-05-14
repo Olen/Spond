@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from spond import AuthenticationError
 from spond.base import _SpondBase
 from spond.spond import Spond
 
@@ -212,3 +213,192 @@ class TestExportMethod:
             },
         )
         assert data == mock_binary
+
+
+class TestPostMethods:
+    MOCK_POSTS: list[JSONDict] = [
+        {
+            "id": "POST1",
+            "type": "PLAIN",
+            "groupId": "GID1",
+            "title": "Post One",
+            "body": "Body of post one",
+            "timestamp": "2026-03-03T19:20:00.270Z",
+            "comments": [],
+        },
+        {
+            "id": "POST2",
+            "type": "PLAIN",
+            "groupId": "GID2",
+            "title": "Post Two",
+            "body": "Body of post two",
+            "timestamp": "2026-02-20T19:21:20.447Z",
+            "comments": [{"id": "C1", "text": "A comment"}],
+        },
+    ]
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_posts__happy_path(self, mock_get, mock_token) -> None:
+        """Test that get_posts returns posts from the API."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=self.MOCK_POSTS
+        )
+
+        posts = await s.get_posts()
+
+        mock_url = "https://api.spond.com/core/v1/posts/"
+        mock_get.assert_called_once_with(
+            mock_url,
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {mock_token}",
+            },
+            params={
+                "type": "PLAIN",
+                "max": "20",
+                "includeComments": "true",
+            },
+        )
+        assert posts == self.MOCK_POSTS
+        assert s.posts == self.MOCK_POSTS
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_posts__with_group_id(self, mock_get, mock_token) -> None:
+        """Test that group_id is passed as a query parameter."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=[self.MOCK_POSTS[0]]
+        )
+
+        posts = await s.get_posts(group_id="GID1")
+
+        mock_get.assert_called_once_with(
+            "https://api.spond.com/core/v1/posts/",
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {mock_token}",
+            },
+            params={
+                "type": "PLAIN",
+                "max": "20",
+                "includeComments": "true",
+                "groupId": "GID1",
+            },
+        )
+        assert len(posts) == 1
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_posts__custom_max(self, mock_get, mock_token) -> None:
+        """Test that max_posts parameter is respected."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
+
+        await s.get_posts(max_posts=5)
+
+        call_params = mock_get.call_args[1]["params"]
+        assert call_params["max"] == "5"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_posts__no_comments(self, mock_get, mock_token) -> None:
+        """Test that include_comments=False is passed correctly."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
+
+        await s.get_posts(include_comments=False)
+
+        call_params = mock_get.call_args[1]["params"]
+        assert call_params["includeComments"] == "false"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_posts__api_error_raises(self, mock_get, mock_token) -> None:
+        """Test that a failed API response raises ValueError."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = False
+        mock_get.return_value.__aenter__.return_value.status = 401
+        mock_get.return_value.__aenter__.return_value.text = AsyncMock(
+            return_value="Unauthorized"
+        )
+
+        with pytest.raises(ValueError, match="401"):
+            await s.get_posts()
+
+
+class TestLogin:
+    @pytest.mark.parametrize(
+        ("login_result", "expected"),
+        [
+            (
+                {"accessToken": {"token": "ABC", "expiration": "2026-05-14T12:00:00Z"}},
+                "ABC",
+            ),
+        ],
+    )
+    def test_extract_access_token__happy_path(self, login_result, expected) -> None:
+        assert _SpondBase._extract_access_token(login_result) == expected
+
+    @pytest.mark.parametrize(
+        "login_result",
+        [
+            {"error": "Invalid credentials"},
+            {"accessToken": None},
+            {"accessToken": {}},
+            {"accessToken": {"token": ""}},
+            {"accessToken": {"token": None}},
+        ],
+    )
+    def test_extract_access_token__bad_shape_raises(self, login_result) -> None:
+        with pytest.raises(AuthenticationError):
+            _SpondBase._extract_access_token(login_result)
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_login__happy_path(self, mock_post) -> None:
+        mock_response = {
+            "accessToken": {"token": "ABC", "expiration": "2026-05-14T12:00:00Z"},
+            "refreshToken": {"token": "REF", "expiration": "2026-08-11T12:00:00Z"},
+            "passwordToken": {"token": "PWD", "expiration": "2026-05-13T13:00:00Z"},
+        }
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=mock_response
+        )
+
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        await s.login()
+
+        mock_post.assert_called_once_with(
+            "https://api.spond.com/core/v1/auth2/login",
+            json={"email": MOCK_USERNAME, "password": MOCK_PASSWORD},
+        )
+        assert s.token == "ABC"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_login__error_response_raises(self, mock_post) -> None:
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={"error": "Invalid credentials"}
+        )
+
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        with pytest.raises(AuthenticationError):
+            await s.login()
+        assert s.token is None

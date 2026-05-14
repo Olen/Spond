@@ -3,9 +3,6 @@
 
 Simple, unofficial library with some example scripts to access data from the [Spond](https://spond.com/) API.
 
-> [!WARNING]
-> Notice breaking changes from versions =< 0.99 to versions >= 1.0
-
 ## Install
 
 `pip install spond`
@@ -13,8 +10,6 @@ Simple, unofficial library with some example scripts to access data from the [Sp
 ## Usage
 
 You need a username and password from Spond
-
-
 
 ### Example code
 
@@ -64,9 +59,15 @@ Get Excel attendance report for a single event, available via the web client.
 ### change_response()
 Change a member's response for an event (e.g. accept/decline)
 
+### get_posts()
+Retrieve posts from group walls.
+
+### get_profile()
+Retrieve information connected to the user's account.
+
 ## Example scripts
 
-The following scripts are included as examples.  Some of the scripts might require additional packages to be installed (csv, ical etc).
+The following scripts are included in `examples/`.  Some of the scripts might require additional packages to be installed (csv, ical etc).
 
 Rename the file `config.py.sample` to `config.py` and add your username and password to the file before running the samples.
 
@@ -82,8 +83,21 @@ Generates a csv-file for each event between `from_date` and `to_date` with atten
 ### transactions.py
 Generates a csv-file for transactions / payments appeared in [Spond Club](https://www.spond.com/spond-club-overview/) > Finance > Payments.
 
+### manual_test_functions.py
+Demonstrates most `get...()` methods.
+
 ## AsyncIO
 [Asyncio](https://docs.python.org/3/library/asyncio.html) might seem intimidating in the beginning, but for basic stuff, it is quite easy to follow the examples above, and just remeber to prefix functions that use the API with `async def ...` and to `await` all API-calls and all calls to said functions.
 
 [This article](https://realpython.com/async-io-python/) will give a nice introduction to both why, when and how to use asyncio in projects.
 
+## Contributing
+
+### Keeping a PR up to date with `main`
+
+Add the `updateme` label to a PR targeting `main` and a GitHub Actions workflow will automatically merge `main` into the PR branch every time `main` advances. This is opt-in: PRs without the label are left alone.
+
+Limitations:
+- Only acts on PRs whose base branch is `main`. PRs targeting other branches are ignored even with the label.
+- Only works for PRs from branches in this repository. PRs from forks cannot be pushed to via the workflow's token and will be skipped (the workflow logs which PRs it skipped).
+- If `gh pr update-branch` fails for a given PR (merge conflict, branch protection rule, transient API error, etc.), that PR is skipped for this run and the failure is logged. The label stays on, so the next push to `main` will retry automatically.
