@@ -1,0 +1,36 @@
+name: Auto-update PRs
+
+on:
+  push:
+    branches: [main]
+
+# Serialize so two close-together merges don't race the update API.
+concurrency:
+  group: auto-update-prs
+  cancel-in-progress: false
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update PRs labeled 'updateme' to latest main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh pr list --repo "$GITHUB_REPOSITORY" --state open --label updateme --limit 200 \
+              --json number,isCrossRepository,baseRefName \
+              --jq '.[] | select(.baseRefName == "main") | "\(.number) \(.isCrossRepository)"' \
+          | while read -r num is_fork; do
+              if [ "$is_fork" = "true" ]; then
+                  echo "Skip PR #$num (fork — cannot push via GITHUB_TOKEN)"
+                  continue
+              fi
+              echo "Updating PR #$num"
+              gh pr update-branch "$num" --repo "$GITHUB_REPOSITORY" \
+                  || echo "  -> PR #$num: update-branch failed (see preceding gh output; possible causes: merge conflict, branch protection, transient API error)"
+          done

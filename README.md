@@ -90,3 +90,14 @@ Demonstrates most `get...()` methods.
 [Asyncio](https://docs.python.org/3/library/asyncio.html) might seem intimidating in the beginning, but for basic stuff, it is quite easy to follow the examples above, and just remeber to prefix functions that use the API with `async def ...` and to `await` all API-calls and all calls to said functions.
 
 [This article](https://realpython.com/async-io-python/) will give a nice introduction to both why, when and how to use asyncio in projects.
+
+## Contributing
+
+### Keeping a PR up to date with `main`
+
+Add the `updateme` label to a PR targeting `main` and a GitHub Actions workflow will automatically merge `main` into the PR branch every time `main` advances. This is opt-in: PRs without the label are left alone.
+
+Limitations:
+- Only acts on PRs whose base branch is `main`. PRs targeting other branches are ignored even with the label.
+- Only works for PRs from branches in this repository. PRs from forks cannot be pushed to via the workflow's token and will be skipped (the workflow logs which PRs it skipped).
+- If `gh pr update-branch` fails for a given PR (merge conflict, branch protection rule, transient API error, etc.), that PR is skipped for this run and the failure is logged. The label stays on, so the next push to `main` will retry automatically.
