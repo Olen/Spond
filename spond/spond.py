@@ -662,7 +662,11 @@ class Spond(_SpondBase):
         # Pass as positional dict, not **kwargs — `updates` may contain keys
         # like `self` or `cls` that would clash with bound-method calling.
         new_event = await event.update(updates)
-        return new_event.model_dump(by_alias=True, mode="json")
+        # `exclude_unset=True` so the returned dict matches the shape Spond
+        # actually sent back (only the fields populated during validation),
+        # not "every class field including defaults" — closer to pre-OO
+        # behaviour where the return was the raw POST-response JSON.
+        return new_event.model_dump(by_alias=True, mode="json", exclude_unset=True)
 
     @_SpondBase.require_authentication
     async def get_event_attendance_xlsx(self, uid: str) -> bytes:

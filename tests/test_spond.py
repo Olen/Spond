@@ -710,6 +710,36 @@ class TestDictCompat:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
+    async def test_event_update_excludes_unset_default_collections(
+        self, mock_post, mock_token
+    ) -> None:
+        """`Event.update()` must NOT send empty-list defaults for fields
+        the source API didn't include (e.g. `owners=[]`, `attachments=[]`).
+        Spond could interpret an explicit empty list as 'clear all
+        owners', overwriting concurrent server-side changes.
+        Regression guard for the `exclude_unset=True` fix."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        # _MIN_EVENT_PAYLOAD doesn't include `owners` or `attachments`, so
+        # the Event has them at their default ([]). They must NOT round-trip.
+        event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
+        assert event.owners == []
+        assert event.attachments == []
+
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=_MIN_EVENT_PAYLOAD
+        )
+        await event.update(heading="Renamed")
+
+        posted = mock_post.call_args[1]["json"]
+        # The caller's update was applied
+        assert posted["heading"] == "Renamed"
+        # Empty-list defaults were NOT sent (because they weren't in the source)
+        assert "owners" not in posted
+        assert "attachments" not in posted
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
     async def test_event_update_excludes_none_fields(
         self, mock_post, mock_token
     ) -> None:
@@ -743,11 +773,15 @@ class TestDictCompat:
             {"id": "P1", "firstName": "A", "lastName": "B", "newSpondField": 42}
         )
         assert "newSpondField" in p
-        assert p.newSpondField == 42  # native attribute access via Pydantic
+        # `__pydantic_extra__` is the portable accessor for `extra="allow"`
+        # extras — native attribute access (`p.newSpondField`) works on
+        # current Pydantic 2.x but behaviour varies subtly across minor
+        # versions for camelCase keys, so this is the version-stable form.
+        assert p.__pydantic_extra__["newSpondField"] == 42
 
         g = Group.model_validate({"id": "G1", "name": "GG", "newGroupAttr": ["x"]})
         assert "newGroupAttr" in g
-        assert g.newGroupAttr == ["x"]
+        assert g.__pydantic_extra__["newGroupAttr"] == ["x"]
 
 
 class TestEventOOMethods:

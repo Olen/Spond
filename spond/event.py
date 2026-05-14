@@ -203,12 +203,16 @@ class Event(DictCompatModel):
         return f"https://spond.com/client/sponds/{self.uid}/"
 
     @classmethod
-    def from_api(cls, data: dict[str, Any], client: Spond) -> Event:
+    def from_api(cls, data: dict[str, Any], client: Spond | None) -> Event:
         """Construct an `Event` from a raw API response and bind the client.
 
         Used internally by `Spond.get_event()` and `Spond.get_events()`.
         Sets `_client` on the instance so the ActiveRecord methods can
-        issue HTTP calls.
+        issue HTTP calls. `client` is `Optional` only so test fixtures
+        can build typed instances without a live Spond — production
+        callers always pass a real client, and any ActiveRecord method
+        called on a `_client is None` instance raises `RuntimeError`
+        (or `AttributeError` in the dereference path).
         """
         instance = cls.model_validate(data)
         instance._client = client
@@ -262,18 +266,26 @@ class Event(DictCompatModel):
                 field_info = self.__class__.model_fields[py_name]
                 api_updates[field_info.alias or py_name] = value
 
-        # Dump the current state, then strip:
+        # Dump the current state, then strip three classes of field:
         #   * read-only fields (creator, timestamps, server-managed flags,
         #     `responses`) — sending these back risks Spond treating stale
         #     local state as authoritative.
-        #   * `None`-valued declared fields — Spond may interpret an
-        #     explicit JSON `null` as "clear this field" rather than
-        #     "leave unchanged", so we only send fields that have a real
-        #     value or have been explicitly provided by the caller below.
+        #   * fields that weren't in the source API data (`exclude_unset`)
+        #     — Pydantic tracks `model_fields_set` exactly so we know
+        #     which fields came from Spond vs are class-level defaults.
+        #     This is the critical guard: without it, defaulted empty
+        #     collections (`owners=[]`, `attachments=[]`) and other
+        #     sentinel-defaulted fields would round-trip back to Spond
+        #     and could be interpreted as "clear this".
+        #   * `None`-valued fields (`exclude_none`) — belt-and-suspenders
+        #     for the same risk on dict-typed nested fields.
+        # The caller's `api_updates` are overlaid afterwards, so explicit
+        # updates always reach Spond regardless of source-data presence.
         payload = self.model_dump(
             by_alias=True,
             mode="json",
             exclude=_EVENT_READ_ONLY_FIELDS,
+            exclude_unset=True,
             exclude_none=True,
         )
         payload.update(api_updates)
