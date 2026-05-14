@@ -347,7 +347,10 @@ class TestLogin:
     @pytest.mark.parametrize(
         ("login_result", "expected"),
         [
-            ({"accessToken": {"token": "ABC", "expiration": "2026-05-14T12:00:00Z"}}, "ABC"),
+            (
+                {"accessToken": {"token": "ABC", "expiration": "2026-05-14T12:00:00Z"}},
+                "ABC",
+            ),
         ],
     )
     def test_extract_access_token__happy_path(self, login_result, expected) -> None:
