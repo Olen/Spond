@@ -112,6 +112,32 @@ class TestEventMethods:
             await s.get_event("ID1")
 
     @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_update_event__returns_api_response(
+        self, mock_post, mock_token
+    ) -> None:
+        """`update_event()` should return the POST response, not the cached
+        events list (regression test for #239)."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        s.events = [{"id": "ID1", "heading": "Old"}]  # cached event for _get_entity
+
+        api_response = {
+            "id": "ID1",
+            "heading": "New",
+            "updated": "2026-05-14T13:00:00Z",
+        }
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=api_response
+        )
+
+        result = await s.update_event(uid="ID1", updates={"heading": "New"})
+
+        assert result == api_response
+        # The cached events list should NOT be what we returned.
+        assert result is not s.events
+
+    @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.put")
     async def test_change_response(self, mock_put, mock_payload, mock_token) -> None:
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
@@ -215,6 +241,54 @@ class TestGroupMethods:
 
         with pytest.raises(KeyError):
             await s.get_group("ID1")
+
+
+class TestSendMessage:
+    """Tests for `Spond.send_message()` — covers the fixes in #238."""
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post", new_callable=AsyncMock)
+    async def test_send_message__continues_chat_when_chat_id_given(
+        self, mock_post, mock_token
+    ) -> None:
+        """With `chat_id`, the call should route through `_continue_chat()`
+        and properly await it (regression: the await was missing)."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        s._auth = "MOCK_CHAT_AUTH"
+        s._chat_url = "https://chat.example.invalid"
+
+        api_response = {"ok": True, "messageId": "MID1"}
+        # _continue_chat does `r = await session.post(...)` (no `async with`),
+        # so the post mock must be AsyncMock and r.json must be AsyncMock too.
+        mock_post.return_value.json = AsyncMock(return_value=api_response)
+
+        result = await s.send_message(text="hello", chat_id="CHAT1")
+
+        assert result == api_response  # was a coroutine before the fix
+        mock_post.assert_called_once()
+        _, kwargs = mock_post.call_args
+        assert kwargs["json"] == {"chatId": "CHAT1", "text": "hello", "type": "TEXT"}
+
+    @pytest.mark.asyncio
+    async def test_send_message__missing_args_raises_valueerror(
+        self, mock_token
+    ) -> None:
+        """Without `chat_id` and without both `user` and `group_uid`, the
+        call should raise rather than silently return a sentinel dict."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        s._auth = "MOCK_CHAT_AUTH"
+        s._chat_url = "https://chat.example.invalid"
+
+        with pytest.raises(ValueError, match="chat_id"):
+            await s.send_message(text="hello")
+
+        with pytest.raises(ValueError, match="user and group_uid"):
+            await s.send_message(text="hello", user="USER1")
+
+        with pytest.raises(ValueError, match="user and group_uid"):
+            await s.send_message(text="hello", group_uid="GROUP1")
 
 
 class TestExportMethod:
