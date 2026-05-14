@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING, Any
 from pydantic import ConfigDict, Field, PrivateAttr
 
 from ._compat import DictCompatModel
-from ._event_template import _EVENT_TEMPLATE
 
 if TYPE_CHECKING:
     from .spond import Spond
@@ -174,34 +173,26 @@ class Event(DictCompatModel):
         instance._client = client
         return instance
 
-    def _resolve_field_for_update(self, key: str) -> tuple[str, str]:
-        """Translate either a Python attribute name or an API alias to both.
-
-        Returns `(python_name, api_name)`. Raises `ValueError` if neither
-        form matches a field in this model.
-        """
-        py_name = self._resolve_dict_key(key)
-        if py_name is None:
-            raise ValueError(
-                f"Event has no field {key!r}; valid names are "
-                f"{sorted(self.__class__.model_fields)}"
-            )
-        field_info = self.__class__.model_fields[py_name]
-        api_name = field_info.alias or py_name
-        return py_name, api_name
-
     async def update(self, **fields: Any) -> Event:
         """POST changes to this event back to Spond and return the updated event.
 
         Accepts either Python-style attribute names (`description="..."`) or
-        API-style aliases (`startTimestamp="..."`). Unknown keys raise
-        `ValueError`.
+        API-style aliases (`startTimestamp="..."`). Unknown keys are passed
+        through to Spond unchanged — Spond is the ultimate arbiter of what
+        the event API accepts, not this SDK.
+
+        The POST payload is built from this Event's current state via
+        `model_dump(by_alias=True, mode="json")`, then overlaid with the
+        caller-supplied `fields`. `mode="json"` converts datetimes to ISO
+        strings so aiohttp's `json.dumps` can serialise the payload.
 
         Parameters
         ----------
         **fields
-            Field updates to send. Only fields present in `_EVENT_TEMPLATE`
-            actually reach the server — others are silently dropped by Spond.
+            Field updates to send. Use the Python attribute name
+            (`description`, `start_time`, …) or the API alias
+            (`startTimestamp`, …) — either resolves correctly. Unknown keys
+            pass through to the API verbatim.
 
         Returns
         -------
@@ -209,21 +200,19 @@ class Event(DictCompatModel):
             A new `Event` reflecting the persisted state. The original
             instance is **not** mutated.
         """
+        # Translate caller-supplied keys to API names. Unknown keys pass
+        # through as-is so Spond-side changes don't get blocked client-side.
         api_updates: dict[str, Any] = {}
         for key, value in fields.items():
-            _, api_name = self._resolve_field_for_update(key)
-            api_updates[api_name] = value
+            py_name = self._resolve_dict_key(key)
+            if py_name is None:
+                api_updates[key] = value
+            else:
+                field_info = self.__class__.model_fields[py_name]
+                api_updates[field_info.alias or py_name] = value
 
-        # Build the payload from _EVENT_TEMPLATE, falling back to current state
-        # for fields the caller didn't provide. `mode="json"` converts datetimes
-        # to ISO strings so aiohttp's json.dumps can serialise the payload.
-        current = self.model_dump(by_alias=True, mode="json")
-        payload = _EVENT_TEMPLATE.copy()
-        for key in payload:
-            if api_updates.get(key) is not None:
-                payload[key] = api_updates[key]
-            elif current.get(key) is not None:
-                payload[key] = current[key]
+        payload = self.model_dump(by_alias=True, mode="json")
+        payload.update(api_updates)
 
         url = f"{self._client.api_url}sponds/{self.uid}"
         async with self._client.clientsession.post(

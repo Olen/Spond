@@ -13,7 +13,6 @@ import warnings
 from typing import TYPE_CHECKING, ClassVar
 
 from . import JSONDict
-from ._event_template import _EVENT_TEMPLATE
 from .base import _SpondBase
 from .event import Event
 from .group import Group
@@ -69,7 +68,6 @@ class Spond(_SpondBase):
 
     _API_BASE_URL: ClassVar = "https://api.spond.com/core/v1/"
     _DT_FORMAT: ClassVar = "%Y-%m-%dT00:00:00.000Z"
-    _EVENT_TEMPLATE: ClassVar = _EVENT_TEMPLATE
     _EVENT: ClassVar = "event"
     _GROUP: ClassVar = "group"
 
@@ -598,11 +596,10 @@ class Spond(_SpondBase):
         await event.update(description="...")
         ```
 
-        Kept as a **thin pass-through** for backward compatibility: it
-        performs the same fetch + `_EVENT_TEMPLATE` merge + POST that the
-        pre-OO version did, byte-for-byte. Keys in `updates` that aren't in
-        `_EVENT_TEMPLATE` are silently ignored, matching the old semantics.
-        Emits `DeprecationWarning`.
+        Delegates to `Event.update()`; unknown keys in `updates` pass through
+        to Spond verbatim (Spond decides what it accepts, the SDK doesn't
+        gate). Returns the updated event as a dict for shape parity with the
+        pre-OO API. Emits `DeprecationWarning`.
         """
         warnings.warn(
             "Spond.update_event() is deprecated; use Event.update() on the "
@@ -610,22 +607,9 @@ class Spond(_SpondBase):
             DeprecationWarning,
             stacklevel=2,
         )
-        # Fetch the existing event as a dict for the merge.
         event = await self.get_event(uid)
-        event_dict = event.model_dump(by_alias=True, mode="json")
-
-        base_event = self._EVENT_TEMPLATE.copy()
-        for key in base_event:
-            if event_dict.get(key) is not None and not updates.get(key):
-                base_event[key] = event_dict[key]
-            elif updates.get(key) is not None:
-                base_event[key] = updates[key]
-
-        url = f"{self.api_url}sponds/{uid}"
-        async with self.clientsession.post(
-            url, json=base_event, headers=self.auth_headers
-        ) as r:
-            return await r.json()
+        new_event = await event.update(**updates)
+        return new_event.model_dump(by_alias=True, mode="json")
 
     @_SpondBase.require_authentication
     async def get_event_attendance_xlsx(self, uid: str) -> bytes:
