@@ -8,6 +8,7 @@ flow used by the `require_authentication` decorator.
 Not intended to be instantiated directly — use a subclass.
 """
 
+import functools
 from abc import ABC
 from collections.abc import Callable
 
@@ -65,6 +66,7 @@ class _SpondBase(ABC):
         client is not yet authenticated. On `AuthenticationError`, closes the
         underlying aiohttp session before re-raising."""
 
+        @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
             if not self.token:
                 try:
