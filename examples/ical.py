@@ -23,7 +23,12 @@ async def main() -> None:
         e = Event()
         e.uid = event["id"]
         e.name = event["heading"]
-        e.begin = event["startTimestamp"]
+        # Match events expose two start times: `startTimestamp` is the
+        # kickoff, while `meetupTimestamp` is when participants are expected
+        # to arrive (Norwegian: "oppmøtetid"). Training events only have
+        # `startTimestamp`. We prefer the meet-up time so calendar
+        # subscribers see when to show up, and fall back to kickoff.
+        e.begin = event.get("meetupTimestamp", event["startTimestamp"])
         e.end = event["endTimestamp"]
         e.sequence = event["updated"]
         e.description = event.get("description")
