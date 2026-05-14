@@ -524,3 +524,32 @@ class TestLogin:
         with pytest.raises(AuthenticationError):
             await s.login()
         assert s.token is None
+
+
+class TestRequireAuthenticationDecorator:
+    """The `require_authentication` decorator must preserve the wrapped
+    method's metadata (signature, docstring, name) so `inspect`-based
+    tools — pdoc, IDE help, tab completion — see the real method
+    rather than the wrapper's `(*args, **kwargs)` shim.
+    """
+
+    def test_decorator_preserves_signature(self) -> None:
+        """Decorated methods must expose their real parameter list."""
+        import inspect
+
+        # `get_posts` is decorated and has a distinctive signature
+        params = list(inspect.signature(Spond.get_posts).parameters)
+        assert params == ["self", "group_id", "max_posts", "include_comments"]
+
+    def test_decorator_preserves_docstring(self) -> None:
+        """Decorated methods must expose their own docstring, not the
+        wrapper's."""
+        import inspect
+
+        doc = inspect.getdoc(Spond.get_profile) or ""
+        # Wrapper docstring would start with 'Decorator that...' if leaked.
+        assert "Retrieve the authenticated user's profile." in doc
+
+    def test_decorator_preserves_name(self) -> None:
+        """`__name__` must be the method's, not 'wrapper'."""
+        assert Spond.get_events.__name__ == "get_events"
