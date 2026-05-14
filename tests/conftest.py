@@ -1,13 +1,9 @@
-"""Shared fixtures, constants, and module-import-time setup for the Spond
-test suite.
+"""Shared fixtures and constants for the Spond test suite.
 
 pytest auto-discovers this file, so fixtures defined here (e.g. `mock_token`)
-are available to every test file without explicit import. Constants and
-helpers that test files need to reference directly are imported via
+are available to every test file without explicit import. Constants that
+test files need to reference directly are imported via
 `from .conftest import ...`.
-
-The `_SpondBase.require_authentication` monkey-patch must happen before any
-test module is imported — `conftest.py` is the canonical place for that.
 """
 
 from __future__ import annotations
@@ -15,9 +11,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-
-from spond.base import _SpondBase
-from spond.spond import Spond
 
 if TYPE_CHECKING:
     from spond import JSONDict
@@ -47,17 +40,13 @@ MOCK_TOKEN = "MOCK_TOKEN"
 MOCK_PAYLOAD = {"accepted": "false", "declineMessage": "sick cannot make it"}
 
 
-# Mock the `require_authentication` decorator to bypass authentication.
-# Replaces the real decorator on `_SpondBase` so every test that calls a
-# decorated method skips the real auth roundtrip.
-def mock_require_authentication(func):
-    async def wrapper(*args, **kwargs):
-        return await func(*args, **kwargs)
-
-    return wrapper
-
-
-_SpondBase.require_authentication = mock_require_authentication(Spond.get_event)
+# Authentication is bypassed by setting `s.token = mock_token` on every test
+# `Spond` instance before invoking a decorated method. The real
+# `require_authentication` decorator then short-circuits its `if not
+# self.token: await self.login()` check without issuing HTTP. No
+# class-level monkey-patch is needed (and wouldn't work anyway —
+# `@_SpondBase.require_authentication` is applied at class-definition
+# time, so reassigning the attribute later doesn't re-decorate methods).
 
 
 @pytest.fixture

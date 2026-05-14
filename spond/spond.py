@@ -657,7 +657,13 @@ class Spond(_SpondBase):
         Delegates to `Event.update()`; unknown keys in `updates` pass through
         to Spond verbatim (Spond decides what it accepts, the SDK doesn't
         gate). Returns the updated event as a dict for shape parity with the
-        pre-OO API. Emits `DeprecationWarning`.
+        pre-OO API. The returned dict reflects the fields populated during
+        Pydantic validation of Spond's POST response — declared fields plus
+        any unmodelled extras preserved via `extra="allow"`. With current
+        config (every top-level type uses `extra="allow"`) that's
+        equivalent to "everything Spond sent back"; if a future model
+        switched to `extra="ignore"`, unknown keys would be dropped from
+        this return value. Emits `DeprecationWarning`.
         """
         warnings.warn(
             "Spond.update_event() is deprecated; use Event.update() on the "

@@ -235,6 +235,15 @@ class Event(DictCompatModel):
         caller-supplied updates. `mode="json"` converts datetimes to ISO
         strings so aiohttp's `json.dumps` can serialise the payload.
 
+        `_EVENT_READ_ONLY_FIELDS` (server-managed timestamps, derived flags,
+        nested sub-resources like `responses` and `comments`) are stripped
+        from the *dumped current state* only. Caller-supplied kwargs are
+        **not** gated — a caller who explicitly passes `responses={...}` or
+        `creatorId="X"` will see those keys reach Spond, and Spond decides
+        whether to accept them. The filter exists to prevent the SDK from
+        silently round-tripping stale local state, not to police explicit
+        caller intent.
+
         Parameters
         ----------
         _updates : dict, positional-only, optional
