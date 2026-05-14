@@ -45,7 +45,8 @@ class Post(DictCompatModel):
     typed as raw `dict` — a `Comment` class is a possible future refinement."""
 
     def __str__(self) -> str:
-        return (
-            f"Post(uid={self.uid!r}, title={self.title!r}, "
-            f"timestamp={self.timestamp.isoformat()})"
-        )
+        # `timestamp` is optional after the resilience relaxation, so guard
+        # the .isoformat() call the same way `Event.__str__` guards
+        # `start_time`. Avoids `AttributeError` when Spond omits the field.
+        ts = self.timestamp.isoformat() if self.timestamp else "?"
+        return f"Post(uid={self.uid!r}, title={self.title!r}, timestamp={ts})"

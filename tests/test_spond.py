@@ -701,6 +701,9 @@ class TestDictCompat:
         # Post without timestamp — used to crash, now None
         p = Post.model_validate({"id": "P1"})
         assert p.timestamp is None
+        # __str__ must not raise even though timestamp is None — guards the
+        # AttributeError that resilience relaxation otherwise re-introduced.
+        assert "?" in str(p)
         # Profile with no name fields — same relaxation
         pr = Profile.model_validate({"id": "PR1"})
         assert pr.first_name == ""
