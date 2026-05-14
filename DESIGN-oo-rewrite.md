@@ -1,18 +1,16 @@
 # Spond OO rewrite — design
 
-**Status:** open for feedback — work in progress on branch `feat/oo-rewrite`
+**Status:** implementation complete on branch `feat/oo-rewrite`; under review
 **Last updated:** 2026-05-14
 **Scope:** First-class typed objects with ActiveRecord behaviour, replacing the dict-based return surface across `spond.spond.Spond` and `spond.club.SpondClub`.
 
 ## Feedback welcome
 
-This document is the design we're proposing for the long-discussed object-oriented rewrite of the SDK. It's the spec — not the code yet. Comments, pushback, and suggestions on any section are welcome before the implementation lands.
+This document captured the design as it was brainstormed, and has been kept in sync with what shipped. The shape, deprecation path, and inventory in this file now reflect the implementation merged onto `feat/oo-rewrite`. The "Open questions" section near the end lists what was deliberately deferred to a follow-up release.
 
 - **For high-level concerns** (API shape, scope, deprecation path) — open an issue titled `OO rewrite: …` or comment on the tracking PR.
-- **For specific wording or examples** — review the draft PR (link will be added here once it's open) and comment inline.
-- **For deeper design questions** — see the "Open questions" section near the end; we'd like to settle those before the implementation locks them in.
-
-Decisions captured here have been agreed in principle but are still revisable as long as v1.3 hasn't shipped.
+- **For deeper design questions** — see the "Open questions" section near the end.
+- **For implementer-facing notes** (field-drift audit, subclass discipline, update-payload rules) — see "Implementation notes for maintainers" at the bottom.
 
 ## Motivation
 
@@ -37,84 +35,110 @@ The OO rewrite addresses three things at once:
 
 ## Type inventory
 
+Every typed model extends `DictCompatModel`, which itself extends Pydantic's `BaseModel`. The dict-compatibility shim and the `LenientDate` annotated type live in `spond/_compat.py`; everything below inherits from it.
+
 ```
-Person (base, BaseModel + DictCompatMixin)
-  ├─ uid, first_name, last_name, email (optional), profile (optional)
+Person (base, DictCompatModel)
+  ├─ uid, first_name, last_name, email (optional), profile (optional),
+  │  phone_number (optional)
   ├─ full_name (property)
   │
   ├─ Member(Person)
-  │    ├─ guardians: list[Guardian]
-  │    ├─ (subgroup memberships, roles — TBD during impl based on actual API shape)
+  │    ├─ email, date_of_birth (LenientDate — tolerates Spond's malformed
+  │    │   "2012-03-99"-style values), created_time, guardians,
+  │    │   role_uids, subgroup_uids, respondent, custom_fields (alias "fields")
   │    └─ methods: send_message(text, group_uid)
   │
   └─ Guardian(Person)
-       ├─ (link to managed member if API exposes it)
-       └─ methods: send_message(text, group_uid) — routes to guardian
+       └─ methods: send_message(text, group_uid)
 
-Event(BaseModel + DictCompatMixin)
-  ├─ uid, heading, start_time, end_time, type: EventType, owners, recipients, ...
-  ├─ responses: Responses
-  ├─ methods: update(**fields), change_response(member_uid, *, accepted, decline_message=None),
-  │           attendance_xlsx() -> bytes
+Event(DictCompatModel)
+  ├─ uid, heading, start_time, end_time, type: str (compared against EventType),
+  │  owners, recipients, responses, comments, behalf_of_uids, ...
+  ├─ methods: update(_updates=None, /, **fields), change_response(member_uid, *,
+  │           accepted, decline_message=None), attendance_xlsx() -> bytes
   │
   └─ Match(Event)  — sports fixtures
        ├─ match_info: MatchInfo | None  — team/opponent names, scores, HOME/AWAY
        └─ Spond.get_events() / get_event() return Match (not plain Event)
-          when the API record has matchEvent=True.
+          when the API record has matchEvent=True. Dispatch lives in
+          spond.spond._typed_event.
 
 Responses (sub-object of Event)
-  ├─ accepted_uids, declined_uids, unanswered_uids, waiting_list_uids, unconfirmed_uids
-  │     — all list[str] (raw UIDs)
-  └─ (no methods; resolution to Member objects requires Group context — see Open Questions)
+  ├─ accepted_uids, declined_uids, unanswered_uids, waiting_list_uids,
+  │  unconfirmed_uids — all list[str] (raw UIDs)
+  ├─ decline_messages: dict
+  └─ (no methods; resolution to Member objects requires Group context —
+     see Open Questions)
 
-EventType (Enum)
-  └─ AVAILABILITY, EVENT, RECURRING (extend as we encounter more)
+EventType (StrEnum, canonical reference)
+  └─ AVAILABILITY, EVENT, RECURRING
+     The `Event.type` field itself stays a `str` so Spond can introduce
+     new variants without crashing validation; EventType is a typed lookup
+     for callers writing comparisons.
 
-Group(BaseModel + DictCompatMixin)
-  ├─ uid, name, members: list[Member], subgroups: list[Subgroup], roles: list[Role]
+Group(DictCompatModel)
+  ├─ uid, name, members: list[Member], subgroups: list[Subgroup], roles: list[Role],
+  │  plus the full set of fields surfaced by the live API audit
+  │  (created_time, member_permissions, guardian_permissions, chat_age_limit,
+  │  share_contact_info, address_format, ...)
   └─ methods: find_member(*, email=None, name=None, uid=None) -> Member | None
+              (`from_api` wires `_client` through nested Members/Guardians)
 
-Subgroup, Role (BaseModel + DictCompatMixin)
+Subgroup, Role (DictCompatModel)
   └─ uid, name (passive data, no methods)
 
-Profile(BaseModel + DictCompatMixin)
-  └─ uid, first_name, last_name (passive)
+Profile(DictCompatModel)
+  └─ uid, first_name, last_name, plus the live-audited extras (passive)
 
-Post(BaseModel + DictCompatMixin)
+Post(DictCompatModel)
   ├─ uid, title, body, timestamp, comments: list[dict]
-  └─ (no methods yet; add_comment(...) deferred until we verify the Spond API supports it)
+  └─ (no methods yet; add_comment(...) deferred — see Open Questions)
 
-Comment — deferred to a follow-up
-  └─ Modelling Post comments as a typed `Comment` class is on the roadmap
-     but not in this PR; `Post.comments` currently exposes them as raw
-     dicts (`list[dict[str, Any]]`).
+Chat(DictCompatModel)
+  ├─ uid, name, type, participants, newest_timestamp, unread, muted,
+  │  community, message: Message | None
+  └─ methods: send(text) -> dict
+     (Routes through the chat-server host and chat-auth token; lazy
+     handshake on first call via the existing `Spond._login_chat`.)
 
-Transaction(BaseModel + DictCompatMixin)
-  └─ uid, paid_at, payment_name, paid_by_name (passive, Spond Club only)
+Message(DictCompatModel) — sub-object of Chat (most-recent message only)
+  ├─ chat_id, msg_num, type: str, timestamp, reactions, text, user
+  └─ type-specific optional payload fields: new_name (RENAME), images (IMAGES),
+     internal_promo (INTERNAL_PROMO), campaign (CAMPAIGN), spond (SPOND).
+     Anything Spond adds later passes through extra="allow".
+
+Comment — deferred to a follow-up (still applies)
+  └─ `Post.comments` exposes them as raw dicts (`list[dict[str, Any]]`).
+
+Transaction(DictCompatModel)
+  └─ uid, paid_at, payment_name, paid_by_name (passive, Spond Club only;
+     uses extra="allow" like every other top-level type for forward-compat).
 ```
 
-Each typed model has a Pydantic `PrivateAttr` for the Spond/SpondClub client:
+Each typed model with operations carries a Pydantic `PrivateAttr` for the Spond/SpondClub client:
 
 ```python
-_client: Optional["Spond"] = PrivateAttr(default=None)
+_client: Any = PrivateAttr(default=None)
 ```
 
-Construction sites set this via a `from_api(data, client)` classmethod. PrivateAttr keeps it out of `model_dump()` and pdoc.
+Construction sites set this via a `from_api(data, client)` classmethod. `PrivateAttr` keeps it out of `model_dump()` and pdoc. Passive types (Subgroup, Role, Profile, Responses, MatchInfo) omit the client since they don't issue HTTP themselves.
 
 ## Backward compatibility
 
 ### Dict-subscript shim
 
-`DictCompatMixin` gives every typed model dict-like behaviour:
+`DictCompatModel` (in `spond/_compat.py`) gives every typed model dict-like behaviour:
 
 - `event["heading"]` works, emits `DeprecationWarning`
 - `event["startTimestamp"]` works (alias-aware), emits `DeprecationWarning`
 - `event.get("heading", default)` works, emits warning
 - `"heading" in event` works
-- `for key in event` iterates the API-field names (camelCase)
-- `len(event)` returns the number of fields
+- `for key in event` iterates the API-field names (camelCase) actually populated on this instance
+- `len(event)` returns the same count as the iterator
+- `keys()` / `values()` / `items()` mirror dict semantics, scoped to populated fields
 
-Implementation: the mixin reads `cls.model_fields` to discover both the Python attribute name and the alias, and dispatches subscript access through to attribute access.
+Implementation: the base class reads `cls.model_fields` to discover both the Python attribute name and the alias, then routes subscript access through to attribute access. The "what's actually present" view is built from `model_fields_set ∪ __pydantic_extra__` so iteration and `len()` reflect only fields that were populated from the source data — fields sitting at their default values don't leak into the dict-compat surface.
 
 ### Strict-equality test patterns
 
@@ -136,7 +160,7 @@ This is part of the PR (one test class affected, ~5 assertions).
 
 ### Legacy write methods
 
-`Spond.update_event`, `Spond.change_response`, `Spond.get_event_attendance_xlsx`, `Spond.send_message` stay in v1.x — they emit `DeprecationWarning` pointing at the new method, then delegate internally:
+`Spond.update_event`, `Spond.change_response`, `Spond.get_event_attendance_xlsx` stay in v1.x — they emit `DeprecationWarning` pointing at the new method, then delegate internally. `Spond.send_message` is **not** deprecated: it remains the entrypoint for sending a one-off message to a user (the chat-thread send is exposed on `Chat.send(text)` for callers already holding a `Chat` object).
 
 ```python
 async def update_event(self, uid: str, updates: JSONDict) -> JSONDict:
@@ -149,11 +173,11 @@ async def update_event(self, uid: str, updates: JSONDict) -> JSONDict:
     return await event.update(**updates)
 ```
 
-All four are removed in v2.0.
+The three deprecated wrappers are removed in v2.0.
 
 ## Spond.get_* return-type changes
 
-The seven methods that currently return `JSONDict` / `list[JSONDict] | None` change their return type but keep their names and signatures:
+Every `get_*` method now returns typed objects; names and signatures are unchanged:
 
 | Method | Before | After |
 |---|---|---|
@@ -161,60 +185,76 @@ The seven methods that currently return `JSONDict` / `list[JSONDict] | None` cha
 | `get_groups()` | `list[JSONDict] \| None` | `list[Group] \| None` |
 | `get_group(uid)` | `JSONDict` | `Group` |
 | `get_person(user)` | `JSONDict` | `Person` (concretely Member or Guardian) |
-| `get_events(...)` | `list[JSONDict] \| None` | `list[Event] \| None` |
-| `get_event(uid)` | `JSONDict` | `Event` |
+| `get_events(...)` | `list[JSONDict] \| None` | `list[Event] \| None` (`Match` for match events) |
+| `get_event(uid)` | `JSONDict` | `Event` or `Match` |
 | `get_posts(...)` | `list[JSONDict] \| None` | `list[Post] \| None` |
+| `get_messages(...)` | `list[JSONDict] \| None` | `list[Chat] \| None` |
 | `SpondClub.get_transactions(...)` | `list[JSONDict]` | `list[Transaction]` |
 
-Dict-style consumers still work through the DictCompatMixin (with warning).
+Dict-style consumers still work through `DictCompatModel` (with warning).
 
-## Open questions (not blocking)
+## Open questions / follow-up
 
-1. **Member ↔ UID resolution in Responses.** `Event.responses.accepted_uids` is `list[str]` not `list[Member]`. Resolving requires Group context, which Events only have via `recipients`/`groupId`. Add a helper `await event.accepted_members(spond)` that fetches the group and walks members — lazy, opt-in, no surprise HTTP from attribute reads.
-2. **Guardian.managed_member.** If the API doesn't expose a back-link, Guardian is constructed inside `Member.guardians` and the parent reference can be added post-hoc by the Member constructor. Decide during impl based on actual API shape.
-3. **Post.add_comment.** Probe whether Spond's API supports comment-add via `POST sponds/posts/{uid}/comments` or similar. If yes, add the method; if no, document as read-only.
-4. **Send-message semantics for Guardian vs Member.** Verify whether the message routes differently based on recipient kind — may require different payload shapes.
+These were deferred from this PR; they're tracked here as roadmap items.
 
-All four are answerable mid-impl with live API probing using credentials at `/home/olen/prog/spond-kalender/config.py`.
+1. **Member ↔ UID resolution in Responses.** `Event.responses.accepted_uids` is still `list[str]`, not `list[Member]`. Resolving requires Group context, which Events only have via `recipients` / `groupId`. A future helper `await event.accepted_members(spond)` that fetches the group and walks members — lazy, opt-in, no surprise HTTP from attribute reads — is the planned shape.
+2. **Guardian.managed_member back-link.** Not yet exposed. Guardians are currently constructed inside `Member.guardians`; a post-hoc parent reference can be added if a downstream caller asks for it.
+3. **Post.add_comment.** Not modelled. `Post.comments` is read-only `list[dict]`. Adding the write side depends on probing the API for the right endpoint.
+4. **Typed `Comment`.** Modelling comments themselves as a typed class (rather than `list[dict]`) is a natural next step once `Post.add_comment` is in.
+5. **Full chat history.** `Chat.message` only carries the most-recent message; the chat API has additional endpoints for older messages that aren't modelled yet.
+
+All five remain answerable with live API probing using the credentials at `/home/olen/prog/spond-kalender/config.py`.
 
 ## Files
 
 **New:**
-- `spond/_compat.py` — `DictCompatMixin`
-- `spond/event.py` — `Event`, `Responses`, `EventType`
+- `spond/_compat.py` — `DictCompatModel`, `LenientDate`
+- `spond/event.py` — `Event`, `Responses`, `EventType`, `_EVENT_READ_ONLY_FIELDS`
 - `spond/match.py` — `Match` (Event subclass), `MatchInfo`
 - `spond/person.py` — `Person`, `Member`, `Guardian`
 - `spond/group.py` — `Group`
 - `spond/subgroup.py` — `Subgroup`
 - `spond/role.py` — `Role`
 - `spond/profile.py` — `Profile`
-- `spond/post.py` — `Post` (Comment deferred — see Type Inventory above)
+- `spond/post.py` — `Post` (typed `Comment` deferred — see Open Questions)
+- `spond/chat.py` — `Chat`, `Message`
 
 **Changed:**
-- `spond/spond.py` — `get_*` methods return typed objects; legacy write methods get deprecation wrappers
+- `spond/spond.py` — `get_*` methods return typed objects; legacy write methods get deprecation wrappers; `_typed_event` dispatches Event vs. Match
 - `spond/club.py` — `Transaction` model added; `get_transactions` returns `list[Transaction]`
 - `pyproject.toml` — `pydantic = ">=2.0"` added to runtime deps
-- `tests/test_spond.py` — strict-equality assertions adapted; new tests for ActiveRecord methods, dict-compat, inter-dependencies
 - `README.md` — examples updated to OO style
+
+**Tests:**
+The previous monolithic `tests/test_spond.py` has been split by domain. The new layout:
+- `tests/conftest.py` — shared fixtures, constants, the `_SpondBase.require_authentication` monkey-patch
+- `tests/test_auth.py` — login flow + `require_authentication` decorator metadata
+- `tests/test_compat.py` — `DictCompatModel` shim + Event-update payload regression guards
+- `tests/test_events.py` — `Event.get_event`, deprecated wrappers, OO `Event` methods, `Match` subclass
+- `tests/test_export.py` — deprecated `get_event_attendance_xlsx` wrapper
+- `tests/test_groups.py` — `get_group` + Group → Member → Guardian navigation
+- `tests/test_messaging.py` — `Spond.send_message` + `Chat`/`Message`
+- `tests/test_posts.py` — `get_posts` query construction, caching, error surfacing
 
 ## Out of scope
 
-- `Spond.get_messages` and the chat machinery — chats are tangled, leave on the dict-based path. Possible v1.4 follow-up.
-- Removing `self.events_update` (a pre-existing latent attribute that was already cleaned up before this PR — out of scope here).
+- Removing `self.events_update` (a pre-existing latent attribute that was already cleaned up before this PR).
 - Adding new HTTP endpoints. This is a re-shaping of the existing surface only.
 - Renaming any `Spond.get_*` method — name stability matters more than name perfection.
 
-## Test plan
+## Test plan (what shipped)
 
-- All existing tests pass (with the strict-equality adaptations).
-- New tests for each ActiveRecord method (HTTP-mocked, asserting URL + payload + return value).
-- New tests for `DictCompatMixin`: subscript works, warning fires, alias-mapped subscripts work.
-- New tests for inter-dep navigation: `group.members[0]` is a `Member`, `member.guardians[0]` is a `Guardian`, etc.
-- Manual smoke test of `examples/manual_test_functions.py` against live API.
+- All pre-existing tests pass (with strict-equality assertions adapted).
+- ActiveRecord methods: HTTP-mocked tests asserting URL + payload + return value (`tests/test_events.py`, `tests/test_messaging.py`, `tests/test_export.py`).
+- `DictCompatModel` shim: subscript works, warning fires, alias-mapped subscripts work, `__len__`/`__contains__`/`__iter__` agree (`tests/test_compat.py`).
+- Inter-dep navigation: `group.members[0]` is a `Member`, `member.guardians[0]` is a `Guardian`, etc. (`tests/test_groups.py`).
+- Subclass identity through update: `Match.update(...)` returns a `Match`, not a demoted `Event` (`tests/test_events.py::TestMatch::test_match_update_preserves_match_type`).
+- Forward-compat: unmodelled fields survive a roundtrip via `extra="allow"` and are reachable through `__pydantic_extra__` (`tests/test_compat.py`).
+- Manual smoke test of `examples/manual_test_functions.py` against the live API, plus the periodic field-drift audit (see implementation notes).
 
 ## Versioning
 
-Land as v1.3 — minor bump (return-type change is technically breaking, but the DictCompatMixin makes it soft). Legacy `Spond.*_event*` methods removed in v2.0 after a grace period.
+Land as v1.3 — minor bump (return-type change is technically breaking, but `DictCompatModel` makes it soft). Legacy `Spond.*_event*` methods removed in v2.0 after a grace period.
 
 ## Implementation notes for maintainers
 
