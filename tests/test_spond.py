@@ -398,6 +398,24 @@ class TestLogin:
         with pytest.raises(AuthenticationError):
             _SpondBase._extract_access_token(login_result)
 
+    def test_extract_access_token__error_message_drops_sensitive_fields(
+        self,
+    ) -> None:
+        """The exception message must not leak unwhitelisted fields from the
+        login response (e.g. a 2FA challenge `token` or `phoneNumber`)."""
+        login_result = {
+            "token": "TWO_FA_CHALLENGE_TOKEN_VALUE",
+            "phoneNumber": "****12",
+            "errorKey": "twoFactorRequired",
+        }
+        with pytest.raises(AuthenticationError) as exc_info:
+            _SpondBase._extract_access_token(login_result)
+
+        message = str(exc_info.value)
+        assert "TWO_FA_CHALLENGE_TOKEN_VALUE" not in message
+        assert "phoneNumber" not in message
+        assert "twoFactorRequired" in message  # whitelisted field surfaces
+
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
     async def test_login__happy_path(self, mock_post) -> None:
