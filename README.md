@@ -13,23 +13,34 @@ You need a username and password from Spond
 
 ### Example code
 
-```
+```python
 import asyncio
 from spond import spond
 
 username = 'my@mail.invalid'
 password = 'Pa55worD'
-group_id = 'C9DC791FFE63D7914D6952BE10D97B46'  # fake 
+group_id = 'C9DC791FFE63D7914D6952BE10D97B46'  # fake
 
 async def main():
     s = spond.Spond(username=username, password=password)
     group = await s.get_group(group_id)
-    print(group['name'])
+    print(group.name)
+    for member in group.members:
+        print(f"  {member.full_name}")
+        for guardian in member.guardians:
+            print(f"    guardian: {guardian.full_name}")
     await s.clientsession.close()
 
 asyncio.run(main())
-
 ```
+
+> **Typed objects from v1.3 onwards.** `get_groups()`, `get_event()`, `get_posts()`,
+> etc. now return typed `Group` / `Event` / `Post` objects with attribute access
+> and per-instance methods (`event.update(...)`, `event.change_response(...)`,
+> `member.send_message(...)`). Existing dict-style access (`group["name"]`)
+> still works for one major version with a `DeprecationWarning`. See
+> [`DESIGN-oo-rewrite.md`](DESIGN-oo-rewrite.md) for the full design and
+> migration story.
 
 ## Key methods
 
