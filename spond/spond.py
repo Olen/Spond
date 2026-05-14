@@ -16,9 +16,20 @@ from . import JSONDict
 from .base import _SpondBase
 from .event import Event
 from .group import Group
+from .match import Match
 from .person import Member, Person
 from .post import Post
 from .profile import Profile
+
+
+def _typed_event(data: JSONDict, client: Spond) -> Event:
+    """Construct a `Match` if `matchEvent` is True on the raw payload, else
+    a plain `Event`. Centralises the typed-vs-typed dispatch so both
+    `get_events()` and any future singular-fetch path use the same logic.
+    """
+    cls = Match if data.get("matchEvent") else Event
+    return cls.from_api(data, client)
+
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -577,7 +588,7 @@ class Spond(_SpondBase):
         if raw is None:
             self.events = None
             return None
-        self.events = [Event.from_api(e, self) for e in raw]
+        self.events = [_typed_event(e, self) for e in raw]
         return self.events
 
     async def get_event(self, uid: str) -> Event:

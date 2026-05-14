@@ -56,6 +56,11 @@ Event(BaseModel + DictCompatMixin)
   ├─ responses: Responses
   ├─ methods: update(**fields), change_response(member_uid, *, accepted, decline_message=None),
   │           attendance_xlsx() -> bytes
+  │
+  └─ Match(Event)  — sports fixtures
+       ├─ match_info: MatchInfo | None  — team/opponent names, scores, HOME/AWAY
+       └─ Spond.get_events() / get_event() return Match (not plain Event)
+          when the API record has matchEvent=True.
 
 Responses (sub-object of Event)
   ├─ accepted_uids, declined_uids, unanswered_uids, waiting_list_uids, unconfirmed_uids
@@ -177,6 +182,7 @@ All four are answerable mid-impl with live API probing using credentials at `/ho
 **New:**
 - `spond/_compat.py` — `DictCompatMixin`
 - `spond/event.py` — `Event`, `Responses`, `EventType`
+- `spond/match.py` — `Match` (Event subclass), `MatchInfo`
 - `spond/person.py` — `Person`, `Member`, `Guardian`
 - `spond/group.py` — `Group`
 - `spond/subgroup.py` — `Subgroup`

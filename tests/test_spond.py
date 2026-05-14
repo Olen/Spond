@@ -951,3 +951,68 @@ class TestGroupNavigation:
         )
         assert m1.custom_fields == {"height": "175"}
         assert m2.custom_fields == {"height": "180"}
+
+
+class TestMatch:
+    """Match (Event subclass) dispatch and field parsing."""
+
+    _MATCH_PAYLOAD = {
+        **_MIN_EVENT_PAYLOAD,
+        "matchEvent": True,
+        "matchInfo": {
+            "teamName": "Home FC",
+            "opponentName": "Away FC",
+            "type": "HOME",
+            "teamScore": 2,
+            "opponentScore": 1,
+            "scoresSet": True,
+            "scoresFinal": True,
+            "scoresSetEver": True,
+            "scoresPublic": True,
+        },
+    }
+
+    def test_dispatch_returns_match_when_match_event_true(self) -> None:
+        """`Spond.get_events()` constructs `Match` (Event subclass) when the
+        raw payload has `matchEvent=True`, plain `Event` otherwise."""
+        from spond.match import Match, MatchInfo
+        from spond.spond import _typed_event
+
+        # _typed_event doesn't call methods on the client, so None is fine
+        # for the dispatch + parsing assertions below.
+        regular = _typed_event(_MIN_EVENT_PAYLOAD, None)
+        m = _typed_event(self._MATCH_PAYLOAD, None)
+
+        assert type(regular) is Event
+        assert isinstance(m, Match)
+        assert isinstance(m, Event)  # subclass relationship
+        assert isinstance(m.match_info, MatchInfo)
+        assert m.match_info.team_name == "Home FC"
+        assert m.match_info.opponent_name == "Away FC"
+        assert m.match_info.type == "HOME"
+        assert m.match_info.team_score == 2
+        assert m.match_info.opponent_score == 1
+        assert m.match_info.scores_final is True
+        assert m.match_info.scores_public is True
+
+    def test_match_score_update_path_is_through_event_update(self) -> None:
+        """Match inherits Event.update; the `match_info` field must be
+        included in the POST payload (not in _EVENT_READ_ONLY_FIELDS), so
+        callers can edit scores via `match.update(matchInfo={...})`."""
+        from spond.event import _EVENT_READ_ONLY_FIELDS
+        from spond.match import Match
+
+        assert "match_info" not in _EVENT_READ_ONLY_FIELDS
+        # And it really is a declared field on Match (vs an unmodelled
+        # passthrough via extra="allow"):
+        assert "match_info" in Match.model_fields
+
+    def test_match_info_optional_for_resilience(self) -> None:
+        """A future API variant emitting matchEvent=True without matchInfo
+        (or a half-populated match record) must not crash construction."""
+        from spond.match import Match
+        from spond.spond import _typed_event
+
+        bare = _typed_event({**_MIN_EVENT_PAYLOAD, "matchEvent": True}, None)
+        assert isinstance(bare, Match)
+        assert bare.match_info is None
