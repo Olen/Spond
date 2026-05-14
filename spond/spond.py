@@ -108,8 +108,10 @@ class Spond(_SpondBase):
         client.
         """
         api_chat_url = f"{self.api_url}chat"
-        r = await self.clientsession.post(api_chat_url, headers=self.auth_headers)
-        result = await r.json()
+        async with self.clientsession.post(
+            api_chat_url, headers=self.auth_headers
+        ) as r:
+            result = await r.json()
         self._chat_url = result["url"]
         self._auth = result["auth"]
 
@@ -377,8 +379,10 @@ class Spond(_SpondBase):
             await self._login_chat()
         url = f"{self._chat_url}/messages"
         data = {"chatId": chat_id, "text": text, "type": "TEXT"}
-        r = await self.clientsession.post(url, json=data, headers={"auth": self._auth})
-        return await r.json()
+        async with self.clientsession.post(
+            url, json=data, headers={"auth": self._auth}
+        ) as r:
+            return await r.json()
 
     @_SpondBase.require_authentication
     async def send_message(
@@ -455,8 +459,10 @@ class Spond(_SpondBase):
             "recipient": user_uid,
             "groupId": group_uid,
         }
-        r = await self.clientsession.post(url, json=data, headers={"auth": self._auth})
-        return await r.json()
+        async with self.clientsession.post(
+            url, json=data, headers={"auth": self._auth}
+        ) as r:
+            return await r.json()
 
     @_SpondBase.require_authentication
     async def get_events(

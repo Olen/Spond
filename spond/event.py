@@ -141,7 +141,7 @@ class Event(DictCompatModel):
     """Spond's event-kind string. Common values are listed on `EventType`,
     but unknown values pass through unchanged so the SDK doesn't crash if
     Spond adds new variants."""
-    responses: Responses = Field(default_factory=lambda: Responses())
+    responses: Responses = Field(default_factory=Responses)
 
     # Owner / creator metadata
     creator_uid: str | None = Field(default=None, alias="creatorId")
@@ -273,10 +273,16 @@ class Event(DictCompatModel):
         # Spond usually returns the updated event on POST, but if the
         # response is partial (status-only, an error wrapper, etc.) the
         # construction below would crash with ValidationError. Fall back to
-        # a fresh GET in that case so callers always get a coherent Event.
+        # a fresh fetch in that case. **Order matters**: invalidate the
+        # cache entry first so the fallback `get_events()` actually
+        # re-fetches from the API rather than returning the stale `self`
+        # that's still in the cache.
         try:
             new_event = Event.from_api(new_data, self._client)
         except ValidationError:
+            # Drop the whole events cache so `get_event()` re-fetches via
+            # `get_events()` instead of resolving from the stale cache.
+            self._client.events = None
             new_event = await self._client.get_event(self.uid)
 
         # Keep the client's events cache coherent — replace the matching

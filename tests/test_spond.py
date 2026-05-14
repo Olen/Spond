@@ -277,25 +277,28 @@ class TestSendMessage:
     """Tests for `Spond.send_message()` — covers the fixes in #238."""
 
     @pytest.mark.asyncio
-    @patch("aiohttp.ClientSession.post", new_callable=AsyncMock)
+    @patch("aiohttp.ClientSession.post")
     async def test_send_message__continues_chat_when_chat_id_given(
         self, mock_post, mock_token
     ) -> None:
         """With `chat_id`, the call should route through `_continue_chat()`
-        and properly await it (regression: the await was missing)."""
+        and properly await it (regression: the await was missing).
+        `_continue_chat` now uses `async with`, so the post mock follows
+        the standard context-manager pattern used elsewhere in this file.
+        """
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
         s._auth = "MOCK_CHAT_AUTH"
         s._chat_url = "https://chat.example.invalid"
 
         api_response = {"ok": True, "messageId": "MID1"}
-        # _continue_chat does `r = await session.post(...)` (no `async with`),
-        # so the post mock must be AsyncMock and r.json must be AsyncMock too.
-        mock_post.return_value.json = AsyncMock(return_value=api_response)
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=api_response
+        )
 
         result = await s.send_message(text="hello", chat_id="CHAT1")
 
-        assert result == api_response  # was a coroutine before the fix
+        assert result == api_response
         mock_post.assert_called_once()
         _, kwargs = mock_post.call_args
         assert kwargs["json"] == {"chatId": "CHAT1", "text": "hello", "type": "TEXT"}

@@ -181,7 +181,7 @@ async def _send_message_to_person(
         "groupId": group_uid,
     }
     url = f"{client._chat_url}/messages"
-    r = await client.clientsession.post(
+    async with client.clientsession.post(
         url, json=payload, headers={"auth": client._auth}
-    )
-    return await r.json()
+    ) as r:
+        return await r.json()
