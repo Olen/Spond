@@ -542,9 +542,9 @@ class Spond(_SpondBase):
 
         Routes through the cached events list (populated by `get_events()`),
         which means events outside the `max_events=100` default or those
-        with `scheduled=true` may not be findable. To reach those events,
-        call `get_events()` directly with appropriate filters first to
-        populate the cache, then call this method.
+        excluded by `include_scheduled=False` may not be findable. To reach
+        those events, call `get_events()` directly with appropriate filters
+        first to populate the cache, then call this method.
 
         Parameters
         ----------
