@@ -4,6 +4,7 @@ ActiveRecord-style methods on the `Event` typed model (including the
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -11,7 +12,7 @@ import pytest
 from spond.event import Event
 from spond.spond import Spond
 
-from .conftest import _MIN_EVENT_PAYLOAD, MOCK_PASSWORD, MOCK_USERNAME
+from .conftest import _MIN_EVENT_PAYLOAD, MOCK_PASSWORD, MOCK_TOKEN, MOCK_USERNAME
 
 
 class TestEventMethods:
@@ -161,6 +162,25 @@ class TestEventMethods:
 
 class TestEventOOMethods:
     """ActiveRecord methods on Event."""
+
+    def test_event_str_with_start_time(self) -> None:
+        """`Event.__str__` includes uid, heading and ISO start_time."""
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        s = str(e)
+        assert "ID1" in s
+        assert "Event One" in s
+        assert "2026-01-01" in s  # from startTimestamp
+
+    def test_event_str_without_start_time(self) -> None:
+        """`Event.__str__` uses '?' sentinel when start_time is None."""
+        e = Event.model_validate({**_MIN_EVENT_PAYLOAD, "startTimestamp": None})
+        s = str(e)
+        assert "?" in s
+
+    def test_event_url_property(self) -> None:
+        """`Event.url` must return the canonical Spond web URL."""
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        assert e.url == "https://spond.com/client/sponds/ID1/"
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
@@ -370,3 +390,182 @@ class TestMatch:
         # And the cache entry got swapped to the new Match instance, not a demoted Event.
         assert isinstance(s.events[0], Match)
         assert s.events[0] is result
+
+
+class TestGetEventsHTTP:
+    """Tests for the `Spond.get_events()` HTTP-fetch path — query parameter
+    construction, error surfacing, and cache management."""
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_events_happy_path(self, mock_get) -> None:
+        """Two events come back from the API as typed Event objects and are
+        cached on `self.events`."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = MOCK_TOKEN
+
+        raw = [
+            {**_MIN_EVENT_PAYLOAD, "id": "E1", "heading": "First"},
+            {**_MIN_EVENT_PAYLOAD, "id": "E2", "heading": "Second"},
+        ]
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=raw)
+
+        events = await s.get_events()
+
+        assert events is not None
+        assert len(events) == 2
+        assert all(isinstance(e, Event) for e in events)
+        assert events[0].uid == "E1"
+        assert events[1].heading == "Second"
+        assert s.events is events  # cache identity
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_events_returns_none_when_api_returns_null(
+        self, mock_get
+    ) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = MOCK_TOKEN
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=None)
+
+        events = await s.get_events()
+        assert events is None
+        assert s.events is None
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_events_api_error_raises_valueerror(self, mock_get) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = MOCK_TOKEN
+
+        mock_get.return_value.__aenter__.return_value.ok = False
+        mock_get.return_value.__aenter__.return_value.status = 403
+        mock_get.return_value.__aenter__.return_value.text = AsyncMock(
+            return_value="Forbidden"
+        )
+
+        with pytest.raises(ValueError, match="403"):
+            await s.get_events()
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_events_datetime_filters_in_params(self, mock_get) -> None:
+        """Datetime filter args must be serialised to the `_DT_FORMAT` string
+        and included as query parameters."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = MOCK_TOKEN
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
+
+        min_start = datetime(2026, 1, 1, tzinfo=UTC)
+        max_start = datetime(2026, 6, 30, tzinfo=UTC)
+        await s.get_events(min_start=min_start, max_start=max_start)
+
+        params = mock_get.call_args[1]["params"]
+        assert "minStartTimestamp" in params
+        assert "maxStartTimestamp" in params
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_events_include_hidden_param(self, mock_get) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = MOCK_TOKEN
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
+
+        await s.get_events(include_hidden=True)
+
+        params = mock_get.call_args[1]["params"]
+        assert params.get("includeHidden") == "true"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_events_group_and_subgroup_params(self, mock_get) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = MOCK_TOKEN
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
+
+        await s.get_events(group_id="GRP1", subgroup_id="SUB1")
+
+        params = mock_get.call_args[1]["params"]
+        assert params["groupId"] == "GRP1"
+        assert params["subGroupId"] == "SUB1"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_events_min_end_max_end_params(self, mock_get, mock_token) -> None:
+        """The `min_end` and `max_end` datetime args must also be serialised
+        and sent as `minEndTimestamp` / `maxEndTimestamp` query parameters."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
+
+        min_end = datetime(2026, 3, 1, tzinfo=UTC)
+        max_end = datetime(2026, 12, 31, tzinfo=UTC)
+        await s.get_events(min_end=min_end, max_end=max_end)
+
+        params = mock_get.call_args[1]["params"]
+        assert "minEndTimestamp" in params
+        assert "maxEndTimestamp" in params
+
+    @pytest.mark.asyncio
+    async def test_get_entity_unsupported_type_raises_not_implemented(
+        self, mock_token
+    ) -> None:
+        """Passing an unknown entity-type string to `_get_entity` must raise
+        `NotImplementedError` rather than silently returning None."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        with pytest.raises(NotImplementedError, match="not supported"):
+            await s._get_entity("banana", "UID1")
+
+
+class TestGetProfile:
+    """Tests for `Spond.get_profile()` — HTTP fetch and caching."""
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_profile_happy_path(self, mock_get) -> None:
+        """Profile is returned as a typed Profile object and cached on
+        `self.profile`."""
+        from spond.profile import Profile
+
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = MOCK_TOKEN
+
+        raw = {
+            "id": "PROF1",
+            "firstName": "Ola",
+            "lastName": "Thoresen",
+            "primaryEmail": "ola@example.invalid",
+        }
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=raw)
+
+        profile = await s.get_profile()
+
+        assert isinstance(profile, Profile)
+        assert profile.uid == "PROF1"
+        assert profile.first_name == "Ola"
+        assert profile.full_name == "Ola Thoresen"
+        assert s.profile is profile  # cache identity
+
+    def test_profile_str(self) -> None:
+        """`Profile.__str__` includes uid and full name."""
+        from spond.profile import Profile
+
+        p = Profile.model_validate(
+            {"id": "P1", "firstName": "Jane", "lastName": "Doe"}
+        )
+        s = str(p)
+        assert "P1" in s
+        assert "Jane Doe" in s

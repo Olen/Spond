@@ -194,3 +194,104 @@ class TestDictCompat:
         g = Group.model_validate({"id": "G1", "name": "GG", "newGroupAttr": ["x"]})
         assert "newGroupAttr" in g
         assert g.__pydantic_extra__["newGroupAttr"] == ["x"]
+
+    def test_contains_non_string_key_returns_false(self) -> None:
+        """`__contains__` with a non-string key must return False without
+        raising — dict-compat callers may inadvertently pass ints."""
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        assert 42 not in e
+        assert None not in e
+
+    def test_keys_returns_api_shaped_list(self) -> None:
+        """`DictCompatModel.keys()` yields API-alias names for fields that
+        were populated from source data, matching `.keys()` on a raw dict."""
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        k = e.keys()
+        assert isinstance(k, list)
+        assert "id" in k            # alias, not "uid"
+        assert "heading" in k
+        assert "startTimestamp" in k  # alias, not "start_time"
+        assert "description" not in k  # absent from _MIN_EVENT_PAYLOAD
+
+    def test_values_returns_values_for_set_fields(self) -> None:
+        """`DictCompatModel.values()` returns the values for fields present
+        in the source payload, in field-declaration order."""
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        vals = e.values()
+        assert isinstance(vals, list)
+        # "ID1" must be among the values (it's `uid`, present in source)
+        assert "ID1" in vals
+        assert "Event One" in vals  # heading
+
+    def test_items_returns_key_value_pairs(self) -> None:
+        """`DictCompatModel.items()` returns `(api_key, value)` tuples for
+        every field present in the source data, mirroring dict.items()."""
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        items = dict(e.items())
+        assert items["id"] == "ID1"
+        assert items["heading"] == "Event One"
+        assert "description" not in items  # not in source
+
+    def test_items_includes_extra_fields(self) -> None:
+        """Extra (unmodelled) fields surface in `.items()` with their
+        original key names."""
+        payload = {**_MIN_EVENT_PAYLOAD, "customExtra": "hello"}
+        e = Event.model_validate(payload)
+        items = dict(e.items())
+        assert items["customExtra"] == "hello"
+
+
+class TestLenientDate:
+    """Unit tests for the `_parse_date_lenient` validator used by
+    `LenientDate` fields on `Member` and `Profile`."""
+
+    def test_none_passes_through(self) -> None:
+        from spond._compat import _parse_date_lenient
+
+        assert _parse_date_lenient(None) is None
+
+    def test_date_object_passes_through(self) -> None:
+        from datetime import date
+
+        from spond._compat import _parse_date_lenient
+
+        d = date(2000, 6, 15)
+        assert _parse_date_lenient(d) is d
+
+    def test_valid_iso_string_parsed(self) -> None:
+        from datetime import date
+
+        from spond._compat import _parse_date_lenient
+
+        result = _parse_date_lenient("1995-03-22")
+        assert result == date(1995, 3, 22)
+
+    def test_invalid_date_string_returns_none(self) -> None:
+        """Malformed dates (e.g. impossible day) must not raise — return None."""
+        from spond._compat import _parse_date_lenient
+
+        assert _parse_date_lenient("2012-03-99") is None
+        assert _parse_date_lenient("not-a-date") is None
+
+    def test_non_string_non_date_returns_none(self) -> None:
+        """Non-string, non-date values (e.g. an int) must return None rather
+        than raising TypeError."""
+        from spond._compat import _parse_date_lenient
+
+        assert _parse_date_lenient(20001231) is None
+        assert _parse_date_lenient([]) is None
+
+    def test_lenient_date_field_on_member(self) -> None:
+        """A malformed `dateOfBirth` in a Member payload must not crash
+        validation — the field silently becomes None."""
+        from spond.person import Member
+
+        m = Member.model_validate({"id": "M1", "dateOfBirth": "2012-03-99"})
+        assert m.date_of_birth is None
+
+    def test_lenient_date_field_on_profile(self) -> None:
+        """Same resilience on Profile.date_of_birth."""
+        from spond.profile import Profile
+
+        p = Profile.model_validate({"id": "P1", "dateOfBirth": "invalid"})
+        assert p.date_of_birth is None

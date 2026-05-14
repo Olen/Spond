@@ -146,3 +146,20 @@ class TestPostMethods:
 
         with pytest.raises(ValueError, match="401"):
             await s.get_posts()
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_posts__returns_none_when_api_returns_null(
+        self, mock_get, mock_token
+    ) -> None:
+        """When the API returns null, `get_posts()` returns None and sets
+        `self.posts = None`."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=None)
+
+        result = await s.get_posts()
+        assert result is None
+        assert s.posts is None

@@ -120,3 +120,33 @@ class TestRequireAuthenticationDecorator:
     def test_decorator_preserves_name(self) -> None:
         """`__name__` must be the method's, not 'wrapper'."""
         assert Spond.get_events.__name__ == "get_events"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_require_auth_closes_session_on_auth_error(
+        self, mock_post
+    ) -> None:
+        """When `login()` raises `AuthenticationError`, the `require_authentication`
+        decorator must close the aiohttp session before re-raising — prevents
+        `Unclosed client session` warnings and resource leaks."""
+
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={"error": "Bad credentials"}
+        )
+
+        # Spy on the close method so we can assert it was called
+        close_called = []
+        real_close = s.clientsession.close
+
+        async def spy_close():
+            close_called.append(True)
+            await real_close()
+
+        s.clientsession.close = spy_close
+
+        with pytest.raises(AuthenticationError):
+            await s.get_profile()
+
+        assert close_called, "clientsession.close() was not called on AuthenticationError"
