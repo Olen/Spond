@@ -26,9 +26,13 @@ if TYPE_CHECKING:
 
 
 class EventType(StrEnum):
-    """Kind of event, as reported by Spond's `type` field.
+    """Known canonical values for `Event.type`.
 
-    Values may extend over time as Spond introduces new event variants.
+    `Event.type` is typed as `str` rather than `EventType` because Spond may
+    introduce new event kinds at any time — constraining the field to this
+    enum would crash validation whenever an unknown value appears. Use these
+    constants when comparing (`event.type == EventType.RECURRING`) but expect
+    `event.type` itself to be a string.
     """
 
     EVENT = "EVENT"
@@ -97,7 +101,10 @@ class Event(DictCompatModel):
     start_time: datetime = Field(alias="startTimestamp")
     end_time: datetime = Field(alias="endTimestamp")
     created_time: datetime = Field(alias="createdTime")
-    type: EventType
+    type: str
+    """Spond's event-kind string. Common values are listed on `EventType`,
+    but unknown values pass through unchanged so the SDK doesn't crash if
+    Spond adds new variants."""
     responses: Responses
 
     # Owner / creator metadata
@@ -208,9 +215,9 @@ class Event(DictCompatModel):
             api_updates[api_name] = value
 
         # Build the payload from _EVENT_TEMPLATE, falling back to current state
-        # for fields the caller didn't provide. Matches the existing
-        # `Spond.update_event` semantics exactly.
-        current = self.model_dump(by_alias=True)
+        # for fields the caller didn't provide. `mode="json"` converts datetimes
+        # to ISO strings so aiohttp's json.dumps can serialise the payload.
+        current = self.model_dump(by_alias=True, mode="json")
         payload = _EVENT_TEMPLATE.copy()
         for key in payload:
             if api_updates.get(key) is not None:

@@ -151,7 +151,7 @@ class Spond(_SpondBase):
         url = f"{self.api_url}groups/"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
             raw = await r.json()
-        if not raw:
+        if raw is None:
             self.groups = None
             return None
         self.groups = [Group.from_api(g, self) for g in raw]
@@ -306,7 +306,7 @@ class Spond(_SpondBase):
                     f"Request failed with status {r.status}: {error_details}"
                 )
             raw = await r.json()
-        if not raw:
+        if raw is None:
             self.posts = None
             return None
         self.posts = [Post.model_validate(p) for p in raw]
@@ -553,7 +553,7 @@ class Spond(_SpondBase):
                     f"Request failed with status {r.status}: {error_details}"
                 )
             raw = await r.json()
-        if not raw:
+        if raw is None:
             self.events = None
             return None
         self.events = [Event.from_api(e, self) for e in raw]
@@ -585,6 +585,7 @@ class Spond(_SpondBase):
         """
         return await self._get_entity(self._EVENT, uid)
 
+    @_SpondBase.require_authentication
     async def update_event(self, uid: str, updates: JSONDict) -> JSONDict:
         """Deprecated — use `Event.update()` on the typed object instead.
 
@@ -597,10 +598,11 @@ class Spond(_SpondBase):
         await event.update(description="...")
         ```
 
-        Kept temporarily for backward compatibility; emits `DeprecationWarning`.
-        Internally delegates to `Event.update()` and returns the updated
-        event as a dict (via `model_dump(by_alias=True)`) for shape parity
-        with the pre-OO API.
+        Kept as a **thin pass-through** for backward compatibility: it
+        performs the same fetch + `_EVENT_TEMPLATE` merge + POST that the
+        pre-OO version did, byte-for-byte. Keys in `updates` that aren't in
+        `_EVENT_TEMPLATE` are silently ignored, matching the old semantics.
+        Emits `DeprecationWarning`.
         """
         warnings.warn(
             "Spond.update_event() is deprecated; use Event.update() on the "
@@ -608,10 +610,24 @@ class Spond(_SpondBase):
             DeprecationWarning,
             stacklevel=2,
         )
+        # Fetch the existing event as a dict for the merge.
         event = await self.get_event(uid)
-        new_event = await event.update(**updates)
-        return new_event.model_dump(by_alias=True)
+        event_dict = event.model_dump(by_alias=True, mode="json")
 
+        base_event = self._EVENT_TEMPLATE.copy()
+        for key in base_event:
+            if event_dict.get(key) is not None and not updates.get(key):
+                base_event[key] = event_dict[key]
+            elif updates.get(key) is not None:
+                base_event[key] = updates[key]
+
+        url = f"{self.api_url}sponds/{uid}"
+        async with self.clientsession.post(
+            url, json=base_event, headers=self.auth_headers
+        ) as r:
+            return await r.json()
+
+    @_SpondBase.require_authentication
     async def get_event_attendance_xlsx(self, uid: str) -> bytes:
         """Deprecated — use `Event.attendance_xlsx()` on the typed object instead.
 
@@ -624,8 +640,8 @@ class Spond(_SpondBase):
         data = await event.attendance_xlsx()
         ```
 
-        Kept temporarily for backward compatibility; emits `DeprecationWarning`.
-        Internally delegates to `Event.attendance_xlsx()`.
+        Kept as a thin pass-through for backward compatibility. Emits
+        `DeprecationWarning`.
         """
         warnings.warn(
             "Spond.get_event_attendance_xlsx() is deprecated; use "
@@ -634,9 +650,11 @@ class Spond(_SpondBase):
             DeprecationWarning,
             stacklevel=2,
         )
-        event = await self.get_event(uid)
-        return await event.attendance_xlsx()
+        url = f"{self.api_url}sponds/{uid}/export"
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+            return await r.read()
 
+    @_SpondBase.require_authentication
     async def change_response(self, uid: str, user: str, payload: JSONDict) -> JSONDict:
         """Deprecated — use `Event.change_response()` on the typed object instead.
 
@@ -649,8 +667,10 @@ class Spond(_SpondBase):
         await event.change_response(member_uid, accepted=True)
         ```
 
-        Kept temporarily for backward compatibility; emits `DeprecationWarning`.
-        Internally delegates to `Event.change_response()`.
+        Kept as a **thin pass-through** for backward compatibility: forwards
+        `payload` verbatim to the API. Any extra keys the caller supplies
+        (beyond `accepted` / `declineMessage`) reach the server unchanged,
+        matching the old semantics. Emits `DeprecationWarning`.
         """
         warnings.warn(
             "Spond.change_response() is deprecated; use Event.change_response() "
@@ -658,13 +678,11 @@ class Spond(_SpondBase):
             DeprecationWarning,
             stacklevel=2,
         )
-        event = await self.get_event(uid)
-        accepted_raw = payload.get("accepted", "false")
-        accepted = str(accepted_raw).lower() in ("true", "1", "yes")
-        decline_message = payload.get("declineMessage")
-        return await event.change_response(
-            user, accepted=accepted, decline_message=decline_message
-        )
+        url = f"{self.api_url}sponds/{uid}/responses/{user}"
+        async with self.clientsession.put(
+            url, headers=self.auth_headers, json=payload
+        ) as r:
+            return await r.json()
 
     @_SpondBase.require_authentication
     async def _get_entity(self, entity_type: str, uid: str) -> JSONDict:

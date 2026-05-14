@@ -19,14 +19,11 @@ Construct via `Spond.get_groups()` and walk `group.members`; or via
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from pydantic import ConfigDict, Field, PrivateAttr
 
 from ._compat import DictCompatModel, LenientDate
-
-if TYPE_CHECKING:
-    from .spond import Spond
 
 
 class Person(DictCompatModel):
@@ -71,13 +68,10 @@ class Guardian(Person):
     Guardians receive notifications about the member they care for and may
     respond to events on the member's behalf. They have a strictly smaller
     field set than Members (no `email`, no `roles`, no nested `guardians`).
-    """
 
-    @classmethod
-    def from_api(cls, data: dict[str, Any], client: Spond | None) -> Guardian:
-        instance = cls.model_validate(data)
-        instance._client = client
-        return instance
+    Constructed by `Group.from_api()` (via Pydantic) and wired with
+    `_client` post-validation. Don't instantiate directly.
+    """
 
     async def send_message(self, text: str, group_uid: str) -> dict[str, Any]:
         """Send a chat message directly to this guardian.
@@ -128,15 +122,6 @@ class Member(Person):
 
     fields: dict[str, Any] = Field(default_factory=dict)
     """Custom fields defined on the group. Unmodelled for now."""
-
-    @classmethod
-    def from_api(cls, data: dict[str, Any], client: Spond | None) -> Member:
-        instance = cls.model_validate(data)
-        instance._client = client
-        # Wire client into nested Guardians too
-        for g in instance.guardians:
-            g._client = client
-        return instance
 
     async def send_message(self, text: str, group_uid: str) -> dict[str, Any]:
         """Send a chat message directly to this member.
