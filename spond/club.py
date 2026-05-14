@@ -27,14 +27,14 @@ class SpondClub(_SpondBase):
         club_id : str
             Identifier for the club. Note that this is different from the Group ID used
             in the core API.
-        max_items : int, optional
-            The maximum number of transactions to retrieve. Defaults to 100.
         skip : int, optional
             This endpoint only returns 25 transactions at a time (page scrolling).
             Therefore, we need to increment this `skip` param to grab the next
             25 etc. Defaults to None. It's better to keep `skip` at None
             and specify `max_items` instead. This param is only here for the
-            recursion implementation
+            recursion implementation.
+        max_items : int, optional
+            The maximum number of transactions to retrieve. Defaults to 100.
 
         Returns
         -------
