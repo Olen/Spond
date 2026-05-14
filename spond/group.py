@@ -164,7 +164,10 @@ class Group(DictCompatModel):
         email : str, optional
             Match against `member.email` (exact).
         name : str, optional
-            Match against `member.full_name` (exact).
+            Match against `member.full_name` (exact). Note: `full_name`
+            joins only non-empty parts, so a member whose record carries
+            only `firstName` (no last name) has `full_name == "Alice"`,
+            not `"Alice "`. Pass the trimmed form.
 
         Returns
         -------

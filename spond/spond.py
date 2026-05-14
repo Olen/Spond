@@ -281,7 +281,11 @@ class Spond(_SpondBase):
         """
         if person.uid == match_str:
             return True
-        if person.full_name == match_str:
+        # `full_name` returns "" when both first/last default to empty;
+        # without this guard, an empty `match_str` would erroneously match
+        # every nameless record. Mirrors the `bool(person.email)` guard
+        # below.
+        if person.full_name and person.full_name == match_str:
             return True
         # `person.profile` is typed `dict | None`, but `extra="allow"` and
         # API drift mean we shouldn't trust the shape at runtime — guard
@@ -475,16 +479,19 @@ class Spond(_SpondBase):
             of the authenticated user's groups (propagated from
             `get_person`).
         """
+        # Validate caller args BEFORE the chat-server handshake so a pure
+        # client-side argument error doesn't trigger a network round-trip.
+        if chat_id is None and (group_uid is None or user is None):
+            raise ValueError(
+                "send_message requires either chat_id (to continue an existing "
+                "chat) or both user and group_uid (to start a new one)."
+            )
+
         if self._auth is None:
             await self._login_chat()
 
         if chat_id is not None:
             return await self._continue_chat(chat_id, text)
-        if group_uid is None or user is None:
-            raise ValueError(
-                "send_message requires either chat_id (to continue an existing "
-                "chat) or both user and group_uid (to start a new one)."
-            )
 
         user_obj = await self.get_person(user)
         if not isinstance(user_obj.profile, dict) or "id" not in user_obj.profile:

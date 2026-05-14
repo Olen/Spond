@@ -333,6 +333,27 @@ class TestGetPersonMethod:
             await spond_with_groups.get_person("NOBODY")
 
     @pytest.mark.asyncio
+    async def test_get_person_empty_string_does_not_match_nameless_member(
+        self, mock_token
+    ) -> None:
+        """`_match_person` must NOT treat `match_str=""` as a hit on records
+        whose first/last name both default to `""` (so `full_name == ""`).
+        Regression for the `full_name`-resilience interaction."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        s.groups = [
+            Group.model_validate(
+                {
+                    "id": "GID",
+                    "name": "G",
+                    "members": [{"id": "M1"}],  # no firstName/lastName → full_name=""
+                }
+            )
+        ]
+        with pytest.raises(KeyError):
+            await s.get_person("")
+
+    @pytest.mark.asyncio
     async def test_get_person_no_groups_raises_keyerror(self, mock_token) -> None:
         """When the account has no groups, a distinct KeyError message is raised."""
         from unittest.mock import AsyncMock
