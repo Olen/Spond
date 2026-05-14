@@ -128,7 +128,8 @@ class Group(DictCompatModel):
         ValueError
             Zero or more than one search criterion was supplied.
         """
-        supplied = [k for k in ("uid", "email", "name") if locals()[k] is not None]
+        criteria = {"uid": uid, "email": email, "name": name}
+        supplied = [k for k, v in criteria.items() if v is not None]
         if len(supplied) != 1:
             raise ValueError(
                 f"find_member requires exactly one of uid/email/name; got {supplied}"
