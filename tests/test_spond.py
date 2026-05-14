@@ -683,6 +683,22 @@ class TestDictCompat:
         assert value == "preserved"
         assert any(issubclass(w.category, DeprecationWarning) for w in caught)
 
+    def test_extra_allow_on_profile_and_group(self) -> None:
+        """`extra="allow"` must work uniformly across top-level types, not
+        just Event — this is the forward-compat invariant for the whole
+        public surface."""
+        from spond.profile import Profile
+
+        p = Profile.model_validate(
+            {"id": "P1", "firstName": "A", "lastName": "B", "newSpondField": 42}
+        )
+        assert "newSpondField" in p
+        assert p.newSpondField == 42  # native attribute access via Pydantic
+
+        g = Group.model_validate({"id": "G1", "name": "GG", "newGroupAttr": ["x"]})
+        assert "newGroupAttr" in g
+        assert g.newGroupAttr == ["x"]
+
 
 class TestEventOOMethods:
     """ActiveRecord methods on Event."""
@@ -726,6 +742,32 @@ class TestEventOOMethods:
         # Unknown key "selfish" was passed through to the API payload
         posted = mock_post.call_args[1]["json"]
         assert posted["selfish"] == "any"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_event_update_refreshes_client_cache(
+        self, mock_post, mock_token
+    ) -> None:
+        """After `event.update()`, the client's events cache must hold the
+        new instance — not the stale pre-update one — so subsequent
+        `spond.get_event(uid)` calls return current state."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        original = Event.from_api(_MIN_EVENT_PAYLOAD, s)
+        s.events = [original]
+
+        api_response = {**_MIN_EVENT_PAYLOAD, "heading": "Refreshed"}
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=api_response
+        )
+
+        result = await original.update(heading="Refreshed")
+        # Cache must now point at the new instance (in-place replacement
+        # preserves the list identity for callers holding `s.events`).
+        assert s.events is not None
+        assert s.events[0] is result
+        assert s.events[0].heading == "Refreshed"
+        assert s.events[0] is not original
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.put")
@@ -838,3 +880,24 @@ class TestGroupNavigation:
             group.find_member()
         with pytest.raises(ValueError, match="exactly one"):
             group.find_member(uid="X", email="a@b.invalid")
+
+    def test_member_custom_fields_alias_works_via_either_name(self) -> None:
+        """`Member.custom_fields` aliases the API's `"fields"` key — both
+        forms must populate the attribute identically."""
+        from spond.person import Member
+
+        # API-style (via alias):
+        m1 = Member.model_validate(
+            {"id": "M1", "firstName": "A", "lastName": "B", "fields": {"height": "175"}}
+        )
+        # Python-style (via name):
+        m2 = Member.model_validate(
+            {
+                "id": "M2",
+                "firstName": "C",
+                "lastName": "D",
+                "custom_fields": {"height": "180"},
+            }
+        )
+        assert m1.custom_fields == {"height": "175"}
+        assert m2.custom_fields == {"height": "180"}

@@ -59,7 +59,7 @@ class Spond(_SpondBase):
         s = spond.Spond(username="me@example.invalid", password="secret")
         groups = await s.get_groups() or []
         for g in groups:
-            print(g["name"])
+            print(g.name)
         await s.clientsession.close()
 
     asyncio.run(main())
@@ -246,7 +246,11 @@ class Spond(_SpondBase):
             return True
         if person.full_name == match_str:
             return True
-        if person.profile is not None and person.profile.get("id") == match_str:
+        # `person.profile` is typed `dict | None`, but `extra="allow"` and
+        # API drift mean we shouldn't trust the shape at runtime — guard
+        # against Spond ever returning a non-dict (string id, null wrapper)
+        # rather than raising AttributeError mid-scan.
+        if isinstance(person.profile, dict) and person.profile.get("id") == match_str:
             return True
         # Members have email; Guardians don't. Guard against the
         # `None == None` trap — if the member has no email on record and
@@ -438,7 +442,7 @@ class Spond(_SpondBase):
             )
 
         user_obj = await self.get_person(user)
-        if user_obj.profile is None or "id" not in user_obj.profile:
+        if not isinstance(user_obj.profile, dict) or "id" not in user_obj.profile:
             raise ValueError(
                 f"Person {user_obj.uid} has no profile id; Spond cannot route "
                 f"a message without one."

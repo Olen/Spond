@@ -92,13 +92,9 @@ class Member(Person):
 
     Carries Member-specific fields (email, date of birth, roles, guardians,
     subgroup memberships) on top of the shared `Person` base.
-    """
 
-    model_config = ConfigDict(
-        populate_by_name=True,
-        extra="allow",
-        arbitrary_types_allowed=True,
-    )
+    `model_config` is inherited from `Person` — no redeclaration needed.
+    """
 
     email: str | None = None
     """Email address. May be absent on minor members."""
@@ -128,8 +124,11 @@ class Member(Person):
     """Whether this member personally responds to events (False for child
     members whose guardians respond on their behalf)."""
 
-    fields: dict[str, Any] = Field(default_factory=dict)
-    """Custom fields defined on the group. Unmodelled for now."""
+    custom_fields: dict[str, Any] = Field(default_factory=dict, alias="fields")
+    """Per-member custom fields the group admin has defined (e.g. shirt
+    size, dietary requirements). Maps the API's `fields` key, but exposed
+    here as `custom_fields` to avoid confusion with Pydantic's
+    `model_fields` metadata vocabulary."""
 
     async def send_message(self, text: str, group_uid: str) -> dict[str, Any]:
         """Send a chat message directly to this member.
@@ -169,7 +168,7 @@ async def _send_message_to_person(
     if client._auth is None:
         await client._login_chat()
 
-    if person.profile is None or "id" not in person.profile:
+    if not isinstance(person.profile, dict) or "id" not in person.profile:
         raise ValueError(
             f"{type(person).__name__} {person.uid} has no profile id; "
             f"Spond cannot route a message without one."

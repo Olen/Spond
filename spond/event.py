@@ -66,24 +66,35 @@ class Responses(DictCompatModel):
     """UIDs of members whose response needs confirmation."""
 
 
-# Python field names that `Event.update()` strips from the POST payload —
-# they're either server-managed (creator/timestamps), derived (`expired`),
-# or have their own dedicated endpoint (`responses` goes through
-# `change_response`). Sending these back in an update body risks Spond
-# treating stale local state as authoritative.
+# Python field names that `Event.update()` strips from the POST payload.
+# The set mirrors the pre-OO `_EVENT_TEMPLATE`'s implicit policy: only
+# the curated set of writable fields the template included goes back on
+# update. Anything else is read-only, server-managed, derived, or has its
+# own dedicated endpoint — sending those back risks Spond treating stale
+# local state as authoritative (the most concerning case being
+# `responses`, which would clobber concurrent attendance changes).
 _EVENT_READ_ONLY_FIELDS = frozenset(
     {
+        # Server-managed identifiers / timestamps
         "creator_uid",
         "created_time",
         "updated",
+        # Derived / boolean state flags
         "expired",
         "registered",
+        "hidden",
+        "cancelled",
+        "match_event",
         "modified_from_series",
+        # Series wiring (set when the event is part of a recurrence)
         "series_uid",
         "series_ordinal",
+        # Nested objects with their own update paths
         "responses",
         "recipients",
         "comments",
+        # Behalf-of list: not in the pre-OO writable template
+        "behalf_of_uids",
     }
 )
 
@@ -264,9 +275,22 @@ class Event(DictCompatModel):
         # construction below would crash with ValidationError. Fall back to
         # a fresh GET in that case so callers always get a coherent Event.
         try:
-            return Event.from_api(new_data, self._client)
+            new_event = Event.from_api(new_data, self._client)
         except ValidationError:
-            return await self._client.get_event(self.uid)
+            new_event = await self._client.get_event(self.uid)
+
+        # Keep the client's events cache coherent — replace the matching
+        # entry in-place so subsequent `spond.get_event(uid)` calls don't
+        # serve the stale pre-update instance. Index-based replacement
+        # preserves the cache's list identity (callers holding a
+        # reference to `spond.events` keep their list).
+        if self._client.events is not None:
+            for i, cached in enumerate(self._client.events):
+                if cached.uid == self.uid:
+                    self._client.events[i] = new_event
+                    break
+
+        return new_event
 
     async def change_response(
         self,

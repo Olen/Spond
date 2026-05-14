@@ -76,11 +76,13 @@ Profile(BaseModel + DictCompatMixin)
   └─ uid, first_name, last_name (passive)
 
 Post(BaseModel + DictCompatMixin)
-  ├─ uid, title, body, timestamp, comments: list[Comment]
+  ├─ uid, title, body, timestamp, comments: list[dict]
   └─ (no methods yet; add_comment(...) deferred until we verify the Spond API supports it)
 
-Comment (sub-object of Post)
-  └─ uid, text, timestamp, author
+Comment — deferred to a follow-up
+  └─ Modelling Post comments as a typed `Comment` class is on the roadmap
+     but not in this PR; `Post.comments` currently exposes them as raw
+     dicts (`list[dict[str, Any]]`).
 
 Transaction(BaseModel + DictCompatMixin)
   └─ uid, paid_at, payment_name, paid_by_name (passive, Spond Club only)
@@ -180,7 +182,7 @@ All four are answerable mid-impl with live API probing using credentials at `/ho
 - `spond/subgroup.py` — `Subgroup`
 - `spond/role.py` — `Role`
 - `spond/profile.py` — `Profile`
-- `spond/post.py` — `Post`, `Comment`
+- `spond/post.py` — `Post` (Comment deferred — see Type Inventory above)
 
 **Changed:**
 - `spond/spond.py` — `get_*` methods return typed objects; legacy write methods get deprecation wrappers
