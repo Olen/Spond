@@ -17,7 +17,7 @@ class AuthenticationError(Exception):
 
     - Incorrect username/password.
     - 2FA enabled on the account (the library does not currently support
-      Spond's TOTP flow — see #205).
+      Spond's TOTP flow).
     - The account has hit Spond's login rate limit (`outOfLoginAttempts`).
     - The Spond login API has changed shape and the response no longer
       contains an `accessToken`.
