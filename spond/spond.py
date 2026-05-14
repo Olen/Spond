@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from . import JSONDict
 from .base import _SpondBase
+from .chat import Chat
 from .event import Event
 from .group import Group
 from .match import Match
@@ -110,7 +111,7 @@ class Spond(_SpondBase):
         self.groups: list[Group] | None = None
         self.events: list[Event] | None = None
         self.posts: list[Post] | None = None
-        self.messages: list[JSONDict] | None = None
+        self.messages: list[Chat] | None = None
         self.profile: Profile | None = None
 
     async def _login_chat(self) -> None:
@@ -358,12 +359,14 @@ class Spond(_SpondBase):
         return self.posts
 
     @_SpondBase.require_authentication
-    async def get_messages(self, max_chats: int = 100) -> list[JSONDict] | None:
-        """Retrieve recent chats (one-to-one and group conversations).
+    async def get_messages(self, max_chats: int = 100) -> list[Chat] | None:
+        """Retrieve recent chat threads (one-to-one, group, system, campaign).
 
-        "Chats" here refers to the in-app direct/group messaging feature, not
-        comments on events or posts. Uses Spond's separate chat-server host
-        and chat token (handled internally by `_login_chat`).
+        "Chats" here refers to the in-app direct/group messaging feature,
+        not comments on events or posts. Uses Spond's separate chat-server
+        host and chat token (handled internally by `_login_chat`). Each
+        returned `Chat` carries its most recent embedded `Message`; full
+        thread history isn't exposed by the underlying API.
 
         The full response is cached on `self.messages`.
 
@@ -375,9 +378,9 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        list[JSONDict] or None
-            A list of chat objects ordered by most recent activity. `None` if
-            the account has no chats.
+        list[Chat] or None
+            Typed `Chat` instances ordered by most recent activity. `None`
+            if the account has no chats.
         """
         if not self._auth:
             await self._login_chat()
@@ -387,7 +390,11 @@ class Spond(_SpondBase):
             headers={"auth": self._auth},
             params={"max": str(max_chats)},
         ) as r:
-            self.messages = await r.json()
+            raw = await r.json()
+        if raw is None:
+            self.messages = None
+            return None
+        self.messages = [Chat.from_api(c, self) for c in raw]
         return self.messages
 
     @_SpondBase.require_authentication
