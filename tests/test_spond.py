@@ -99,6 +99,21 @@ class TestEventMethods:
             await s.get_event("")
 
     @pytest.mark.asyncio
+    async def test_get_event__no_events_available_raises_keyerror(
+        self, mock_token
+    ) -> None:
+        """`get_events()` is documented to return None when no events exist;
+        `get_event()` should surface this as KeyError, not TypeError."""
+
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        s.events = None
+        s.get_events = AsyncMock()  # leaves self.events as None
+
+        with pytest.raises(KeyError):
+            await s.get_event("ID1")
+
+    @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.put")
     async def test_change_response(self, mock_put, mock_payload, mock_token) -> None:
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
@@ -187,6 +202,21 @@ class TestGroupMethods:
 
         with pytest.raises(KeyError):
             await s.get_group("")
+
+    @pytest.mark.asyncio
+    async def test_get_group__no_groups_available_raises_keyerror(
+        self, mock_token
+    ) -> None:
+        """`get_groups()` is documented to return None when no groups exist;
+        `get_group()` should surface this as KeyError, not TypeError."""
+
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        s.groups = None
+        s.get_groups = AsyncMock()  # leaves self.groups as None
+
+        with pytest.raises(KeyError):
+            await s.get_group("ID1")
 
 
 class TestExportMethod:
