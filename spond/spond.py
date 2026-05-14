@@ -395,35 +395,31 @@ class Spond(_SpondBase):
         Returns
         -------
         JSONDict
-            On success: the Spond API response for the send operation.
+            The Spond API response for the send operation.
 
-        Notes
-        -----
-        Has two known bugs tracked in #238:
-
-        - When `chat_id` is provided, the call to `_continue_chat()` is
-          missing `await`, so the returned value is a coroutine rather than
-          the API response.
-        - When `user` and `group_uid` are inconsistent, the method returns a
-          sentinel dict `{"error": "..."}` rather than raising, and an
-          unreachable branch returns `False` despite the `JSONDict`
-          annotation.
+        Raises
+        ------
+        ValueError
+            Neither `chat_id` nor both of `user`/`group_uid` were supplied —
+            the call has no way to identify the target chat.
+        KeyError
+            `user` was given but doesn't match any member or guardian in any
+            of the authenticated user's groups (propagated from
+            `get_person`).
         """
         if self._auth is None:
             await self._login_chat()
 
         if chat_id is not None:
-            return self._continue_chat(chat_id, text)
+            return await self._continue_chat(chat_id, text)
         if group_uid is None or user is None:
-            return {
-                "error": "wrong usage, group_id and user_id needed or continue chat with chat_id"
-            }
+            raise ValueError(
+                "send_message requires either chat_id (to continue an existing "
+                "chat) or both user and group_uid (to start a new one)."
+            )
 
         user_obj = await self.get_person(user)
-        if user_obj:
-            user_uid = user_obj["profile"]["id"]
-        else:
-            return False
+        user_uid = user_obj["profile"]["id"]
         url = f"{self._chat_url}/messages"
         data = {
             "text": text,
@@ -571,7 +567,7 @@ class Spond(_SpondBase):
         return await self._get_entity(self._EVENT, uid)
 
     @_SpondBase.require_authentication
-    async def update_event(self, uid: str, updates: JSONDict) -> list[JSONDict] | None:
+    async def update_event(self, uid: str, updates: JSONDict) -> JSONDict:
         """Update an existing event by merging changes into the current state.
 
         The implementation fetches the event via `_get_entity()`, copies the
@@ -593,22 +589,9 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        list[JSONDict] or None
-            Currently returns `self.events` (the cached events list, or
-            `None` if no `get_events()` call has populated it). This is a
-            bug — see Notes.
-
-        Notes
-        -----
-        Known bug #239: the return value should be the Spond API response
-        from the POST, not the cached events list. The API response *is*
-        captured on `self.events_update`, so the data is still accessible
-        as a workaround until #239 is fixed:
-
-        ```python
-        await s.update_event(uid, {"description": "..."})
-        result = s.events_update  # the actual API response
-        ```
+        JSONDict
+            The Spond API response from the POST — the updated event as
+            persisted server-side.
         """
         event = await self._get_entity(self._EVENT, uid)
         url = f"{self.api_url}sponds/{uid}"
@@ -623,8 +606,7 @@ class Spond(_SpondBase):
         async with self.clientsession.post(
             url, json=base_event, headers=self.auth_headers
         ) as r:
-            self.events_update = await r.json()
-            return self.events
+            return await r.json()
 
     @_SpondBase.require_authentication
     async def get_event_attendance_xlsx(self, uid: str) -> bytes:
