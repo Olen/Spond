@@ -165,10 +165,14 @@ class TestGroupNavigation:
 
     def test_group_str(self) -> None:
         """`Group.__str__` includes uid, name, and member count."""
-        raw = {"id": "GID1", "name": "My Team", "members": [
-            {"id": "M1", "firstName": "A", "lastName": "B"},
-            {"id": "M2", "firstName": "C", "lastName": "D"},
-        ]}
+        raw = {
+            "id": "GID1",
+            "name": "My Team",
+            "members": [
+                {"id": "M1", "firstName": "A", "lastName": "B"},
+                {"id": "M2", "firstName": "C", "lastName": "D"},
+            ],
+        }
         g = Group.model_validate(raw)
         s = str(g)
         assert "GID1" in s
@@ -189,9 +193,7 @@ class TestGroupNavigation:
                     "id": "M1",
                     "firstName": "A",
                     "lastName": "B",
-                    "guardians": [
-                        {"id": "G1", "firstName": "C", "lastName": "D"}
-                    ],
+                    "guardians": [{"id": "G1", "firstName": "C", "lastName": "D"}],
                 }
             ],
         }
@@ -204,28 +206,32 @@ class TestGroupNavigation:
 
     def test_find_member_by_name(self) -> None:
         """`find_member(name=...)` matches against `member.full_name`."""
-        group = Group.model_validate({
-            "id": "GID",
-            "name": "G",
-            "members": [
-                {"id": "M1", "firstName": "Charlie", "lastName": "Brown"},
-                {"id": "M2", "firstName": "Alice", "lastName": "Smith"},
-            ],
-        })
+        group = Group.model_validate(
+            {
+                "id": "GID",
+                "name": "G",
+                "members": [
+                    {"id": "M1", "firstName": "Charlie", "lastName": "Brown"},
+                    {"id": "M2", "firstName": "Alice", "lastName": "Smith"},
+                ],
+            }
+        )
         found = group.find_member(name="Alice Smith")
         assert found is not None
         assert found.uid == "M2"
 
     def test_find_member_by_uid(self) -> None:
         """`find_member(uid=...)` returns the member with the matching id."""
-        group = Group.model_validate({
-            "id": "GID",
-            "name": "G",
-            "members": [
-                {"id": "M1", "firstName": "A", "lastName": "B"},
-                {"id": "M2", "firstName": "C", "lastName": "D"},
-            ],
-        })
+        group = Group.model_validate(
+            {
+                "id": "GID",
+                "name": "G",
+                "members": [
+                    {"id": "M1", "firstName": "A", "lastName": "B"},
+                    {"id": "M2", "firstName": "C", "lastName": "D"},
+                ],
+            }
+        )
         found = group.find_member(uid="M1")
         assert found is not None
         assert found.uid == "M1"
@@ -373,7 +379,9 @@ class TestGetPersonMethod:
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
 
-        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=None)
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=None
+        )
 
         groups = await s.get_groups()
 

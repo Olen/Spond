@@ -208,7 +208,7 @@ class TestDictCompat:
         e = Event.model_validate(_MIN_EVENT_PAYLOAD)
         k = e.keys()
         assert isinstance(k, list)
-        assert "id" in k            # alias, not "uid"
+        assert "id" in k  # alias, not "uid"
         assert "heading" in k
         assert "startTimestamp" in k  # alias, not "start_time"
         assert "description" not in k  # absent from _MIN_EVENT_PAYLOAD

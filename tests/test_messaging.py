@@ -218,7 +218,9 @@ class TestGetMessages:
         s._auth = "MOCK_CHAT_AUTH"
         s._chat_url = "https://chat.example.invalid"
 
-        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=None)
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=None
+        )
 
         messages = await s.get_messages()
         assert messages is None
@@ -260,16 +262,20 @@ class TestSendMessageNewChat:
         s._chat_url = "https://chat.example.invalid"
         # Pre-populate groups so get_person() resolves locally
         s.groups = [
-            Group.model_validate({
-                "id": "GID1",
-                "name": "G",
-                "members": [{
-                    "id": "M1",
-                    "firstName": "Alice",
-                    "lastName": "Smith",
-                    "profile": {"id": "PROF1"},
-                }],
-            })
+            Group.model_validate(
+                {
+                    "id": "GID1",
+                    "name": "G",
+                    "members": [
+                        {
+                            "id": "M1",
+                            "firstName": "Alice",
+                            "lastName": "Smith",
+                            "profile": {"id": "PROF1"},
+                        }
+                    ],
+                }
+            )
         ]
 
         api_response = {"ok": True, "messageId": "MSG1"}
@@ -277,9 +283,7 @@ class TestSendMessageNewChat:
             return_value=api_response
         )
 
-        result = await s.send_message(
-            text="Hello", user="M1", group_uid="GID1"
-        )
+        result = await s.send_message(text="Hello", user="M1", group_uid="GID1")
 
         assert result == api_response
         kwargs = mock_post.call_args[1]
@@ -289,9 +293,7 @@ class TestSendMessageNewChat:
         assert kwargs["json"]["type"] == "TEXT"
 
     @pytest.mark.asyncio
-    async def test_send_message_user_without_profile_raises(
-        self, mock_token
-    ) -> None:
+    async def test_send_message_user_without_profile_raises(self, mock_token) -> None:
         """If the located member has no `profile` dict with an `id`, a clear
         `ValueError` is raised rather than crashing inside the POST."""
         from spond.group import Group
@@ -301,16 +303,20 @@ class TestSendMessageNewChat:
         s._auth = "MOCK_CHAT_AUTH"
         s._chat_url = "https://chat.example.invalid"
         s.groups = [
-            Group.model_validate({
-                "id": "GID1",
-                "name": "G",
-                "members": [{
-                    "id": "M2",
-                    "firstName": "Bob",
-                    "lastName": "Jones",
-                    # no profile → profile is None
-                }],
-            })
+            Group.model_validate(
+                {
+                    "id": "GID1",
+                    "name": "G",
+                    "members": [
+                        {
+                            "id": "M2",
+                            "firstName": "Bob",
+                            "lastName": "Jones",
+                            # no profile → profile is None
+                        }
+                    ],
+                }
+            )
         ]
 
         with pytest.raises(ValueError, match="profile id"):
@@ -339,12 +345,14 @@ class TestMemberSendMessage:
             {
                 "id": "GID",
                 "name": "G",
-                "members": [{
-                    "id": "M1",
-                    "firstName": "A",
-                    "lastName": "B",
-                    "profile": {"id": "PROF1"},
-                }],
+                "members": [
+                    {
+                        "id": "M1",
+                        "firstName": "A",
+                        "lastName": "B",
+                        "profile": {"id": "PROF1"},
+                    }
+                ],
             },
             s,
         )
@@ -412,17 +420,21 @@ class TestMemberSendMessage:
             {
                 "id": "GID",
                 "name": "G",
-                "members": [{
-                    "id": "M1",
-                    "firstName": "Child",
-                    "lastName": "A",
-                    "guardians": [{
-                        "id": "G1",
-                        "firstName": "Parent",
+                "members": [
+                    {
+                        "id": "M1",
+                        "firstName": "Child",
                         "lastName": "A",
-                        "profile": {"id": "PROF_G1"},
-                    }],
-                }],
+                        "guardians": [
+                            {
+                                "id": "G1",
+                                "firstName": "Parent",
+                                "lastName": "A",
+                                "profile": {"id": "PROF_G1"},
+                            }
+                        ],
+                    }
+                ],
             },
             s,
         )
@@ -454,9 +466,7 @@ class TestLazyChatLogin:
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
     @patch("aiohttp.ClientSession.post")
-    async def test_login_chat_sets_url_and_auth(
-        self, mock_post, mock_get
-    ) -> None:
+    async def test_login_chat_sets_url_and_auth(self, mock_post, mock_get) -> None:
         """`_login_chat()` must POST to `{api_url}chat`, then store the
         returned `url` and `auth` on the client instance."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
@@ -466,9 +476,7 @@ class TestLazyChatLogin:
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             return_value=self._CHAT_HANDSHAKE
         )
-        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
-            return_value=[]
-        )
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
 
         await s.get_messages()
 
@@ -478,9 +486,7 @@ class TestLazyChatLogin:
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
     @patch("aiohttp.ClientSession.post")
-    async def test_get_messages_triggers_lazy_login(
-        self, mock_post, mock_get
-    ) -> None:
+    async def test_get_messages_triggers_lazy_login(self, mock_post, mock_get) -> None:
         """`get_messages()` must call `_login_chat()` when `_auth` is None."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = MOCK_TOKEN
@@ -488,9 +494,7 @@ class TestLazyChatLogin:
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             return_value=self._CHAT_HANDSHAKE
         )
-        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
-            return_value=[]
-        )
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
 
         messages = await s.get_messages()
 
@@ -511,7 +515,7 @@ class TestLazyChatLogin:
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             side_effect=[
                 self._CHAT_HANDSHAKE,  # _login_chat response
-                {"ok": True},          # message send response
+                {"ok": True},  # message send response
             ]
         )
 
@@ -523,9 +527,7 @@ class TestLazyChatLogin:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
-    async def test_send_message_chat_id_triggers_lazy_login(
-        self, mock_post
-    ) -> None:
+    async def test_send_message_chat_id_triggers_lazy_login(self, mock_post) -> None:
         """`send_message(chat_id=...)` calls `_login_chat()` when `_auth` is
         None — covers line 479 in spond.py."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
@@ -545,9 +547,7 @@ class TestLazyChatLogin:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
-    async def test_chat_send_triggers_lazy_login_on_client(
-        self, mock_post
-    ) -> None:
+    async def test_chat_send_triggers_lazy_login_on_client(self, mock_post) -> None:
         """`chat.send()` triggers `_client._login_chat()` when `_client._auth`
         is None — covers chat.py:158."""
         from spond.chat import Chat
@@ -572,7 +572,7 @@ class TestLazyChatLogin:
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             side_effect=[
                 self._CHAT_HANDSHAKE,  # _login_chat
-                {"ok": True},          # message send
+                {"ok": True},  # message send
             ]
         )
 
@@ -583,9 +583,7 @@ class TestLazyChatLogin:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
-    async def test_member_send_message_triggers_lazy_login(
-        self, mock_post
-    ) -> None:
+    async def test_member_send_message_triggers_lazy_login(self, mock_post) -> None:
         """`member.send_message()` calls `_login_chat()` when the client's
         `_auth` is None — covers person.py:174."""
         from spond.group import Group
@@ -598,12 +596,14 @@ class TestLazyChatLogin:
             {
                 "id": "GID",
                 "name": "G",
-                "members": [{
-                    "id": "M1",
-                    "firstName": "A",
-                    "lastName": "B",
-                    "profile": {"id": "PROF1"},
-                }],
+                "members": [
+                    {
+                        "id": "M1",
+                        "firstName": "A",
+                        "lastName": "B",
+                        "profile": {"id": "PROF1"},
+                    }
+                ],
             },
             s,
         )

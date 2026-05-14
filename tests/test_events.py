@@ -429,7 +429,9 @@ class TestGetEventsHTTP:
         s.token = MOCK_TOKEN
 
         mock_get.return_value.__aenter__.return_value.ok = True
-        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=None)
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=None
+        )
 
         events = await s.get_events()
         assert events is None
@@ -500,7 +502,9 @@ class TestGetEventsHTTP:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
-    async def test_get_events_min_end_max_end_params(self, mock_get, mock_token) -> None:
+    async def test_get_events_min_end_max_end_params(
+        self, mock_get, mock_token
+    ) -> None:
         """The `min_end` and `max_end` datetime args must also be serialised
         and sent as `minEndTimestamp` / `maxEndTimestamp` query parameters."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
@@ -563,9 +567,7 @@ class TestGetProfile:
         """`Profile.__str__` includes uid and full name."""
         from spond.profile import Profile
 
-        p = Profile.model_validate(
-            {"id": "P1", "firstName": "Jane", "lastName": "Doe"}
-        )
+        p = Profile.model_validate({"id": "P1", "firstName": "Jane", "lastName": "Doe"})
         s = str(p)
         assert "P1" in s
         assert "Jane Doe" in s

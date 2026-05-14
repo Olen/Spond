@@ -158,7 +158,9 @@ class TestPostMethods:
         s.token = mock_token
 
         mock_get.return_value.__aenter__.return_value.ok = True
-        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=None)
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=None
+        )
 
         result = await s.get_posts()
         assert result is None

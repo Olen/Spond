@@ -123,9 +123,7 @@ class TestRequireAuthenticationDecorator:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
-    async def test_require_auth_closes_session_on_auth_error(
-        self, mock_post
-    ) -> None:
+    async def test_require_auth_closes_session_on_auth_error(self, mock_post) -> None:
         """When `login()` raises `AuthenticationError`, the `require_authentication`
         decorator must close the aiohttp session before re-raising — prevents
         `Unclosed client session` warnings and resource leaks."""
@@ -149,4 +147,6 @@ class TestRequireAuthenticationDecorator:
         with pytest.raises(AuthenticationError):
             await s.get_profile()
 
-        assert close_called, "clientsession.close() was not called on AuthenticationError"
+        assert close_called, (
+            "clientsession.close() was not called on AuthenticationError"
+        )

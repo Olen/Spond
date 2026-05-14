@@ -739,7 +739,7 @@ class Spond(_SpondBase):
             return await r.json()
 
     @_SpondBase.require_authentication
-    async def _get_entity(self, entity_type: str, uid: str) -> JSONDict:
+    async def _get_entity(self, entity_type: str, uid: str) -> Event | Group:
         """Internal lookup helper shared by `get_event` and `get_group`.
 
         Routes to the relevant cache (`self.events` or `self.groups`),
@@ -758,8 +758,10 @@ class Spond(_SpondBase):
 
         Returns
         -------
-        JSONDict
-            The matching entity dict.
+        Event | Group
+            The matching typed entity (`Event` for `entity_type="event"`,
+            `Group` for `entity_type="group"`). Subclasses (e.g. `Match`)
+            are preserved.
 
         Raises
         ------

@@ -65,8 +65,10 @@ class Profile(DictCompatModel):
 
     @property
     def full_name(self) -> str:
-        """Convenience: `first_name` + ` ` + `last_name`."""
-        return f"{self.first_name} {self.last_name}"
+        """Convenience: non-empty `first_name` and `last_name` joined by a
+        single space. Returns `""` when both are missing (avoids the bare
+        `" "` artefact when name fields default to empty strings)."""
+        return " ".join(part for part in (self.first_name, self.last_name) if part)
 
     def __str__(self) -> str:
         return f"Profile(uid={self.uid!r}, name={self.full_name!r})"
