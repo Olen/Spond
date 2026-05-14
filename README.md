@@ -95,8 +95,9 @@ Demonstrates most `get...()` methods.
 
 ### Keeping a PR up to date with `main`
 
-Add the `updateme` label to a PR and a GitHub Actions workflow will automatically merge `main` into the PR branch every time `main` advances. This is opt-in: PRs without the label are left alone.
+Add the `updateme` label to a PR targeting `main` and a GitHub Actions workflow will automatically merge `main` into the PR branch every time `main` advances. This is opt-in: PRs without the label are left alone.
 
 Limitations:
+- Only acts on PRs whose base branch is `main`. PRs targeting other branches are ignored even with the label.
 - Only works for PRs from branches in this repository. PRs from forks cannot be pushed to via the workflow's token and will be skipped (the workflow logs which PRs it skipped).
-- If the update would cause a merge conflict, the PR is left as-is. Resolve the conflict by hand and re-apply the label if you want auto-update to resume.
+- If the update would cause a merge conflict, that PR is skipped for this run and logged. The label stays on, so the next push to `main` will retry automatically once the conflict is resolved.

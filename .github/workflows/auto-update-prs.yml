@@ -21,10 +21,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -u
+          set -euo pipefail
           gh pr list --repo "$GITHUB_REPOSITORY" --state open --label updateme \
-              --json number,isCrossRepository \
-              --jq '.[] | "\(.number) \(.isCrossRepository)"' \
+              --json number,isCrossRepository,baseRefName \
+              --jq '.[] | select(.baseRefName == "main") | "\(.number) \(.isCrossRepository)"' \
           | while read -r num is_fork; do
               if [ "$is_fork" = "true" ]; then
                   echo "Skip PR #$num (fork — cannot push via GITHUB_TOKEN)"
