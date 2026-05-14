@@ -53,13 +53,6 @@ jobs:
             exit 1
           fi
 
-      - name: "🗝️ Get previous release version"
-        id: last_release
-        uses: InsonusK/get-latest-release@v1.1.0
-        with:
-          myToken: ${{ github.token }}
-          exclude_types: "draft|prerelease"
-
       - name: "🏷️ Create new tag"
         uses: rickstaa/action-create-tag@v1
         id: "tag_create"
@@ -68,21 +61,12 @@ jobs:
           tag_exists_error: false
           message: "✅ Tag Version v${{ env.VERSION }} created"
 
-      - name: "🗒️ Generate release changelog"
-        id: changelog
-        uses: heinrichreimer/github-changelog-generator-action@v2.4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }} 
-          sinceTag: ${{ steps.last_release.outputs.tag_name }}
-          headerLabel: "# Notable changes since ${{ steps.last_release.outputs.tag_name }}"
-          stripGeneratorNotice: true
-
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.VERSION }}
           name: 🎉 Release v${{ env.VERSION }}
-          body: "${{ steps.changelog.outputs.changelog }}"
+          generate_release_notes: true
           draft: false
           prerelease: false
 
