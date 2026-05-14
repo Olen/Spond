@@ -91,6 +91,31 @@ Demonstrates most `get...()` methods.
 
 [This article](https://realpython.com/async-io-python/) will give a nice introduction to both why, when and how to use asyncio in projects.
 
+## API documentation
+
+The library's API documentation is generated from the docstrings in `spond/`
+using [pdoc](https://pdoc.dev/). To browse it locally, install the dev
+dependencies and start the pdoc dev server:
+
+```shell
+poetry install
+poetry run pdoc ./spond
+```
+
+A browser tab opens at `http://localhost:8080` with a searchable, navigable
+view of all public modules, classes, and methods, and a "View Source" link
+next to each one. Pages update automatically when the docstrings change.
+
+To generate static HTML instead:
+
+```shell
+poetry run pdoc -o docs/ ./spond
+```
+
+The leading `./` is important when developing inside the repo — without it,
+pdoc would document the *installed* `spond` package from `site-packages`
+rather than your local checkout.
+
 ## Contributing
 
 ### Keeping a PR up to date with `main`

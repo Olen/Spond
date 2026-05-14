@@ -322,29 +322,29 @@ class Spond(_SpondBase):
         Parameters
         ----------
         group_id : str, optional
-            Uses `GroupId` API parameter.
+            Uses `groupId` API parameter.
         subgroup_id : str, optional
             Uses `subgroupId` API parameter.
         include_scheduled : bool, optional
-            Include scheduled events.
-            (TO DO: probably events for which invites haven't been sent yet?)
+            Include scheduled events (events whose invitations are queued to be
+            sent in the future).
             Defaults to False for performance reasons.
             Uses `scheduled` API parameter.
         include_hidden : bool, optional
             Include hidden events.
             Uses `includeHidden` API parameter.
-            'includeHidden' filter is only available inside a group
+            'includeHidden' filter is only available inside a group.
         max_end : datetime, optional
             Only include events which end before or at this datetime.
             Uses `maxEndTimestamp` API parameter; relates to `endTimestamp` event
             attribute.
-        max_start : datetime, optional
-            Only include events which start before or at this datetime.
-            Uses `maxStartTimestamp` API parameter; relates to `startTimestamp` event
-            attribute.
         min_end : datetime, optional
             Only include events which end after or at this datetime.
             Uses `minEndTimestamp` API parameter; relates to `endTimestamp` event
+            attribute.
+        max_start : datetime, optional
+            Only include events which start before or at this datetime.
+            Uses `maxStartTimestamp` API parameter; relates to `startTimestamp` event
             attribute.
         min_start : datetime, optional
             Only include events which start after or at this datetime.
