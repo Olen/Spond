@@ -79,13 +79,14 @@ class Group(DictCompatModel):
         )
 
     @classmethod
-    def from_api(cls, data: dict[str, Any], client: Spond | None) -> Group:
+    def from_api(cls, data: dict[str, Any], client: Spond) -> Group:
         """Construct a `Group` from raw API data and wire `_client` through.
 
-        Sets `_client` on the group and on every nested member (which in turn
-        wires it onto each member's guardians via `Member.from_api`). This
-        lets `member.send_message(...)` and any future per-member behaviour
-        work without further plumbing.
+        Sets `_client` on the group and on every nested member and guardian,
+        so per-instance methods like `member.send_message(...)` can issue
+        HTTP calls without further plumbing. `client` is required — passing
+        a no-client Group around would crash any subsequent behaviour call
+        with a confusing late-stage error.
         """
         instance = cls.model_validate(data)
         instance._client = client

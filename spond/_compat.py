@@ -112,7 +112,11 @@ class DictCompatModel(BaseModel):
             yield field_info.alias or field_name
 
     def __len__(self) -> int:
-        return len(self.__class__.model_fields)
+        # Mirror dict semantics: report the number of fields that were
+        # actually present in the source data, not the count of fields
+        # declared on the class. Pydantic tracks this via `model_fields_set`
+        # for instances built from `model_validate(...)`.
+        return len(self.model_fields_set)
 
     def keys(self) -> list[str]:
         """Dict-style `.keys()` — returns the API-shaped key names."""

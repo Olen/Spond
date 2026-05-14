@@ -191,12 +191,16 @@ class TestEventMethods:
 
         assert any(issubclass(w.category, DeprecationWarning) for w in caught)
         mock_url = "https://api.spond.com/core/v1/sponds/ID1/responses/PID3"
-        # The wrapper translates the payload dict into Event.change_response kwargs,
-        # which rebuilds the payload — so the json= arg here is the rebuilt form.
-        call_args = mock_put.call_args
-        assert call_args[0][0] == mock_url
-        assert call_args[1]["json"]["accepted"] == "false"
-        assert call_args[1]["json"]["declineMessage"] == "sick cannot make it"
+        # The wrapper forwards `payload` verbatim — same bytes that go on
+        # the wire on the pre-OO code path.
+        mock_put.assert_called_once_with(
+            mock_url,
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {mock_token}",
+            },
+            json=mock_payload,
+        )
         assert response == mock_response_data
 
 
@@ -663,6 +667,29 @@ class TestEventOOMethods:
         assert isinstance(result, Event)
         assert result.heading == "Updated"
         assert result is not event  # immutable: returns new
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_event_update_accepts_positional_dict(
+        self, mock_post, mock_token
+    ) -> None:
+        """`event.update(updates_dict)` works for keys that would clash with
+        reserved kwargs when passed via `**` (e.g. `self`, `cls`)."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
+
+        api_response = {**_MIN_EVENT_PAYLOAD, "heading": "New"}
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=api_response
+        )
+
+        # Use the positional dict form
+        result = await event.update({"heading": "New", "selfish": "any"})
+        assert result.heading == "New"
+        # Unknown key "selfish" was passed through to the API payload
+        posted = mock_post.call_args[1]["json"]
+        assert posted["selfish"] == "any"
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.put")

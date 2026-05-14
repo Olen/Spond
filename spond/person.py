@@ -114,7 +114,15 @@ class Member(Person):
     """UIDs of `Role`s this member holds within the group."""
 
     subgroup_uids: list[str] = Field(default_factory=list, alias="subGroups")
-    """UIDs of `Subgroup`s this member belongs to within the group."""
+    """UIDs of `Subgroup`s this member belongs to within the group.
+
+    Note: the API alias here is `subGroups` (not `subGroupIds`) because
+    that's the field name Spond's groups endpoint actually returns inside
+    each member object. `Post.subgroup_uids` aliases `subGroupIds` for the
+    same reason — Spond's posts endpoint uses a different key name for
+    what is conceptually the same kind of list. The asymmetry is in the
+    API, not in this SDK.
+    """
 
     respondent: bool = False
     """Whether this member personally responds to events (False for child

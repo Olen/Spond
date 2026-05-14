@@ -16,7 +16,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
-from pydantic import ConfigDict, Field, PrivateAttr
+from pydantic import ConfigDict, Field, PrivateAttr, ValidationError
 
 from ._compat import DictCompatModel
 
@@ -94,17 +94,21 @@ class Event(DictCompatModel):
         arbitrary_types_allowed=True,
     )
 
-    # Core fields (always present in API data)
+    # Core fields. Only `uid` is truly required for the SDK to be useful
+    # at all (every method addresses an event by id); the others have
+    # defaults so the SDK doesn't hard-fail if Spond ever drops a field
+    # from its response shape. Defaults are deliberately sentinel-ish so
+    # callers can distinguish "field absent" from "field genuinely empty".
     uid: str = Field(alias="id")
-    heading: str
-    start_time: datetime = Field(alias="startTimestamp")
-    end_time: datetime = Field(alias="endTimestamp")
-    created_time: datetime = Field(alias="createdTime")
-    type: str
+    heading: str = ""
+    start_time: datetime | None = Field(default=None, alias="startTimestamp")
+    end_time: datetime | None = Field(default=None, alias="endTimestamp")
+    created_time: datetime | None = Field(default=None, alias="createdTime")
+    type: str = ""
     """Spond's event-kind string. Common values are listed on `EventType`,
     but unknown values pass through unchanged so the SDK doesn't crash if
     Spond adds new variants."""
-    responses: Responses
+    responses: Responses = Field(default_factory=lambda: Responses())
 
     # Owner / creator metadata
     creator_uid: str | None = Field(default=None, alias="creatorId")
@@ -151,10 +155,8 @@ class Event(DictCompatModel):
     _client: Any = PrivateAttr(default=None)
 
     def __str__(self) -> str:
-        return (
-            f"Event(uid={self.uid!r}, heading={self.heading!r}, "
-            f"start_time={self.start_time.isoformat()})"
-        )
+        start = self.start_time.isoformat() if self.start_time else "?"
+        return f"Event(uid={self.uid!r}, heading={self.heading!r}, start_time={start})"
 
     @property
     def url(self) -> str:
@@ -173,7 +175,9 @@ class Event(DictCompatModel):
         instance._client = client
         return instance
 
-    async def update(self, **fields: Any) -> Event:
+    async def update(
+        self, _updates: dict[str, Any] | None = None, /, **fields: Any
+    ) -> Event:
         """POST changes to this event back to Spond and return the updated event.
 
         Accepts either Python-style attribute names (`description="..."`) or
@@ -183,16 +187,21 @@ class Event(DictCompatModel):
 
         The POST payload is built from this Event's current state via
         `model_dump(by_alias=True, mode="json")`, then overlaid with the
-        caller-supplied `fields`. `mode="json"` converts datetimes to ISO
+        caller-supplied updates. `mode="json"` converts datetimes to ISO
         strings so aiohttp's `json.dumps` can serialise the payload.
 
         Parameters
         ----------
+        _updates : dict, positional-only, optional
+            Dict of updates to apply. Useful when keys clash with Python
+            reserved kwarg names like `self` or `cls` (which `**fields`
+            can't carry), or when callers already have a dict in hand.
         **fields
             Field updates to send. Use the Python attribute name
             (`description`, `start_time`, …) or the API alias
             (`startTimestamp`, …) — either resolves correctly. Unknown keys
-            pass through to the API verbatim.
+            pass through to the API verbatim. Merged on top of `_updates`
+            if both are supplied.
 
         Returns
         -------
@@ -202,8 +211,9 @@ class Event(DictCompatModel):
         """
         # Translate caller-supplied keys to API names. Unknown keys pass
         # through as-is so Spond-side changes don't get blocked client-side.
+        combined: dict[str, Any] = {**(_updates or {}), **fields}
         api_updates: dict[str, Any] = {}
-        for key, value in fields.items():
+        for key, value in combined.items():
             py_name = self._resolve_dict_key(key)
             if py_name is None:
                 api_updates[key] = value
@@ -220,7 +230,14 @@ class Event(DictCompatModel):
         ) as r:
             new_data = await r.json()
 
-        return Event.from_api(new_data, self._client)
+        # Spond usually returns the updated event on POST, but if the
+        # response is partial (status-only, an error wrapper, etc.) the
+        # construction below would crash with ValidationError. Fall back to
+        # a fresh GET in that case so callers always get a coherent Event.
+        try:
+            return Event.from_api(new_data, self._client)
+        except ValidationError:
+            return await self._client.get_event(self.uid)
 
     async def change_response(
         self,

@@ -248,8 +248,15 @@ class Spond(_SpondBase):
             return True
         if person.profile is not None and person.profile.get("id") == match_str:
             return True
-        # Members have email; Guardians don't.
-        return isinstance(person, Member) and person.email == match_str
+        # Members have email; Guardians don't. Guard against the
+        # `None == None` trap — if the member has no email on record and
+        # the caller (somehow) supplied None as match_str, we don't want
+        # to claim a match.
+        return (
+            isinstance(person, Member)
+            and bool(person.email)
+            and person.email == match_str
+        )
 
     @_SpondBase.require_authentication
     async def get_posts(
@@ -608,7 +615,9 @@ class Spond(_SpondBase):
             stacklevel=2,
         )
         event = await self.get_event(uid)
-        new_event = await event.update(**updates)
+        # Pass as positional dict, not **kwargs — `updates` may contain keys
+        # like `self` or `cls` that would clash with bound-method calling.
+        new_event = await event.update(updates)
         return new_event.model_dump(by_alias=True, mode="json")
 
     @_SpondBase.require_authentication
