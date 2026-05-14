@@ -34,9 +34,10 @@ async def main():
 asyncio.run(main())
 ```
 
-> **Typed objects from v1.3 onwards.** `get_groups()`, `get_event()`, `get_posts()`,
-> etc. now return typed `Group` / `Event` / `Post` objects with attribute access
-> and per-instance methods (`event.update(...)`, `event.change_response(...)`,
+> **Typed objects from the next minor release onwards.** `get_groups()`,
+> `get_event()`, `get_posts()`, etc. now return typed `Group` / `Event` /
+> `Post` objects with attribute access and per-instance methods
+> (`event.update(...)`, `event.change_response(...)`,
 > `member.send_message(...)`). Existing dict-style access (`group["name"]`)
 > still works for one major version with a `DeprecationWarning`. See
 > [`DESIGN-oo-rewrite.md`](DESIGN-oo-rewrite.md) for the full design and

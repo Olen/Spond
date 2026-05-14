@@ -37,7 +37,7 @@ class Person(DictCompatModel):
 
     model_config = ConfigDict(
         populate_by_name=True,
-        extra="ignore",
+        extra="allow",
         arbitrary_types_allowed=True,
     )
 
@@ -96,7 +96,7 @@ class Member(Person):
 
     model_config = ConfigDict(
         populate_by_name=True,
-        extra="ignore",
+        extra="allow",
         arbitrary_types_allowed=True,
     )
 

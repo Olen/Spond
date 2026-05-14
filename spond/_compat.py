@@ -65,71 +65,117 @@ class DictCompatModel(BaseModel):
     """
 
     def _resolve_dict_key(self, key: str) -> str | None:
-        """Return the Python attribute name matching `key`, or None.
+        """Return the Python attribute name for a declared field matching `key`.
 
-        Matches either the field's API alias or its Python name.
+        Matches either the field's API alias or its Python name. Resolution
+        is bounded to `self.__class__.model_fields` — never reaches parent
+        attributes that aren't declared as fields. Does **not** resolve
+        keys against `__pydantic_extra__`; callers wanting that should
+        check `_pydantic_extras()` separately.
         """
         for field_name, field_info in self.__class__.model_fields.items():
             if field_info.alias == key or field_name == key:
                 return field_name
         return None
 
+    def _pydantic_extras(self) -> dict[str, Any]:
+        """Unknown fields preserved by `model_config = extra="allow"`.
+
+        Empty dict for models with `extra="ignore"` (the older config), since
+        Pydantic discards unknown fields there.
+        """
+        return getattr(self, "__pydantic_extra__", None) or {}
+
+    def _present_api_keys(self) -> list[str]:
+        """API-shaped key names actually present in the source data.
+
+        Returns declared fields that were set during validation (using
+        their alias if defined, else Python name) plus any extras
+        preserved via `extra="allow"`. Mirrors pre-OO dict semantics where
+        iterating a parsed JSON response yielded only the keys the API
+        actually sent.
+        """
+        keys: list[str] = []
+        present_declared = set(self.model_fields_set)
+        for field_name, field_info in self.__class__.model_fields.items():
+            if field_name in present_declared:
+                keys.append(field_info.alias or field_name)
+        keys.extend(self._pydantic_extras().keys())
+        return keys
+
     def __getitem__(self, key: str) -> Any:
         field_name = self._resolve_dict_key(key)
-        if field_name is None:
-            raise KeyError(key)
-        warnings.warn(
-            f"{self.__class__.__name__}[{key!r}] uses deprecated dict-style "
-            f"access; use attribute access (`.{field_name}`) instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return getattr(self, field_name)
+        if field_name is not None and field_name in self.model_fields_set:
+            warnings.warn(
+                f"{self.__class__.__name__}[{key!r}] uses deprecated dict-style "
+                f"access; use attribute access (`.{field_name}`) instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return getattr(self, field_name)
+        extras = self._pydantic_extras()
+        if key in extras:
+            warnings.warn(
+                f"{self.__class__.__name__}[{key!r}] accesses an unmodelled "
+                f"field preserved via extra='allow'; dict-style access is "
+                f"deprecated — use `obj.{key}` instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return extras[key]
+        raise KeyError(key)
 
     def get(self, key: str, default: Any = None) -> Any:
         """Dict-style `.get(key, default)` with deprecation warning."""
-        field_name = self._resolve_dict_key(key)
-        if field_name is None:
+        try:
+            return self[key]
+        except KeyError:
             return default
-        warnings.warn(
-            f"{self.__class__.__name__}.get({key!r}) uses deprecated dict-style "
-            f"access; use attribute access (`.{field_name}`) instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return getattr(self, field_name)
 
     def __contains__(self, key: object) -> bool:
-        return isinstance(key, str) and self._resolve_dict_key(key) is not None
+        if not isinstance(key, str):
+            return False
+        field_name = self._resolve_dict_key(key)
+        if field_name is not None and field_name in self.model_fields_set:
+            return True
+        return key in self._pydantic_extras()
 
     def __iter__(self) -> Iterator[str]:  # type: ignore[override]
-        """Yield API-shaped keys (alias if defined, else field name).
+        """Yield API-shaped keys for fields actually present in the source data.
 
-        This deliberately overrides `pydantic.BaseModel.__iter__`, which yields
-        `(name, value)` tuples — dict-compat callers expect just the keys.
+        Overrides `pydantic.BaseModel.__iter__` (which yields `(name, value)`
+        tuples) so `for k in obj` matches dict semantics. Only yields keys
+        for fields populated during validation plus any extras preserved
+        via `extra="allow"` — not defaulted fields.
         """
-        for field_name, field_info in self.__class__.model_fields.items():
-            yield field_info.alias or field_name
+        yield from self._present_api_keys()
 
     def __len__(self) -> int:
-        # Mirror dict semantics: report the number of fields that were
-        # actually present in the source data, not the count of fields
-        # declared on the class. Pydantic tracks this via `model_fields_set`
-        # for instances built from `model_validate(...)`.
-        return len(self.model_fields_set)
+        return len(self._present_api_keys())
 
     def keys(self) -> list[str]:
-        """Dict-style `.keys()` — returns the API-shaped key names."""
-        return list(iter(self))
+        """Dict-style `.keys()` — API-shaped names of fields present in the source."""
+        return list(self._present_api_keys())
 
     def values(self) -> list[Any]:
-        """Dict-style `.values()` — returns the attribute values in field order."""
-        return [getattr(self, name) for name in self.__class__.model_fields]
+        """Dict-style `.values()` — values for fields present in the source."""
+        present_declared = set(self.model_fields_set)
+        result = [
+            getattr(self, name)
+            for name in self.__class__.model_fields
+            if name in present_declared
+        ]
+        result.extend(self._pydantic_extras().values())
+        return result
 
     def items(self) -> list[tuple[str, Any]]:
-        """Dict-style `.items()` — returns (api-key, value) pairs in field order."""
-        result = []
+        """Dict-style `.items()` — (api-key, value) pairs for fields present."""
+        present_declared = set(self.model_fields_set)
+        result: list[tuple[str, Any]] = []
         for field_name, field_info in self.__class__.model_fields.items():
-            key = field_info.alias or field_name
-            result.append((key, getattr(self, field_name)))
+            if field_name in present_declared:
+                key = field_info.alias or field_name
+                result.append((key, getattr(self, field_name)))
+        for extra_key, extra_value in self._pydantic_extras().items():
+            result.append((extra_key, extra_value))
         return result

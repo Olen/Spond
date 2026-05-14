@@ -21,7 +21,7 @@ from ._compat import DictCompatModel
 class Post(DictCompatModel):
     """A post on a Group's wall (announcement, not a chat message)."""
 
-    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     uid: str = Field(alias="id")
     type: str = "PLAIN"

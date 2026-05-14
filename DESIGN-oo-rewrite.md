@@ -192,7 +192,7 @@ All four are answerable mid-impl with live API probing using credentials at `/ho
 ## Out of scope
 
 - `Spond.get_messages` and the chat machinery — chats are tangled, leave on the dict-based path. Possible v1.4 follow-up.
-- Removing `self.events_update` (already removed in #243).
+- Removing `self.events_update` (a pre-existing latent attribute that was already cleaned up before this PR — out of scope here).
 - Adding new HTTP endpoints. This is a re-shaping of the existing surface only.
 - Renaming any `Spond.get_*` method — name stability matters more than name perfection.
 

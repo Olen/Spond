@@ -158,6 +158,9 @@ class TestEventMethods:
         # Result is a dict (model_dump output), with the updated heading
         assert isinstance(result, dict)
         assert result["heading"] == "New"
+        # Regression guard for issue #239: the result must NOT be the
+        # cached events list (the bug that was: `return self.events`).
+        assert result is not s.events
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.put")
@@ -327,7 +330,9 @@ class TestExportMethod:
         `Event.attendance_xlsx()`)."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
-        s.events = [Event.from_api(_MIN_EVENT_PAYLOAD, s)]
+        # Note: `s.events` is intentionally not pre-populated — the
+        # deprecated wrapper does a direct GET on the export endpoint, it
+        # doesn't consult the events cache.
 
         mock_binary = b"\x68\x65\x6c\x6c\x6f\x77\x6f\x72\x6c\x64"  # helloworld
         mock_get.return_value.__aenter__.return_value.status = 200
@@ -646,6 +651,37 @@ class TestDictCompat:
         keys = list(e)
         assert "id" in keys  # alias, not "uid"
         assert "startTimestamp" in keys  # alias, not "start_time"
+
+    def test_len_contains_and_iter_agree(self) -> None:
+        """`__len__`, `__contains__`, and `__iter__` must all reflect the
+        same view of "what's actually in this object" — pre-OO callers
+        relied on dict semantics where these three are always consistent."""
+        e = Event.model_validate(_MIN_EVENT_PAYLOAD)
+        keys = list(e)
+        assert len(e) == len(keys)
+        for k in keys:
+            assert k in e
+        # A field with a default that wasn't in the source data must NOT
+        # appear in any of the three views.
+        assert "description" not in e  # not in _MIN_EVENT_PAYLOAD
+        assert "description" not in keys
+
+    def test_extra_allow_preserves_unmodelled_fields(self) -> None:
+        """With `model_config = extra="allow"`, Spond-side fields the SDK
+        doesn't model are preserved on the instance and accessible via the
+        dict-compat shim (with deprecation warning)."""
+        import warnings as _w
+
+        payload = {**_MIN_EVENT_PAYLOAD, "futureSpondField": "preserved"}
+        e = Event.model_validate(payload)
+        # Iteration includes the extra
+        assert "futureSpondField" in e
+        assert "futureSpondField" in list(e)
+        with _w.catch_warnings(record=True) as caught:
+            _w.simplefilter("always")
+            value = e["futureSpondField"]
+        assert value == "preserved"
+        assert any(issubclass(w.category, DeprecationWarning) for w in caught)
 
 
 class TestEventOOMethods:

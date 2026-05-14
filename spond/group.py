@@ -47,7 +47,7 @@ class Group(DictCompatModel):
 
     model_config = ConfigDict(
         populate_by_name=True,
-        extra="ignore",
+        extra="allow",
         arbitrary_types_allowed=True,
     )
 

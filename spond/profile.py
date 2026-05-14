@@ -22,7 +22,7 @@ class Profile(DictCompatModel):
     nested inside Member/Guardian — that's a sparse reference shape.
     """
 
-    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     uid: str = Field(alias="id")
     first_name: str = Field(alias="firstName")

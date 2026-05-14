@@ -142,7 +142,11 @@ class SpondClub(_SpondBase):
                 if len(raw) == 0:
                     return self.transactions
 
-                self.transactions.extend(Transaction.model_validate(t) for t in raw)
+                # Validate the whole page first, then extend, so a mid-page
+                # validation failure can't leave `self.transactions`
+                # partially populated.
+                page = [Transaction.model_validate(t) for t in raw]
+                self.transactions.extend(page)
                 if len(self.transactions) < max_items:
                     return await self.get_transactions(
                         club_id=club_id,

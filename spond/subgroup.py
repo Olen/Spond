@@ -17,7 +17,7 @@ class Subgroup(DictCompatModel):
     Members reference subgroups by UID via `Member.subgroup_uids`.
     """
 
-    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     uid: str = Field(alias="id")
     name: str

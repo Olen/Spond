@@ -15,7 +15,7 @@ from ._compat import DictCompatModel
 class Role(DictCompatModel):
     """A named permission role within a `Group` (e.g. \"Coach\", \"Treasurer\")."""
 
-    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     uid: str = Field(alias="id")
     name: str

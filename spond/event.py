@@ -52,7 +52,7 @@ class Responses(DictCompatModel):
     follow-up).
     """
 
-    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
 
     accepted_uids: list[str] = Field(default_factory=list, alias="acceptedIds")
     """UIDs of members who accepted the invitation."""
@@ -64,6 +64,28 @@ class Responses(DictCompatModel):
     """UIDs of members on the waiting list (event is full)."""
     unconfirmed_uids: list[str] = Field(default_factory=list, alias="unconfirmedIds")
     """UIDs of members whose response needs confirmation."""
+
+
+# Python field names that `Event.update()` strips from the POST payload —
+# they're either server-managed (creator/timestamps), derived (`expired`),
+# or have their own dedicated endpoint (`responses` goes through
+# `change_response`). Sending these back in an update body risks Spond
+# treating stale local state as authoritative.
+_EVENT_READ_ONLY_FIELDS = frozenset(
+    {
+        "creator_uid",
+        "created_time",
+        "updated",
+        "expired",
+        "registered",
+        "modified_from_series",
+        "series_uid",
+        "series_ordinal",
+        "responses",
+        "recipients",
+        "comments",
+    }
+)
 
 
 class Event(DictCompatModel):
@@ -90,7 +112,7 @@ class Event(DictCompatModel):
 
     model_config = ConfigDict(
         populate_by_name=True,
-        extra="ignore",
+        extra="allow",
         arbitrary_types_allowed=True,
     )
 
@@ -181,9 +203,11 @@ class Event(DictCompatModel):
         """POST changes to this event back to Spond and return the updated event.
 
         Accepts either Python-style attribute names (`description="..."`) or
-        API-style aliases (`startTimestamp="..."`). Unknown keys are passed
-        through to Spond unchanged — Spond is the ultimate arbiter of what
-        the event API accepts, not this SDK.
+        API-style aliases (`startTimestamp="..."`) — resolution is bounded
+        to `Event.model_fields`, so keys that don't match a declared field
+        in either form pass through to Spond verbatim under their original
+        name. Spond is the ultimate arbiter of what the event API accepts,
+        not this SDK.
 
         The POST payload is built from this Event's current state via
         `model_dump(by_alias=True, mode="json")`, then overlaid with the
@@ -221,7 +245,12 @@ class Event(DictCompatModel):
                 field_info = self.__class__.model_fields[py_name]
                 api_updates[field_info.alias or py_name] = value
 
-        payload = self.model_dump(by_alias=True, mode="json")
+        # Dump the current state, then strip read-only fields (creator,
+        # timestamps, server-managed flags, responses) so the update body
+        # only carries fields the API actually accepts on POST.
+        payload = self.model_dump(
+            by_alias=True, mode="json", exclude=_EVENT_READ_ONLY_FIELDS
+        )
         payload.update(api_updates)
 
         url = f"{self._client.api_url}sponds/{self.uid}"
