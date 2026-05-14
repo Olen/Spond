@@ -12,7 +12,7 @@ working with a `DeprecationWarning`.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
@@ -214,6 +214,141 @@ class Event(DictCompatModel):
     def url(self) -> str:
         """Web URL of the event (for opening in a browser)."""
         return f"https://spond.com/client/sponds/{self.uid}/"
+
+    @property
+    def is_past(self) -> bool:
+        """True when the event has finished (or started, if no `end_time`).
+
+        An event with no `start_time` is never "past" (the API hasn't
+        committed it to a calendar slot yet) — returns False.
+        """
+        # Prefer end_time; fall back to start_time when end isn't set.
+        reference = self.end_time or self.start_time
+        if reference is None:
+            return False
+        return reference < datetime.now(UTC)
+
+    @property
+    def is_upcoming(self) -> bool:
+        """True when the event hasn't started yet. Opposite face of
+        `is_past`, but **not** strictly its negation — an event with no
+        `start_time` returns False for both."""
+        if self.start_time is None:
+            return False
+        return self.start_time > datetime.now(UTC)
+
+    @property
+    def duration(self) -> timedelta | None:
+        """`end_time - start_time` when both are present; otherwise `None`.
+
+        Returns a `datetime.timedelta`. Useful for calendar sync, slot
+        comparison, and reporting.
+        """
+        if self.start_time is None or self.end_time is None:
+            return None
+        return self.end_time - self.start_time
+
+    def response_for(self, member_uid: str) -> str | None:
+        """Return the response status of `member_uid` on this event.
+
+        Returns one of `"accepted"`, `"declined"`, `"unanswered"`,
+        `"waiting_list"`, `"unconfirmed"` — or `None` if the uid doesn't
+        appear in any of the response lists (i.e. not invited).
+
+        Synchronous; reads from the already-populated `responses` field.
+        Doesn't issue HTTP. Pair with `await event.accepted_members()`
+        and siblings to resolve uids → typed members.
+        """
+        if not self.responses:
+            return None
+        for status, uids in (
+            ("accepted", self.responses.accepted_uids),
+            ("declined", self.responses.declined_uids),
+            ("unanswered", self.responses.unanswered_uids),
+            ("waiting_list", self.responses.waiting_list_uids),
+            ("unconfirmed", self.responses.unconfirmed_uids),
+        ):
+            if member_uid in uids:
+                return status
+        return None
+
+    def has_responded(self, member_uid: str) -> bool:
+        """True when `member_uid` has given any concrete response
+        (`accepted`, `declined`, `waiting_list`, or `unconfirmed`) — i.e.
+        their uid is in any list other than `unanswered_uids`."""
+        status = self.response_for(member_uid)
+        return status is not None and status != "unanswered"
+
+    async def _resolve_uids_to_persons(self, uids: list[str]) -> list[Any]:
+        """Resolve member UIDs to typed `Member`/`Guardian` objects.
+
+        Walks the client's `groups` cache (fetching via `get_groups()` if
+        empty) and returns one typed `Person` per uid. UIDs that don't
+        match any current group member are silently skipped — Spond
+        sometimes retains response records for members who've since left.
+
+        Used by `accepted_members()` and siblings. Requires `_client`.
+        """
+        if self._client is None:
+            raise RuntimeError(
+                "Event has no client attached; member-resolution helpers "
+                "require an instance constructed via Spond.get_event() or "
+                "Spond.get_events()."
+            )
+        if not self._client.groups:
+            await self._client.get_groups()
+        if not self._client.groups:
+            return []
+        # Build a single uid → person lookup across all groups, so the
+        # per-uid scan is O(uids) not O(uids × groups × members).
+        index: dict[str, Any] = {}
+        for group in self._client.groups:
+            for member in group.members:
+                index.setdefault(member.uid, member)
+                for guardian in member.guardians:
+                    index.setdefault(guardian.uid, guardian)
+        return [index[uid] for uid in uids if uid in index]
+
+    async def accepted_members(self) -> list[Any]:
+        """Resolve `responses.accepted_uids` to typed `Member`/`Guardian`
+        objects via the client's group cache. Lazy — fetches groups if the
+        cache is empty.
+
+        Returns
+        -------
+        list[Member | Guardian]
+            One typed `Person` per uid that still resolves to a current
+            group member. UIDs that no longer correspond to a member of
+            any group are silently omitted from the result.
+
+        Raises
+        ------
+        RuntimeError
+            The Event was constructed without a client (e.g. via
+            `Event.model_validate(raw)` directly rather than
+            `Spond.get_event()`). Helpers need a client to fetch groups.
+        """
+        return await self._resolve_uids_to_persons(self.responses.accepted_uids)
+
+    async def declined_members(self) -> list[Any]:
+        """Resolve `responses.declined_uids` to typed `Member`/`Guardian`
+        objects. See `accepted_members` for semantics."""
+        return await self._resolve_uids_to_persons(self.responses.declined_uids)
+
+    async def unanswered_members(self) -> list[Any]:
+        """Resolve `responses.unanswered_uids` to typed `Member`/`Guardian`
+        objects. See `accepted_members` for semantics."""
+        return await self._resolve_uids_to_persons(self.responses.unanswered_uids)
+
+    async def waiting_list_members(self) -> list[Any]:
+        """Resolve `responses.waiting_list_uids` to typed `Member`/`Guardian`
+        objects. See `accepted_members` for semantics."""
+        return await self._resolve_uids_to_persons(self.responses.waiting_list_uids)
+
+    async def unconfirmed_members(self) -> list[Any]:
+        """Resolve `responses.unconfirmed_uids` to typed `Member`/`Guardian`
+        objects. See `accepted_members` for semantics."""
+        return await self._resolve_uids_to_persons(self.responses.unconfirmed_uids)
 
     @classmethod
     def from_api(cls, data: dict[str, Any], client: Spond | None) -> Event:

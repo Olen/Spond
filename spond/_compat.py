@@ -253,6 +253,30 @@ class DictCompatModel(BaseModel):
         # equality/hash invariant.
         return object.__hash__(self)
 
+    def model_equals(self, other: object) -> bool:
+        """Pre-OO escape hatch: full-field equality, ignoring natural keys.
+
+        The default `==` operator on typed models compares natural keys
+        (uid when set, or user-visible fields), so two `Event` instances
+        with the same uid but different field state compare equal. That's
+        usually the right semantics for entity types, but a pre-OO caller
+        that depended on Pydantic's field-by-field equality (e.g. to
+        detect "has this event been mutated server-side?") can use this
+        method instead:
+
+        ```python
+        if not new_event.model_equals(old_event):
+            # state actually changed, not just the same record
+            ...
+        ```
+
+        Returns True iff `other` is the same class and every declared
+        field (plus `__pydantic_extra__`) matches.
+        """
+        if type(self) is not type(other):
+            return False
+        return BaseModel.__eq__(self, other)
+
 
 def _entity_kind_of(cls: type) -> str:
     """Walk the MRO to find the nearest non-`DictCompatModel`,
