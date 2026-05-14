@@ -22,8 +22,11 @@ class AuthenticationError(Exception):
     - The Spond login API has changed shape and the response no longer
       contains an `accessToken`.
 
-    The exception message includes the raw login response, which usually
-    indicates which of the above applies.
+    The exception message includes any of the response's whitelisted
+    diagnostic fields (`error`, `errorKey`, `errorCode`, `message`) so
+    most error cases are self-explanatory. Other response fields — such
+    as 2FA challenge tokens and (masked) `phoneNumber` — are intentionally
+    dropped from the message to avoid leaking them into application logs.
     """
 
     pass

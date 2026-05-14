@@ -15,6 +15,12 @@ import aiohttp
 
 from spond import AuthenticationError
 
+# Fields from a login response that are safe to surface in an
+# `AuthenticationError` message. Anything outside this set (notably 2FA
+# challenge tokens and `phoneNumber`) is dropped to avoid leaking
+# sensitive data into application logs.
+_SAFE_LOGIN_ERROR_FIELDS = ("error", "errorKey", "errorCode", "message")
+
 
 class _SpondBase(ABC):
     """Abstract base for Spond API clients.
@@ -116,4 +122,8 @@ class _SpondBase(ABC):
             token = access.get("token")
             if isinstance(token, str) and token:
                 return token
-        raise AuthenticationError(f"Login failed. Response received: {login_result}")
+        safe = {
+            k: login_result[k] for k in _SAFE_LOGIN_ERROR_FIELDS if k in login_result
+        }
+        diagnostic = safe or "(no recognised diagnostic fields in response)"
+        raise AuthenticationError(f"Login failed. {diagnostic}")

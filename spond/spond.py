@@ -72,8 +72,9 @@ class Spond(_SpondBase):
 
         The credentials are stored on the instance and used to obtain an access
         token on the first authenticated call. An aiohttp `ClientSession` is
-        opened immediately; close it via `await client.clientsession.close()`
-        when finished to avoid `Unclosed client session` warnings.
+        opened immediately; close it via `await s.clientsession.close()`
+        (where `s` is the constructed instance) when finished, to avoid
+        `Unclosed client session` warnings.
 
         Parameters
         ----------
@@ -646,6 +647,8 @@ class Spond(_SpondBase):
             Raw XLSX file contents. Typically written directly to disk:
 
             ```python
+            import pathlib
+
             data = await s.get_event_attendance_xlsx(uid)
             pathlib.Path(f"{uid}.xlsx").write_bytes(data)
             ```

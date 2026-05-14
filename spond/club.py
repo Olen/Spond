@@ -68,8 +68,14 @@ class SpondClub(_SpondBase):
         Spond's transactions endpoint returns at most 25 records per request,
         so this method paginates internally (via recursion on `skip`) until
         either `max_items` is reached or the server returns an empty page.
-        Results are accumulated on `self.transactions`; subsequent calls
-        append to it unless you reset `self.transactions = None` first.
+
+        **Caching caveat**: results accumulate on `self.transactions` and
+        the cache is **not** keyed by `club_id` — calling this method again
+        with a different `club_id` on the same instance will append that
+        club's transactions to the same list, mixing the two. If you query
+        multiple clubs from one client, reset the cache between calls
+        (`sc.transactions = None`) or use a fresh `SpondClub` instance per
+        club.
 
         Each transaction dict typically includes at least `id`, `paidAt`,
         `paymentName`, and `paidByName`. See `examples/transactions.py` for
