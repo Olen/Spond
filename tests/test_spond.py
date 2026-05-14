@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from spond import AuthenticationError
 from spond.base import _SpondBase
 from spond.spond import Spond
 
@@ -340,3 +341,64 @@ class TestPostMethods:
 
         with pytest.raises(ValueError, match="401"):
             await s.get_posts()
+
+
+class TestLogin:
+    @pytest.mark.parametrize(
+        ("login_result", "expected"),
+        [
+            (
+                {"accessToken": {"token": "ABC", "expiration": "2026-05-14T12:00:00Z"}},
+                "ABC",
+            ),
+        ],
+    )
+    def test_extract_access_token__happy_path(self, login_result, expected) -> None:
+        assert _SpondBase._extract_access_token(login_result) == expected
+
+    @pytest.mark.parametrize(
+        "login_result",
+        [
+            {"error": "Invalid credentials"},
+            {"accessToken": None},
+            {"accessToken": {}},
+            {"accessToken": {"token": ""}},
+            {"accessToken": {"token": None}},
+        ],
+    )
+    def test_extract_access_token__bad_shape_raises(self, login_result) -> None:
+        with pytest.raises(AuthenticationError):
+            _SpondBase._extract_access_token(login_result)
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_login__happy_path(self, mock_post) -> None:
+        mock_response = {
+            "accessToken": {"token": "ABC", "expiration": "2026-05-14T12:00:00Z"},
+            "refreshToken": {"token": "REF", "expiration": "2026-08-11T12:00:00Z"},
+            "passwordToken": {"token": "PWD", "expiration": "2026-05-13T13:00:00Z"},
+        }
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=mock_response
+        )
+
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        await s.login()
+
+        mock_post.assert_called_once_with(
+            "https://api.spond.com/core/v1/auth2/login",
+            json={"email": MOCK_USERNAME, "password": MOCK_PASSWORD},
+        )
+        assert s.token == "ABC"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_login__error_response_raises(self, mock_post) -> None:
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={"error": "Invalid credentials"}
+        )
+
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        with pytest.raises(AuthenticationError):
+            await s.login()
+        assert s.token is None

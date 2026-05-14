@@ -35,11 +35,17 @@ class _SpondBase(ABC):
         return wrapper
 
     async def login(self) -> None:
-        login_url = f"{self.api_url}login"
+        login_url = f"{self.api_url}auth2/login"
         data = {"email": self.username, "password": self.password}
         async with self.clientsession.post(login_url, json=data) as r:
             login_result = await r.json()
-            self.token = login_result.get("loginToken")
-            if self.token is None:
-                err_msg = f"Login failed. Response received: {login_result}"
-                raise AuthenticationError(err_msg)
+        self.token = self._extract_access_token(login_result)
+
+    @staticmethod
+    def _extract_access_token(login_result: dict) -> str:
+        access = login_result.get("accessToken")
+        if isinstance(access, dict):
+            token = access.get("token")
+            if isinstance(token, str) and token:
+                return token
+        raise AuthenticationError(f"Login failed. Response received: {login_result}")
