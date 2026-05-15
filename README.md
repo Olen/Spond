@@ -7,6 +7,61 @@ Simple, unofficial library with some example scripts to access data from the [Sp
 
 `pip install spond`
 
+### ⚠️ Upgrading to v2.0 — read this first
+
+v2.0 is the OO-rewrite release. The `get_*` methods now return typed
+Pydantic models (`Event`, `Group`, `Member`, `Post`, `Chat`, …) instead
+of raw `dict`s. **Existing code that uses dict-style access keeps
+working** through a `DeprecationWarning` shim — but a few things did
+change. Before upgrading from 1.x:
+
+- **Equality semantics changed.** `Event(uid="X") == Event(uid="X")`
+  now compares natural keys (uid-based when present) rather than every
+  field. Two instances with the same uid but different field state are
+  now considered equal. Callers depending on the old "are these
+  field-identical?" behaviour can use the new `obj.model_equals(other)`
+  escape hatch.
+- **Return types of every `Spond.get_*` method changed** from
+  `JSONDict` / `list[JSONDict]` to typed objects. Static type checkers
+  flag this; the runtime dict shim covers most code at runtime.
+- **HTTP error class changed** from bare `ValueError` to `SpondAPIError`
+  — which still inherits from `ValueError`, so `except ValueError:` is
+  unaffected. Same for the `*NotFoundError` family (still `KeyError`).
+- **Some deprecated wrappers will be removed in v3.x.**
+  `Spond.update_event()`, `Spond.change_response()`, and
+  `Spond.get_event_attendance_xlsx()` emit `DeprecationWarning` in v2.x;
+  use `Event.update()`, `Event.change_response()`, and
+  `Event.attendance_xlsx()` instead.
+
+**Pin to `< 2.0.0` if you aren't ready to upgrade yet:**
+
+```shell
+pip install "spond<2.0.0"
+```
+
+Or in `pyproject.toml`:
+```toml
+[tool.poetry.dependencies]
+spond = "<2.0.0"
+```
+
+Or `requirements.txt`:
+```
+spond<2.0.0
+```
+
+**Audit your code before upgrading** by running with deprecation
+warnings promoted to errors — every dict-style access site lights up
+so you can migrate it:
+
+```shell
+python -W error::DeprecationWarning your_script.py
+```
+
+The full migration story (semantics, write surface, exception
+hierarchy, async context manager, etc.) is in
+[`DESIGN-oo-rewrite.md`](DESIGN-oo-rewrite.md).
+
 ## Usage
 
 You need a username and password from Spond

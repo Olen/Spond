@@ -152,6 +152,10 @@ class Event(DictCompatModel):
     heading: str = ""
     start_time: datetime | None = Field(default=None, alias="startTimestamp")
     end_time: datetime | None = Field(default=None, alias="endTimestamp")
+    meetup_time: datetime | None = Field(default=None, alias="meetupTimestamp")
+    """When participants are expected to arrive (Norwegian: \"oppmøtetid\").
+    Present on match events and some training events. Falls back to
+    `start_time` for events that only have a kickoff."""
     created_time: datetime | None = Field(default=None, alias="createdTime")
     type: str = ""
     """Spond's event-kind string. Common values are listed on `EventType`,
