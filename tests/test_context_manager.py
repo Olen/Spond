@@ -38,14 +38,28 @@ class TestSpondAsContextManager:
         assert s.clientsession.closed
 
     @pytest.mark.asyncio
-    async def test_double_close_does_not_raise(self) -> None:
+    async def test_double_close_does_not_raise_and_skips_second_close(self) -> None:
         """If the caller manually closed the session inside the block,
-        the context-manager exit shouldn't blow up on top of it —
-        defensive cleanup must not mask the original control flow."""
+        `__aexit__` must (a) not blow up on top of it, and (b) actually
+        skip the redundant close — exercised via a spy on `close()`
+        that counts how many times it's invoked."""
+        from unittest.mock import AsyncMock
+
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         async with s:
             await s.clientsession.close()
-        # No exception escaped; both close paths were tolerated.
+            # Install a spy on close() AFTER the manual close, so the
+            # counter starts at zero and we can verify __aexit__'s
+            # closed-check skips the call.
+            spy = AsyncMock()
+            s.clientsession.close = spy
+        # No exception escaped, AND __aexit__ saw closed=True and
+        # never called the real close() a second time.
+        assert spy.await_count == 0, (
+            "__aexit__ should have skipped close() because clientsession "
+            "was already closed; instead it called close() "
+            f"{spy.await_count} times"
+        )
 
     @pytest.mark.asyncio
     async def test_spondclub_also_supports_context_manager(self) -> None:

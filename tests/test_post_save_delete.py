@@ -189,23 +189,29 @@ class TestPostSaveCreate:
 
 class TestPostSaveUpdate:
     @pytest.mark.asyncio
-    @patch("aiohttp.ClientSession.post")
-    async def test_save_existing_posts_to_uid_url(self, mock_post) -> None:
+    @patch("aiohttp.ClientSession.put")
+    async def test_save_existing_puts_to_uid_url(self, mock_put) -> None:
+        """Post update uses **PUT** `/posts/{uid}` — verified live; the
+        create path uses POST `/posts/`. Different from Event (which
+        uses POST for both verbs)."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = "MOCK"
         post = Post.from_api(_API_POST, s)
 
-        mock_post.return_value.__aenter__.return_value.ok = True
-        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+        mock_put.return_value.__aenter__.return_value.ok = True
+        mock_put.return_value.__aenter__.return_value.json = AsyncMock(
             return_value={**_API_POST, "title": "Renamed"}
         )
 
         post.title = "Renamed"
         await post.save()
 
-        called_url = mock_post.call_args[0][0]
-        assert called_url.endswith("/posts/NEWUID")
+        called_url = mock_put.call_args[0][0]
+        assert called_url.endswith("/posts/NEWUID"), (
+            f"update should PUT to /posts/NEWUID, got {called_url}"
+        )
         assert post.title == "Renamed"
+        mock_put.assert_called_once()
 
 
 class TestPostDelete:
@@ -371,32 +377,150 @@ class TestAddComment:
             await post.add_comment("hi")
 
 
+class TestSaveDoesNotWipeLocallyAddedComments:
+    """Regression guard: a Post that has a comment added via
+    `add_comment()` and is then `save()`-d must NOT lose that comment,
+    even if Spond's update response omits the `comments` array."""
+
+    _API_COMMENT = {
+        "id": "CMT_X",
+        "text": "locally added",
+        "fromProfileId": "P",
+        "timestamp": "2026-05-15T12:00:00Z",
+    }
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.put")
+    @patch("aiohttp.ClientSession.post")
+    async def test_save_preserves_comments_when_response_omits_them(
+        self, mock_post, mock_put
+    ) -> None:
+        """The realistic case: Spond's PUT /posts/{uid} update response
+        doesn't include the comments array. `save()` must preserve
+        whatever's in `self.comments` rather than overwriting with
+        the (empty / missing) `refreshed.comments`. add_comment uses
+        POST `/posts/{uid}/comments`; save() update uses PUT — both
+        verbs are mocked here so the test exercises both paths."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = "MOCK"
+        post = Post.from_api(_API_POST, s)
+        assert post.comments == []
+
+        # 1) add_comment (POST /posts/{uid}/comments) populates self.comments.
+        mock_post.return_value.__aenter__.return_value.ok = True
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=self._API_COMMENT
+        )
+        await post.add_comment("locally added")
+        assert len(post.comments) == 1
+        assert post.comments[0].text == "locally added"
+
+        # 2) Mock save's update (PUT) response WITHOUT a `comments` key.
+        update_response = {k: v for k, v in _API_POST.items() if k != "comments"}
+        update_response["title"] = "Renamed"
+        mock_put.return_value.__aenter__.return_value.ok = True
+        mock_put.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=update_response
+        )
+        post.title = "Renamed"
+        await post.save()
+
+        # 3) The locally-added comment must survive.
+        assert len(post.comments) == 1, (
+            "save() wiped the locally-added comment — `comments` should be "
+            "skipped during the in-place state copy on update"
+        )
+        assert post.comments[0].text == "locally added"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.put")
+    @patch("aiohttp.ClientSession.post")
+    async def test_save_preserves_comments_when_response_returns_empty_list(
+        self, mock_post, mock_put
+    ) -> None:
+        """Even if Spond's update response explicitly returns
+        `comments: []` (stale because they were fetched separately),
+        the local state must not be wiped — the server isn't the
+        authoritative view of comments through the update endpoint."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = "MOCK"
+        post = Post.from_api(_API_POST, s)
+
+        mock_post.return_value.__aenter__.return_value.ok = True
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={**self._API_COMMENT, "text": "must survive"}
+        )
+        await post.add_comment("must survive")
+        assert len(post.comments) == 1
+
+        # Spond's update response includes `comments: []` (also realistic).
+        mock_put.return_value.__aenter__.return_value.ok = True
+        mock_put.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={**_API_POST, "comments": [], "title": "Renamed"}
+        )
+        post.title = "Renamed"
+        await post.save()
+
+        assert len(post.comments) == 1
+        assert post.comments[0].text == "must survive"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_save_create_DOES_apply_response_comments(self, mock_post) -> None:
+        """The skip-on-update behaviour must NOT apply on the create
+        path: a brand-new post has no local comments to preserve, and
+        Spond's create response IS the canonical fresh state."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = "MOCK"
+        s.posts = []
+        post = _fresh_post()
+
+        # Hypothetical create response that somehow includes a comment
+        # (unusual but verifies the create path doesn't short-circuit).
+        mock_post.return_value.__aenter__.return_value.ok = True
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={**_API_POST, "comments": [self._API_COMMENT]}
+        )
+        await post.save(client=s)
+
+        assert len(post.comments) == 1, (
+            "create path should accept the response's comments as canonical"
+        )
+
+
 class TestPostRoundtrip:
     """End-to-end ActiveRecord lifecycle: construct → save (create) →
     mutate → save (update) → add_comment → delete."""
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.delete")
+    @patch("aiohttp.ClientSession.put")
     @patch("aiohttp.ClientSession.post")
-    async def test_full_lifecycle(self, mock_post, mock_delete) -> None:
+    async def test_full_lifecycle(self, mock_post, mock_put, mock_delete) -> None:
+        """Mocks split by verb: POST is used for create + add_comment;
+        PUT is used for the update path; DELETE for delete."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = "MOCK"
         s.posts = []
         post = _fresh_post()
 
         mock_post.return_value.__aenter__.return_value.ok = True
-        # Sequence: create response, update response, comment response
+        # POST is used for create then add_comment. Order matters.
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             side_effect=[
-                _API_POST,
-                {**_API_POST, "title": "Renamed"},
-                {
+                _API_POST,  # 1) create response
+                {  # 2) add_comment response
                     "id": "CMT",
                     "text": "hi",
                     "fromProfileId": "P",
                     "timestamp": "2026-05-15T12:00:00Z",
                 },
             ]
+        )
+        # PUT is only used for the update path.
+        mock_put.return_value.__aenter__.return_value.ok = True
+        mock_put.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={**_API_POST, "title": "Renamed"}
         )
 
         await post.save(client=s)

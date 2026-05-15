@@ -53,7 +53,10 @@ class Comment(DictCompatModel):
     def __str__(self) -> str:
         ts = self.timestamp.isoformat() if self.timestamp else "?"
         snippet = self.text[:40] + ("…" if len(self.text) > 40 else "")
-        return f"Comment(uid={self.uid!r}, from={self.from_profile_uid!r}, ts={ts}, text={snippet!r})"
+        return (
+            f"Comment(uid={self.uid!r}, from={self.from_profile_uid!r}, "
+            f"ts={ts}, text={snippet!r})"
+        )
 
     def _natural_key(self) -> tuple | None:
         """uid when set; otherwise (from_profile_uid, timestamp, text)

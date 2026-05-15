@@ -179,14 +179,22 @@ class Post(DictCompatModel):
             exclude_none=True,
         )
         payload.pop("id", None)  # never echo uid in the body
+
+        # Spond uses different verbs for create vs update on posts:
+        # POST `/posts/` to create, PUT `/posts/{uid}` to update.
+        # Verified live against the test group (POST `/posts/{uid}`
+        # returns 405 Method Not Allowed; PUT returns 200 with the
+        # updated post). This is inconsistent with Spond's event API
+        # (which uses POST for both), but matches what the SDK has to
+        # do to round-trip changes.
         if self.uid:
             url = f"{self._client.api_url}posts/{self.uid}"
+            http = self._client.clientsession.put
         else:
             url = f"{self._client.api_url}posts/"
+            http = self._client.clientsession.post
 
-        async with self._client.clientsession.post(
-            url, json=payload, headers=self._client.auth_headers
-        ) as r:
+        async with http(url, json=payload, headers=self._client.auth_headers) as r:
             if not r.ok:
                 raise SpondAPIError(r.status, await r.text(), url)
             new_data = await r.json()
@@ -204,7 +212,20 @@ class Post(DictCompatModel):
         # (e.g. mutation timestamps). The wholesale
         # `__pydantic_fields_set__` replacement on the line below keeps
         # `exclude_unset=True` dumps consistent with what Spond emitted.
+        #
+        # `comments` and `reactions` are deliberately skipped on the
+        # UPDATE path: those fields have dedicated endpoints
+        # (`add_comment()`, reactions API) and Spond's POST /posts/{uid}
+        # update response doesn't always include them. Overwriting from
+        # the response would silently wipe a comment that
+        # `await add_comment()` had just appended locally. On the CREATE
+        # path Spond's response is the canonical fresh state (an empty
+        # list / dict for a brand-new post), so we let the overwrite
+        # proceed and treat it as the authoritative initial value.
+        skip_on_update = set() if is_create else {"comments", "reactions"}
         for field_name in type(self).model_fields:
+            if field_name in skip_on_update:
+                continue
             object.__setattr__(self, field_name, getattr(refreshed, field_name))
         extras = refreshed._pydantic_extras()
         if extras and self.__pydantic_extra__ is not None:
@@ -291,6 +312,12 @@ class Post(DictCompatModel):
             if not r.ok:
                 raise SpondAPIError(r.status, await r.text(), url)
             data = await r.json()
+        # Comments carry no ActiveRecord operations of their own
+        # (Spond exposes no edit/delete endpoints for individual
+        # comments via the consumer API), so the new instance doesn't
+        # need `_client` wiring. If Comment grows behaviour later
+        # (e.g. `comment.react()`), revisit this construction site to
+        # thread the client through.
         comment = Comment.model_validate(data)
         # Keep the parent in sync — callers reading `post.comments`
         # immediately after this call should see the new comment.

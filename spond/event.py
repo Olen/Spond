@@ -678,7 +678,19 @@ class Event(DictCompatModel):
         # validation per-field here would be redundant work AND would
         # incorrectly re-trigger any validators with side effects (e.g.
         # mutation timestamps).
+        #
+        # `comments` and `responses` are skipped on the UPDATE path:
+        # both have dedicated endpoints (post-style comments, and
+        # `change_response()` for attendance) and Spond's POST
+        # /sponds/{uid} response doesn't always include them.
+        # Overwriting from the response would silently wipe local
+        # state that's been updated through those side-channel
+        # endpoints. On the CREATE path the response IS the canonical
+        # fresh state, so we let the overwrite proceed.
+        skip_on_update = set() if is_create else {"comments", "responses"}
         for field_name in type(self).model_fields:
+            if field_name in skip_on_update:
+                continue
             object.__setattr__(self, field_name, getattr(refreshed, field_name))
         # Capture any extras Spond added that we don't model.
         extras = refreshed._pydantic_extras()

@@ -74,7 +74,11 @@ class TestGroupMethods:
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
         s.groups = None
-        s.get_groups = AsyncMock()  # leaves self.groups as None
+        # Production code consults `self.groups` (not the return value
+        # of `get_groups()`), so this mock just needs to be a no-op that
+        # doesn't trigger a real HTTP call. `s.groups` is already set
+        # to None on line 76; we never assert on the mock's return.
+        s.get_groups = AsyncMock(return_value=None)
 
         with pytest.raises(KeyError):
             await s.get_group("ID1")
