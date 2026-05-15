@@ -99,15 +99,25 @@ EventType (StrEnum, canonical reference)
      for callers writing comparisons.
 
 Group(DictCompatModel)
-  ├─ uid, name, members: list[Member], subgroups: list[Subgroup], roles: list[Role],
-  │  plus the full set of fields surfaced by the live API audit
-  │  (created_time, member_permissions, guardian_permissions, chat_age_limit,
+  ├─ uid, name, members: list[Member], subgroups: list[Subgroup],
+  │  roles: list[Role], field_defs: list[FieldDef], plus the full set
+  │  of admin fields surfaced by the live API audit (created_time,
+  │  member_permissions, guardian_permissions, chat_age_limit,
   │  share_contact_info, address_format, ...)
-  └─ methods: find_member(*, email=None, name=None, uid=None) -> Member | None
-              (`from_api` wires `_client` through nested Members/Guardians)
+  └─ Navigation helpers (synchronous, no HTTP):
+       ├─ find_member(*, email=None, name=None, uid=None) -> Member | None
+       ├─ member_by_uid(uid) / role_by_uid(uid) / subgroup_by_uid(uid)
+       │     — return the typed object by uid, or None
+       └─ members_by_subgroup(subgroup_or_uid) /
+          members_by_role(role_or_uid)
+              — return list[Member] filtered by membership/role
+              (accept either the typed object or its uid string).
+       (`from_api` wires `_client` through nested Members/Guardians)
 
-Subgroup, Role (DictCompatModel)
-  └─ uid, name (passive data, no methods)
+Subgroup, Role, FieldDef (DictCompatModel)
+  └─ uid, name (passive data, no methods).
+     FieldDef.uid pairs with Member.custom_fields keys so callers can
+     render human-readable label/value pairs for custom data.
 
 Profile(DictCompatModel)
   └─ uid, first_name, last_name, plus the live-audited extras (passive)
@@ -309,9 +319,10 @@ These items were "open questions" in earlier revisions of this document and have
 - `spond/exceptions.py` — `SpondError` and the typed-exception hierarchy
 - `spond/match.py` — `Match` (Event subclass), `MatchInfo`
 - `spond/person.py` — `Person`, `Member`, `Guardian`
-- `spond/group.py` — `Group`
+- `spond/group.py` — `Group` with `find_member()`, `member_by_uid()`, `role_by_uid()`, `subgroup_by_uid()`, `members_by_subgroup()`, `members_by_role()`
 - `spond/subgroup.py` — `Subgroup`
 - `spond/role.py` — `Role`
+- `spond/field_def.py` — typed `FieldDef` (replaces the raw extras dict on `Group.field_defs`)
 - `spond/profile.py` — `Profile`
 - `spond/post.py` — `Post` with `save()`/`delete()`/`add_comment()` ActiveRecord surface
 - `spond/comment.py` — typed `Comment` model (used by `Post.comments` and `Event.comments`)
@@ -341,6 +352,7 @@ The previous monolithic `tests/test_spond.py` has been split by domain. The curr
 - `tests/test_exceptions.py` — exception hierarchy + raise-site coverage
 - `tests/test_export.py` — deprecated `get_event_attendance_xlsx` wrapper
 - `tests/test_groups.py` — `get_group` + Group → Member → Guardian navigation + `get_person`
+- `tests/test_group_navigation_helpers.py` — `member_by_uid`, `role_by_uid`, `subgroup_by_uid`, `members_by_subgroup`, `members_by_role`, typed `FieldDef`
 - `tests/test_identity.py` — natural-key equality / hashing across all models
 - `tests/test_messaging.py` — `Spond.send_message` + `Chat`/`Message`
 - `tests/test_post_save_delete.py` — ActiveRecord write surface on Post (`save()`, `delete()`, `add_comment()`)

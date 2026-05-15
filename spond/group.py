@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import ConfigDict, Field, PrivateAttr
 
 from ._compat import DictCompatModel
+from .field_def import FieldDef
 from .person import Member
 from .role import Role
 from .subgroup import Subgroup
@@ -105,8 +106,10 @@ class Group(DictCompatModel):
     # Less user-facing — admin/finance internals. Kept as raw containers
     # because their nested shapes vary by Spond Club configuration and
     # we don't want to over-promise a structure.
-    field_defs: list[Any] = Field(default_factory=list, alias="fieldDefs")
-    """Custom-field definitions configured on the group. Unmodelled."""
+    field_defs: list[FieldDef] = Field(default_factory=list, alias="fieldDefs")
+    """Custom-field definitions configured on the group. Pair with
+    `Member.custom_fields` (keyed by `FieldDef.uid`) to render
+    human-readable label/value pairs in callers' UIs."""
     default_fields: dict[str, Any] = Field(default_factory=dict, alias="defaultFields")
     """Default per-member field metadata. Unmodelled."""
     payout_accounts: list[Any] = Field(default_factory=list, alias="payoutAccounts")
@@ -202,3 +205,48 @@ class Group(DictCompatModel):
             if name is not None and member.full_name == name:
                 return member
         return None
+
+    def member_by_uid(self, uid: str) -> Member | None:
+        """Find a member by `uid`. Returns `None` if not found.
+
+        Shorthand for `find_member(uid=uid)` — matches the
+        `role_by_uid` / `subgroup_by_uid` sibling shape so callers can
+        write `group.member_by_uid(...)` / `group.role_by_uid(...)` /
+        `group.subgroup_by_uid(...)` uniformly without remembering which
+        ones live on `find_member` vs as standalone helpers.
+        """
+        return self.find_member(uid=uid)
+
+    def role_by_uid(self, uid: str) -> Role | None:
+        """Find a role by `uid`. Returns `None` if not found."""
+        return next((r for r in self.roles if r.uid == uid), None)
+
+    def subgroup_by_uid(self, uid: str) -> Subgroup | None:
+        """Find a subgroup by `uid`. Returns `None` if not found."""
+        return next((sg for sg in self.subgroups if sg.uid == uid), None)
+
+    def members_by_subgroup(self, subgroup: Subgroup | str) -> list[Member]:
+        """Return members belonging to the given subgroup.
+
+        Accepts either a `Subgroup` instance or its `uid` string —
+        callers walking `group.subgroups` already have the object,
+        callers holding only a uid (e.g. from `member.subgroup_uids`)
+        avoid an extra lookup.
+
+        Returns an empty list if no members reference the subgroup
+        (including the case where the subgroup doesn't exist at all
+        — there's no need to distinguish "subgroup empty" from
+        "subgroup not in this group" for the navigation use case).
+        """
+        target_uid = subgroup if isinstance(subgroup, str) else subgroup.uid
+        return [m for m in self.members if target_uid in m.subgroup_uids]
+
+    def members_by_role(self, role: Role | str) -> list[Member]:
+        """Return members holding the given role.
+
+        Accepts either a `Role` instance or its `uid` string. Returns
+        an empty list if no members reference the role. See
+        `members_by_subgroup` for the same conventions.
+        """
+        target_uid = role if isinstance(role, str) else role.uid
+        return [m for m in self.members if target_uid in m.role_uids]
