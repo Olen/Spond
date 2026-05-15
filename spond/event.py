@@ -664,6 +664,14 @@ class Event(DictCompatModel):
         # Apply the refreshed state to self IN PLACE — this is the
         # ActiveRecord contract: after `save()`, `self` is the
         # authoritative live record.
+        #
+        # `object.__setattr__` is used deliberately to bypass any
+        # `validate_assignment=True` or custom `__setattr__` a future
+        # subclass might add — the values in `refreshed` have already
+        # passed full Pydantic validation via `from_api`, so re-running
+        # validation per-field here would be redundant work AND would
+        # incorrectly re-trigger any validators with side effects (e.g.
+        # mutation timestamps).
         for field_name in type(self).model_fields:
             object.__setattr__(self, field_name, getattr(refreshed, field_name))
         # Capture any extras Spond added that we don't model.

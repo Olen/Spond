@@ -26,6 +26,26 @@ if TYPE_CHECKING:
     from .spond import Spond
 
 
+# Python field names that `Post.save()` strips from the POST payload
+# on both the create and update paths. Mirrors `_EVENT_READ_ONLY_FIELDS`
+# in event.py — same reasoning: server-managed timestamps and identifiers,
+# per-user view state, and nested sub-resources that have their own
+# endpoints (`comments` → `post.add_comment(...)`; reactions are managed
+# elsewhere). Sending these back risks Spond treating stale local state
+# as authoritative or, on create, having client-supplied values
+# silently overridden by server-managed ones.
+_POST_READ_ONLY_FIELDS = frozenset(
+    {
+        "owner_uid",  # set by Spond from the authenticated user
+        "timestamp",  # set by Spond on create; immutable
+        "unread",  # per-user view state
+        "muted",  # per-user view state
+        "reactions",  # has its own dedicated endpoint
+        "comments",  # has its own endpoint (post.add_comment)
+    }
+)
+
+
 class Post(DictCompatModel):
     """A post on a Group's wall (announcement, not a chat message).
 
@@ -84,12 +104,6 @@ class Post(DictCompatModel):
     # Non-serialised reference back to the Spond client for HTTP calls.
     _client: Any = PrivateAttr(default=None)
 
-    # Fields that Spond manages server-side and shouldn't be round-tripped
-    # on update. Mirrors `_EVENT_READ_ONLY_FIELDS` on Event; see that
-    # docstring for the same reasoning (timestamps, derived state,
-    # nested sub-resources with their own endpoints).
-    _READ_ONLY_FIELDS: Any = PrivateAttr(default=None)
-
     def __str__(self) -> str:
         # `timestamp` is optional after the resilience relaxation, so guard
         # the .isoformat() call the same way `Event.__str__` guards
@@ -141,40 +155,26 @@ class Post(DictCompatModel):
             )
         await self._client._ensure_authenticated()
 
-        # Server-managed fields — excluded from the update payload to
-        # avoid round-tripping stale local state.
-        _POST_READ_ONLY_FIELDS = frozenset(
-            {
-                "owner_uid",
-                "timestamp",  # set by Spond on create; immutable
-                "unread",  # per-user view state
-                "muted",  # per-user view state
-                "reactions",  # has its own endpoint
-                "comments",  # has its own endpoint (add_comment)
-            }
+        # Apply `_POST_READ_ONLY_FIELDS` on BOTH paths. On update it
+        # prevents round-tripping stale local state of fields with
+        # dedicated endpoints. On create the same set is excluded
+        # because Spond sets `owner_uid`/`timestamp` itself, ignores
+        # client-supplied `unread`/`muted` (per-user state), and the
+        # `comments`/`reactions` lists are populated through their own
+        # endpoints — sending them at create time risks the caller
+        # accidentally seeding stale data from a Post built off another
+        # post's response payload.
+        payload = self.model_dump(
+            by_alias=True,
+            mode="json",
+            exclude=_POST_READ_ONLY_FIELDS,
+            exclude_unset=True,
+            exclude_none=True,
         )
-
+        payload.pop("id", None)  # never echo uid in the body
         if self.uid:
             url = f"{self._client.api_url}posts/{self.uid}"
-            payload = self.model_dump(
-                by_alias=True,
-                mode="json",
-                exclude=_POST_READ_ONLY_FIELDS,
-                exclude_unset=True,
-                exclude_none=True,
-            )
-            payload.pop("id", None)  # don't echo uid in the body
         else:
-            # Create path — POST to /posts/ (collection endpoint).
-            # Don't filter read-only fields on create: the caller is
-            # explicitly setting state.
-            payload = self.model_dump(
-                by_alias=True,
-                mode="json",
-                exclude_unset=True,
-                exclude_none=True,
-            )
-            payload.pop("id", None)
             url = f"{self._client.api_url}posts/"
 
         async with self._client.clientsession.post(
@@ -188,6 +188,15 @@ class Post(DictCompatModel):
         is_create = not self.uid
 
         # Apply refreshed state to self IN PLACE (ActiveRecord contract).
+        # `object.__setattr__` is used deliberately to bypass any
+        # `validate_assignment=True` or custom `__setattr__` a future
+        # subclass might add — the values in `refreshed` have already
+        # passed full Pydantic validation via `from_api`, so re-running
+        # validation per-field here would be redundant work AND would
+        # incorrectly re-trigger any validators that have side effects
+        # (e.g. mutation timestamps). The wholesale
+        # `__pydantic_fields_set__` replacement on the line below keeps
+        # `exclude_unset=True` dumps consistent with what Spond emitted.
         for field_name in type(self).model_fields:
             object.__setattr__(self, field_name, getattr(refreshed, field_name))
         extras = refreshed._pydantic_extras()
