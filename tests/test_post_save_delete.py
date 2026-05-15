@@ -107,10 +107,14 @@ class TestPostSaveCreate:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
-    async def test_save_create_appends_to_cache(self, mock_post) -> None:
+    async def test_save_create_prepends_to_cache(self, mock_post) -> None:
+        """A newly-saved post is prepended to `posts` (position 0) — same
+        ordering convention as `Event.save()`, matching Spond's
+        newest-first ordering on `get_posts()`."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = "MOCK"
-        s.posts = []
+        existing = Post.from_api({**_API_POST, "id": "EXISTING"}, s)
+        s.posts = [existing]
         post = _fresh_post()
 
         mock_post.return_value.__aenter__.return_value.ok = True
@@ -119,7 +123,11 @@ class TestPostSaveCreate:
         )
 
         await post.save(client=s)
-        assert s.posts == [post]
+
+        # New post at position 0; existing post slid down.
+        assert len(s.posts) == 2
+        assert s.posts[0].uid == "NEWUID"
+        assert s.posts[1].uid == "EXISTING"
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")

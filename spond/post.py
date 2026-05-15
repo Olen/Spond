@@ -77,7 +77,14 @@ class Post(DictCompatModel):
     ```
     """
 
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
+    model_config = ConfigDict(
+        populate_by_name=True,
+        extra="allow",
+        # See Event.model_config — same rationale: ensures
+        # mutate-then-save() picks up direct attribute assignments
+        # to fields that weren't in the source payload.
+        validate_assignment=True,
+    )
 
     uid: str = Field(alias="id")
     type: str = "PLAIN"

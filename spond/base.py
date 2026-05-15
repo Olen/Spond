@@ -8,7 +8,6 @@ flow used by the `require_authentication` decorator.
 Not intended to be instantiated directly — use a subclass.
 """
 
-import contextlib
 import functools
 from abc import ABC
 from collections.abc import Callable
@@ -84,12 +83,13 @@ class _SpondBase(ABC):
     async def __aexit__(self, exc_type, exc, tb) -> None:
         """Async context-manager exit — close the aiohttp client session.
 
-        Silently swallows any `RuntimeError` raised by `close()` (e.g.
-        "session is already closed" if the caller closed it manually
-        before exiting the `with` block) — defensive cleanup shouldn't
-        mask the original exception that triggered the exit.
+        Checks `clientsession.closed` first so a caller who manually
+        closed the session inside the `with` block doesn't trigger a
+        second close. Any genuine `RuntimeError` from `close()` (resource
+        leak, connector failure, etc.) is allowed to propagate rather
+        than being silently swallowed — that surface signals a real bug.
         """
-        with contextlib.suppress(RuntimeError):
+        if not self.clientsession.closed:
             await self.clientsession.close()
 
     @property

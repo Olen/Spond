@@ -134,6 +134,13 @@ class Event(DictCompatModel):
         populate_by_name=True,
         extra="allow",
         arbitrary_types_allowed=True,
+        # `validate_assignment=True` makes direct attribute assignment
+        # (e.g. `event.heading = "Renamed"`) run through Pydantic's
+        # validation pipeline AND update `__pydantic_fields_set__`.
+        # Without this, mutate-then-save() would silently drop changes
+        # to fields that weren't in the source payload, since the
+        # `exclude_unset=True` dump filter wouldn't include them.
+        validate_assignment=True,
     )
 
     # Core fields. Only `uid` is truly required for the SDK to be useful

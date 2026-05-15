@@ -227,31 +227,61 @@ class DictCompatModel(BaseModel):
         return None
 
     def __eq__(self, other: object) -> bool:
-        # Falls outside the typed-model graph — let Python try the
-        # other operand's __eq__ via NotImplemented.
+        """Two-tier equality:
+
+        - **Entity types** (have a natural key — uid, or a user-visible
+          fallback like heading+start_time): equal iff their natural
+          keys match. Hashable via the same key.
+        - **Value types / sub-objects** (no natural key — e.g.
+          `Responses`, `MatchInfo`): equal iff every declared field
+          plus extras match. Unhashable (like `dict`/`list`), so they
+          can't live in sets or dict keys — see `__hash__`.
+
+        Mixed comparisons (entity vs value) return False; cross-class
+        comparisons return False.
+        """
         if not isinstance(other, DictCompatModel):
             return NotImplemented
         a = self._natural_key()
         b = other._natural_key()
         if a is not None and b is not None:
+            # Natural-key path — types may differ legitimately (Match
+            # and Event share entity kind `"Event"`; Member and
+            # Guardian share `"Person"`). The kind tag is the FIRST
+            # element of the natural-key tuple, so equality across
+            # those pairs is preserved while two genuinely different
+            # entity kinds with the same uid (a hypothetical
+            # `Event("X")` and `Group("X")`) still compare unequal.
             return a == b
-        # One or both lack a natural key — fall back to Pydantic's
-        # full-field equality, but only between same-class instances
-        # (cross-class full-field equality is rarely meaningful).
-        if type(self) is not type(other):
-            return False
-        return BaseModel.__eq__(self, other)
+        if a is None and b is None:
+            # Value-type comparison: full-field equality, but only
+            # between same-class instances. Required so parent
+            # equality (an Event comparing its `responses` sub-object)
+            # gets the right "are these the same state?" answer.
+            if type(self) is not type(other):
+                return False
+            return BaseModel.__eq__(self, other)
+        # One side has a natural key and the other doesn't — they're
+        # different kinds of thing.
+        return False
 
     def __hash__(self) -> int:
+        """Hash via the natural key when set.
+
+        Value-type sub-objects (no natural key — `Responses`,
+        `MatchInfo`, partially-constructed entities with all
+        identifying fields empty) raise `TypeError` — same convention
+        as the Python stdlib (`dict`, `list`, `set` are all unhashable
+        for the same reason: their content is mutable and they may
+        carry unhashable values internally). The `__eq__` path above
+        uses full-field comparison for these, so making them hashable
+        would require hashing every declared field, and the contained
+        lists/dicts aren't hashable themselves.
+        """
         key = self._natural_key()
-        if key is not None:
-            return hash(key)
-        # No natural key (e.g. partially-constructed instance) — fall
-        # back to identity-based hash so the object is at least
-        # hashable. Two such instances are unequal under __eq__'s
-        # full-field-fallback path anyway, so this preserves the
-        # equality/hash invariant.
-        return object.__hash__(self)
+        if key is None:
+            raise TypeError(f"unhashable type: {type(self).__name__!r}")
+        return hash(key)
 
     def model_equals(self, other: object) -> bool:
         """Pre-OO escape hatch: full-field equality, ignoring natural keys.

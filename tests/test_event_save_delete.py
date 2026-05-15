@@ -117,10 +117,16 @@ class TestSaveCreate:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
-    async def test_save_create_appends_to_client_cache(self, mock_post) -> None:
+    async def test_save_create_prepends_to_client_cache(self, mock_post) -> None:
+        """A newly-saved event is prepended to `events` (position 0) so it
+        appears first in subsequent `get_event(uid)` scans — matches Spond's
+        own newest-first ordering on `get_events()`."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = "MOCK"
-        s.events = []  # empty list, not None — so we observe the append
+        # Pre-existing event in the cache, so we can observe the position
+        # the new one is inserted at.
+        existing = Event.from_api({**_MIN_EVENT_PAYLOAD, "id": "EXISTING"}, s)
+        s.events = [existing]
         event = _fresh_event()
 
         mock_post.return_value.__aenter__.return_value.ok = True
@@ -130,8 +136,10 @@ class TestSaveCreate:
 
         await event.save(client=s)
 
-        assert len(s.events) == 1
+        # New event at position 0; existing event slid down.
+        assert len(s.events) == 2
         assert s.events[0].uid == "NEWUID"
+        assert s.events[1].uid == "EXISTING"
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
@@ -203,6 +211,36 @@ class TestSaveUpdate:
             f"update should POST to /sponds/{event.uid}, got {called_url}"
         )
         assert event.heading == "Renamed"
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_save_persists_mutation_of_unset_field(self, mock_post) -> None:
+        """Regression guard for the `validate_assignment=True` config:
+        mutating a field that wasn't in the source payload must still
+        reach the POST body. Without `validate_assignment=True`, direct
+        attribute assignment doesn't update `__pydantic_fields_set__`,
+        and `exclude_unset=True` would silently drop the change."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = "MOCK"
+        # `_MIN_EVENT_PAYLOAD` deliberately omits `description`.
+        event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
+        assert event.description is None
+        assert "description" not in event.__pydantic_fields_set__
+
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=_MIN_EVENT_PAYLOAD
+        )
+
+        # Direct attribute assignment to a previously-unset field.
+        event.description = "Now described"
+        await event.save()
+
+        # `description` must reach Spond — the silent-drop footgun.
+        posted = mock_post.call_args[1]["json"]
+        assert posted.get("description") == "Now described", (
+            "mutate-then-save dropped the change; validate_assignment "
+            "is not enabled or model_fields_set is not being tracked"
+        )
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
