@@ -629,9 +629,13 @@ class Event(DictCompatModel):
         if self.uid:
             # Update path — round-trip through `update()` so all the
             # payload-discipline machinery (exclude_unset, read-only
-            # filter, JSON-encoding of caller values) applies. Then
-            # mutate self with the refreshed state.
+            # filter, JSON-encoding of caller values) applies. Note
+            # that `update()` *also* writes its returned instance into
+            # `self._client.events`; we overwrite that slot with self
+            # below to preserve the ActiveRecord identity guarantee
+            # (`event is spond.events[i]` after `save()`).
             refreshed = await self.update()
+            is_create = False
         else:
             # Create path — POST to /sponds/ (collection endpoint).
             # We do NOT apply `_EVENT_READ_ONLY_FIELDS` here: that
@@ -661,12 +665,7 @@ class Event(DictCompatModel):
                     raise SpondAPIError(r.status, await r.text(), url)
                 new_data = await r.json()
             refreshed = type(self).from_api(new_data, self._client)
-            # Append to the client cache so subsequent `get_event(uid)`
-            # resolves the new event without a re-fetch.
-            if self._client.events is None:
-                self._client.events = [refreshed]
-            else:
-                self._client.events.insert(0, refreshed)
+            is_create = True
 
         # Apply the refreshed state to self IN PLACE — this is the
         # ActiveRecord contract: after `save()`, `self` is the
@@ -689,6 +688,24 @@ class Event(DictCompatModel):
         # dumps reflect what Spond actually emitted (not our pre-save
         # snapshot).
         self.__pydantic_fields_set__ = set(refreshed.__pydantic_fields_set__)
+
+        # Cache management — match Post.save()'s identity guarantee:
+        # `event is spond.events[i]` after a successful save(). On
+        # create, prepend self. On update, replace whatever the
+        # delegated update() call wrote (which was the now-discardable
+        # `refreshed` instance, NOT self).
+        if is_create:
+            if self._client.events is None:
+                self._client.events = [self]
+            else:
+                self._client.events.insert(0, self)
+        else:
+            if self._client.events is not None:
+                for i, cached in enumerate(self._client.events):
+                    if cached.uid == self.uid:
+                        self._client.events[i] = self
+                        break
+
         return self
 
     async def delete(self) -> None:

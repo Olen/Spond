@@ -143,6 +143,54 @@ class TestSaveCreate:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
+    async def test_save_create_caches_self_not_refreshed_copy(self, mock_post) -> None:
+        """Identity guarantee: after `event.save()`, `event is
+        s.events[0]` — not a distinct same-state copy. Matches the
+        identity contract `Post.save()` already enforces; consistency
+        across ActiveRecord types lets callers rely on a single rule."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = "MOCK"
+        s.events = []
+        event = _fresh_event()
+
+        mock_post.return_value.__aenter__.return_value.ok = True
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={**_MIN_EVENT_PAYLOAD, "id": "NEWUID"}
+        )
+
+        await event.save(client=s)
+
+        assert s.events[0] is event, (
+            "cache should hold the saved instance itself, not a copy"
+        )
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_save_update_caches_self(self, mock_post) -> None:
+        """Same identity guarantee on the update path: even though
+        `save()` delegates to `update()` (which writes a fresh instance
+        to the cache), `save()` overwrites that slot with self
+        afterwards."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = "MOCK"
+        event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
+        s.events = [event]
+
+        mock_post.return_value.__aenter__.return_value.ok = True
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={**_MIN_EVENT_PAYLOAD, "heading": "Renamed"}
+        )
+
+        event.heading = "Renamed"
+        await event.save()
+
+        assert s.events[0] is event, (
+            "after save() the cache must still hold self, not the "
+            "intermediate instance delegated-update() wrote"
+        )
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
     async def test_save_create_initialises_empty_cache(self, mock_post) -> None:
         """When `s.events is None` (never fetched), create initialises the
         cache rather than no-oping."""

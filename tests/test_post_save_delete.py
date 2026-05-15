@@ -131,6 +131,24 @@ class TestPostSaveCreate:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
+    async def test_save_create_caches_self_not_refreshed_copy(self, mock_post) -> None:
+        """Identity guarantee: after `post.save()`, `post is
+        s.posts[0]` — matches `Event.save()`'s identity contract."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = "MOCK"
+        s.posts = []
+        post = _fresh_post()
+
+        mock_post.return_value.__aenter__.return_value.ok = True
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=_API_POST
+        )
+
+        await post.save(client=s)
+        assert s.posts[0] is post
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
     async def test_save_create_initialises_empty_cache(self, mock_post) -> None:
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = "MOCK"
