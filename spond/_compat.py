@@ -279,20 +279,18 @@ class DictCompatModel(BaseModel):
 
 
 def _entity_kind_of(cls: type) -> str:
-    """Walk the MRO to find the nearest non-`DictCompatModel`,
-    non-`BaseModel` ancestor — that's the "entity kind."
+    """Return the name of the top-most user-defined ancestor in `cls`'s
+    MRO before `DictCompatModel` — that's the "entity kind."
 
     For `Match` (which inherits from `Event`), this returns `"Event"`
     so `Match` and `Event` instances with the same uid compare equal.
     For `Member`/`Guardian` (both inheriting from `Person`), this
     returns `"Person"` for the same reason.
     """
-    for ancestor in cls.__mro__:
-        if ancestor is DictCompatModel or ancestor is BaseModel:
-            break
-        # The most-derived "non-base" class with a name is the entity
-        # kind. We walk further up to find the most general one.
-    # Find the top-most user-defined class in the MRO before DictCompatModel.
+    # Filter MRO to user-defined spond.* classes, dropping the shared
+    # DictCompatModel / BaseModel / object roots. The result is ordered
+    # from most-derived (cls itself) to least-derived — the LAST entry
+    # is the entity kind (e.g. for Match: [Match, Event] → "Event").
     user_classes = [
         c
         for c in cls.__mro__

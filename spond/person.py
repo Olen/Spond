@@ -185,15 +185,18 @@ async def _send_message_to_person(
             f"Spond.get_person() or walk Spond.get_groups()."
         )
 
-    # Lazy chat handshake (Spond's chat API uses a separate host + token).
-    if client._auth is None:
-        await client._login_chat()
-
+    # Validate caller args BEFORE the chat-server handshake so a pure
+    # client-side argument error doesn't trigger a network round-trip.
+    # Mirrors the same fail-fast ordering in `Spond.send_message`.
     if not isinstance(person.profile, dict) or "id" not in person.profile:
         raise ValueError(
             f"{type(person).__name__} {person.uid} has no profile id; "
             f"Spond cannot route a message without one."
         )
+
+    # Lazy chat handshake (Spond's chat API uses a separate host + token).
+    if client._auth is None:
+        await client._login_chat()
 
     payload = {
         "text": text,

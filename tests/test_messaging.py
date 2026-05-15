@@ -150,8 +150,7 @@ class TestChat:
         )
         result = await chat.send("ack")
         assert result == {"ok": True}
-        url, _ = mock_post.call_args[0], mock_post.call_args[1]
-        assert url[0] == "https://chat.example.invalid/messages"
+        assert mock_post.call_args[0][0] == "https://chat.example.invalid/messages"
         kwargs = mock_post.call_args[1]
         assert kwargs["json"] == {"chatId": "CHAT1", "text": "ack", "type": "TEXT"}
         assert kwargs["headers"] == {"auth": "MOCK_CHAT_AUTH"}
