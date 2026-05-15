@@ -17,7 +17,7 @@ EXPORT_DIRPATH = Path("./exports")
 
 parser = argparse.ArgumentParser(
     description=(
-        "Creates an transactions.csv to keep track of payments accessible on Spond Club"
+        "Creates a transactions.csv to keep track of payments accessible on Spond Club"
     )
 )
 parser.add_argument(

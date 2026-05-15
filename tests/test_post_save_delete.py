@@ -377,6 +377,60 @@ class TestAddComment:
             await post.add_comment("hi")
 
 
+class TestSaveExtrasReplaceNotMerge:
+    """`save()` replaces `__pydantic_extra__` from the refreshed
+    response rather than merging it in. The merge approach left stale
+    extras visible via the dict-compat iter/keys/items surface even
+    after Spond's response said they were gone."""
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.put")
+    async def test_save_drops_stale_extras_not_in_response(self, mock_put) -> None:
+        """A Post with extra fields present pre-save, but absent from
+        the update response, must not show those extras on `list(post)`
+        after the save. The previous merge approach silently kept them."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = "MOCK"
+        # Construct with a stale extra Spond used to include but no
+        # longer does.
+        post = Post.from_api({**_API_POST, "stalePreviewField": "old-value"}, s)
+        assert "stalePreviewField" in post
+        assert post.__pydantic_extra__["stalePreviewField"] == "old-value"
+
+        # Update response omits the stale extra (Spond stopped sending it).
+        mock_put.return_value.__aenter__.return_value.ok = True
+        mock_put.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={**_API_POST, "title": "Renamed"}
+        )
+        post.title = "Renamed"
+        await post.save()
+
+        # The stale extra is gone from the model.
+        assert "stalePreviewField" not in post, (
+            "stale extra survived save() — extras should be REPLACED "
+            "from the response, not merged into the old set"
+        )
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.put")
+    async def test_save_keeps_extras_present_in_response(self, mock_put) -> None:
+        """Conversely: an extra in the refreshed response IS reflected
+        on self after save — replace, not just clear."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = "MOCK"
+        post = Post.from_api(_API_POST, s)
+
+        mock_put.return_value.__aenter__.return_value.ok = True
+        mock_put.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={**_API_POST, "newExtraField": 42, "title": "Renamed"}
+        )
+        post.title = "Renamed"
+        await post.save()
+
+        assert "newExtraField" in post
+        assert post.__pydantic_extra__["newExtraField"] == 42
+
+
 class TestSaveDoesNotWipeLocallyAddedComments:
     """Regression guard: a Post that has a comment added via
     `add_comment()` and is then `save()`-d must NOT lose that comment,

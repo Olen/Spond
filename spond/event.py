@@ -696,10 +696,14 @@ class Event(DictCompatModel):
             if field_name in skip_on_update:
                 continue
             object.__setattr__(self, field_name, getattr(refreshed, field_name))
-        # Capture any extras Spond added that we don't model.
-        extras = refreshed._pydantic_extras()
-        if extras and self.__pydantic_extra__ is not None:
-            self.__pydantic_extra__.update(extras)
+        # Replace extras wholesale rather than merging — `model_fields_set`
+        # below is replaced wholesale too, and merging extras would leave
+        # stale entries on self that were present before the refresh but
+        # absent from the response. Dict-compat iteration (`list(event)`)
+        # would then report keys that aren't really in the model anymore.
+        if self.__pydantic_extra__ is not None:
+            self.__pydantic_extra__.clear()
+            self.__pydantic_extra__.update(refreshed._pydantic_extras())
         # Sync `model_fields_set` so subsequent `exclude_unset=True`
         # dumps reflect what Spond actually emitted (not our pre-save
         # snapshot).

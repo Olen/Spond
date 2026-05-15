@@ -227,9 +227,16 @@ class Post(DictCompatModel):
             if field_name in skip_on_update:
                 continue
             object.__setattr__(self, field_name, getattr(refreshed, field_name))
-        extras = refreshed._pydantic_extras()
-        if extras and self.__pydantic_extra__ is not None:
-            self.__pydantic_extra__.update(extras)
+        # Replace, don't merge: `model_fields_set` is replaced wholesale
+        # on the line below, so the extras dict must follow the same
+        # "this is the post-refresh canonical state" semantics. Merging
+        # (.update()) would leave stale extras that were on self before
+        # the refresh but absent from the response, producing an
+        # inconsistent dict-compat view where `list(post)` reports
+        # fields that aren't actually in the model anymore.
+        if self.__pydantic_extra__ is not None:
+            self.__pydantic_extra__.clear()
+            self.__pydantic_extra__.update(refreshed._pydantic_extras())
         self.__pydantic_fields_set__ = set(refreshed.__pydantic_fields_set__)
 
         # Cache management. On create, prepend so subsequent

@@ -8,9 +8,12 @@ flow used by the `require_authentication` decorator.
 Not intended to be instantiated directly — use a subclass.
 """
 
+from __future__ import annotations
+
 import functools
 from abc import ABC
 from collections.abc import Callable
+from typing import Self
 
 import aiohttp
 
@@ -62,7 +65,7 @@ class _SpondBase(ABC):
         )
         self.token = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> Self:
         """Async context-manager entry — returns self.
 
         Enables the idiomatic `async with Spond(...) as s:` shape so the
