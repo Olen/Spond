@@ -286,7 +286,7 @@ Items deferred from this PR, tracked here as roadmap candidates.
 3. **Full chat history.** `Chat.message` only carries the most-recent message; the chat API has additional endpoints for older messages that aren't modelled yet.
 4. **Comment edit / delete.** Spond's app supports editing and deleting your own comments, but the corresponding endpoints aren't yet probed/modelled. `post.add_comment(text)` ships in v2.0; the lifecycle endpoints (`PUT /posts/{uid}/comments/{cuid}`, `DELETE /posts/{uid}/comments/{cuid}` or similar) need verification.
 
-All four remain answerable with live API probing using the credentials at `/home/olen/prog/spond-kalender/config.py`.
+All four remain answerable with live API probing against a real Spond account.
 
 ## What shipped in v2.0 (previously open)
 
