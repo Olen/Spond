@@ -247,6 +247,7 @@ class TestSaveUpdate:
         event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
 
         api_response = {**_MIN_EVENT_PAYLOAD, "heading": "Renamed"}
+        mock_post.return_value.__aenter__.return_value.ok = True
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             return_value=api_response
         )
@@ -275,6 +276,7 @@ class TestSaveUpdate:
         assert event.description is None
         assert "description" not in event.__pydantic_fields_set__
 
+        mock_post.return_value.__aenter__.return_value.ok = True
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             return_value=_MIN_EVENT_PAYLOAD
         )
@@ -298,6 +300,7 @@ class TestSaveUpdate:
         s.token = "MOCK"
         event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
 
+        mock_post.return_value.__aenter__.return_value.ok = True
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             return_value=_MIN_EVENT_PAYLOAD
         )

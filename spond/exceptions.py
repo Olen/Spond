@@ -71,7 +71,11 @@ class SpondAPIError(SpondError, ValueError):
             msg = f"Request failed with status {status}: {trimmed}"
         else:
             msg = f"Spond API returned HTTP {status}"
-        if url and not body:
+        # URL is always appended when present — it's the most useful
+        # diagnostic field after the status code and is omitting it
+        # silently on the body-present path made the body+url case
+        # less debuggable than the body-only case.
+        if url:
             msg += f" for {url}"
         super().__init__(msg)
 

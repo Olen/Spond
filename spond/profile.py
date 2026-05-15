@@ -71,7 +71,9 @@ class Profile(DictCompatModel):
         return " ".join(part for part in (self.first_name, self.last_name) if part)
 
     def __str__(self) -> str:
-        return f"Profile(uid={self.uid!r}, name={self.full_name!r})"
+        # Same `<unnamed>` sentinel as `Person.__str__` for consistency.
+        name = self.full_name or "<unnamed>"
+        return f"Profile(uid={self.uid!r}, name={name!r})"
 
     def _natural_key(self) -> tuple | None:
         """uid when set; otherwise full_name distinguishes

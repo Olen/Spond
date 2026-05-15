@@ -66,7 +66,11 @@ class Person(DictCompatModel):
         return " ".join(part for part in (self.first_name, self.last_name) if part)
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(uid={self.uid!r}, name={self.full_name!r})"
+        # `<unnamed>` mirrors the `"?"` sentinel used by Event/Post/Comment
+        # for missing timestamps — better debug output than an empty
+        # `name=''` when both first_name and last_name default to empty.
+        name = self.full_name or "<unnamed>"
+        return f"{self.__class__.__name__}(uid={self.uid!r}, name={name!r})"
 
     def _natural_key(self) -> tuple | None:
         """uid when set; otherwise full_name + email. Returns the same
