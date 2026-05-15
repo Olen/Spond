@@ -60,18 +60,27 @@ async with spond.Spond(username, password) as s:
     # Update via kwargs (returns a new instance)
     new_event = await event.update(heading="Renamed")
 
-    # ActiveRecord-style write surface
-    new = Event(heading="My new event",
-                start_time=start, end_time=end, type="EVENT",
-                owners=[{"id": my_pid, "response": "accepted"}],
-                recipients={"group": {"id": group_id}})
-    await new.save(client=s)   # POST → uid populated; cache updated
-    assert new.uid
+    # ActiveRecord-style write surface — same shape for Event and Post
+    # (requires: from spond.event import Event; from spond.post import Post)
+    new_event = Event(heading="My new event",
+                     start_time=start, end_time=end, type="EVENT",
+                     owners=[{"id": my_pid, "response": "accepted"}],
+                     recipients={"group": {"id": group_id}})
+    await new_event.save(client=s)   # POST → uid populated; cache updated
+    assert new_event.uid
 
-    new.description = "Some details"
-    await new.save()           # PATCH (mutate-in-place, then save)
+    new_event.description = "Some details"
+    await new_event.save()           # mutate-in-place, then re-save
 
-    await new.delete()         # DELETE → pruned from cache
+    await new_event.delete()         # DELETE → pruned from cache
+
+    # Posts work the same way, with `add_comment` as a bonus:
+    post = Post(uid="", type="PLAIN", group_uid=group_id,
+                title="Hello", body="Welcome.")
+    await post.save(client=s)
+    comment = await post.add_comment("First!")
+    assert comment.uid and comment.text == "First!"
+    await post.delete()
 ```
 
 ### Identity / equality

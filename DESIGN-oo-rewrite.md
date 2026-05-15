@@ -113,8 +113,21 @@ Profile(DictCompatModel)
   └─ uid, first_name, last_name, plus the live-audited extras (passive)
 
 Post(DictCompatModel)
-  ├─ uid, title, body, timestamp, comments: list[dict]
-  └─ (no methods yet; add_comment(...) deferred — see Open Questions)
+  ├─ uid, title, body, timestamp, group_uid, owner_uid,
+  │  subgroup_uids, visibility, comments: list[Comment], reactions, …
+  └─ ActiveRecord methods:
+       ├─ save(client=None)   — POST `/posts/` (create) when uid empty,
+       │                        POST `/posts/{uid}` (update) when uid set.
+       │                        Mutates self in place with the persisted state.
+       ├─ delete()             — DELETE `/posts/{uid}`, prunes from cache.
+       └─ add_comment(text)    — POST `/posts/{uid}/comments`, returns the
+                                 new `Comment` and appends to self.comments.
+
+Comment(DictCompatModel) — typed sub-object of Post and Event
+  ├─ uid, from_profile_uid, timestamp, text, reactions
+  └─ (no methods; comment edit/delete endpoints aren't exposed by the
+     consumer API. Comment lifecycle goes through the parent —
+     `post.add_comment(text)`.)
 
 Chat(DictCompatModel)
   ├─ uid, name, type, participants, newest_timestamp, unread, muted,
@@ -268,13 +281,12 @@ Dict-style consumers still work through `DictCompatModel` (with warning).
 
 Items deferred from this PR, tracked here as roadmap candidates.
 
-1. **`Post.save()` / `Post.delete()` / `Post.add_comment()`.** Posts are still read-only via the OO surface. The Event write surface is shipped (`Event.save()`/`delete()`); the same shape on Post needs endpoint probing — `POST /posts/`, `DELETE /posts/{uid}`, `POST /posts/{uid}/comments` are best guesses but not yet verified.
-2. **`Group.invite_member()` / `Group.save()`.** Group management (inviting members, editing group settings) is read-only. The invitation flow in particular goes through `/invites` rather than `/groups/{uid}/members` and needs careful probing.
-3. **Typed `Comment`.** `Post.comments` and `Event.comments` are still `list[dict]`. A typed `Comment` class is the natural next step once `Post.add_comment()` lands.
-4. **Guardian.managed_member back-link.** Not yet exposed. Guardians are currently constructed inside `Member.guardians`; a post-hoc parent reference can be added if a downstream caller asks for it.
-5. **Full chat history.** `Chat.message` only carries the most-recent message; the chat API has additional endpoints for older messages that aren't modelled yet.
+1. **`Group.invite_member()` / `Group.save()`.** Group management (inviting members, editing group settings) is read-only. The invitation flow in particular goes through `/invites` rather than `/groups/{uid}/members` and needs careful probing.
+2. **Guardian.managed_member back-link.** Not yet exposed. Guardians are currently constructed inside `Member.guardians`; a post-hoc parent reference can be added if a downstream caller asks for it.
+3. **Full chat history.** `Chat.message` only carries the most-recent message; the chat API has additional endpoints for older messages that aren't modelled yet.
+4. **Comment edit / delete.** Spond's app supports editing and deleting your own comments, but the corresponding endpoints aren't yet probed/modelled. `post.add_comment(text)` ships in v2.0; the lifecycle endpoints (`PUT /posts/{uid}/comments/{cuid}`, `DELETE /posts/{uid}/comments/{cuid}` or similar) need verification.
 
-All five remain answerable with live API probing using the credentials at `/home/olen/prog/spond-kalender/config.py`.
+All four remain answerable with live API probing using the credentials at `/home/olen/prog/spond-kalender/config.py`.
 
 ## What shipped in v2.0 (previously open)
 
@@ -286,6 +298,8 @@ These items were "open questions" in earlier revisions of this document and have
 - **Natural-key equality** — `__eq__`/`__hash__` driven by `_natural_key()` on each typed model. uid-based when set, else user-visible-field fallback (heading+start_time for Event, etc.). `model_equals()` provides the old field-by-field shape for callers that need it.
 - **Convenience properties on Event** — `is_past`, `is_upcoming`, `duration`, `has_responded(uid)`, `response_for(uid)`.
 - **Async context manager on `Spond` / `SpondClub`** — `async with Spond(...) as s:` closes the aiohttp session automatically.
+- **`Post.save()` / `Post.delete()` / `Post.add_comment()`** — symmetric write surface on Post, mirroring Event's. Endpoints verified live: POST `/posts/` for create, POST `/posts/{uid}` for update, DELETE `/posts/{uid}`, POST `/posts/{uid}/comments` for add_comment. `add_comment` returns a typed `Comment` and appends it to `post.comments` in place.
+- **Typed `Comment` model** — `Post.comments` and `Event.comments` now contain `list[Comment]` instead of `list[dict]`. Same forward-compat (`extra="allow"`) and resilience-default discipline as the other types.
 
 ## Files
 
@@ -299,7 +313,8 @@ These items were "open questions" in earlier revisions of this document and have
 - `spond/subgroup.py` — `Subgroup`
 - `spond/role.py` — `Role`
 - `spond/profile.py` — `Profile`
-- `spond/post.py` — `Post` (typed `Comment` deferred — see Open Questions)
+- `spond/post.py` — `Post` with `save()`/`delete()`/`add_comment()` ActiveRecord surface
+- `spond/comment.py` — typed `Comment` model (used by `Post.comments` and `Event.comments`)
 - `spond/chat.py` — `Chat`, `Message`
 
 **Changed:**
@@ -316,6 +331,7 @@ The previous monolithic `tests/test_spond.py` has been split by domain. The curr
 - `tests/test_auth.py` — login flow + `require_authentication` decorator metadata
 - `tests/test_backward_compat.py` — regression guards for pre-OO patterns (dict access, `except KeyError:`/`ValueError:`, top-level `AuthenticationError` import, deprecated wrappers)
 - `tests/test_club.py` — `Transaction` and `SpondClub.get_transactions()`
+- `tests/test_comment.py` — typed `Comment` model, materialisation on Post/Event
 - `tests/test_compat.py` — `DictCompatModel` shim + `LenientDate`
 - `tests/test_context_manager.py` — `async with Spond(...)` shape
 - `tests/test_event_convenience.py` — `is_past`/`is_upcoming`/`duration`/`response_for`/`has_responded`
@@ -327,6 +343,7 @@ The previous monolithic `tests/test_spond.py` has been split by domain. The curr
 - `tests/test_groups.py` — `get_group` + Group → Member → Guardian navigation + `get_person`
 - `tests/test_identity.py` — natural-key equality / hashing across all models
 - `tests/test_messaging.py` — `Spond.send_message` + `Chat`/`Message`
+- `tests/test_post_save_delete.py` — ActiveRecord write surface on Post (`save()`, `delete()`, `add_comment()`)
 - `tests/test_posts.py` — `get_posts` query construction, caching, error surfacing
 
 ## Out of scope

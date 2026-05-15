@@ -373,7 +373,7 @@ class Spond(_SpondBase):
         if raw is None:
             self.posts = None
             return None
-        self.posts = [Post.model_validate(p) for p in raw]
+        self.posts = [Post.from_api(p, self) for p in raw]
         return self.posts
 
     @_SpondBase.require_authentication

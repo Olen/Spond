@@ -20,6 +20,7 @@ from pydantic import ConfigDict, Field, PrivateAttr, ValidationError
 from pydantic_core import to_jsonable_python
 
 from ._compat import DictCompatModel
+from .comment import Comment
 from .exceptions import SpondAPIError
 
 if TYPE_CHECKING:
@@ -189,8 +190,10 @@ class Event(DictCompatModel):
     """Tasks dict with `openTasks`, `assignedTasks`. Unmodelled for now."""
     attachments: list[Any] = Field(default_factory=list)
     """Attachment objects. Unmodelled for now."""
-    comments: list[Any] = Field(default_factory=list)
-    """Comment objects. Only populated when fetched with `?includeComments=true`."""
+    comments: list[Comment] = Field(default_factory=list)
+    """Typed `Comment` instances. Only populated when fetched with
+    `?includeComments=true` (which `Spond.get_event(uid)` sets by default
+    for the single-event endpoint)."""
 
     # Non-serialised reference back to the Spond client for HTTP calls.
     _client: Any = PrivateAttr(default=None)
@@ -614,6 +617,7 @@ class Event(DictCompatModel):
                 "Event has no client bound. Pass `client=spond` to "
                 "`event.save(client=...)` on first save."
             )
+        await self._client._ensure_authenticated()
 
         if self.uid:
             # Update path — round-trip through `update()` so all the
@@ -696,6 +700,7 @@ class Event(DictCompatModel):
                 "Cannot delete an unsaved Event (no uid). Call save() first "
                 "or construct the instance via Spond.get_event()."
             )
+        await self._client._ensure_authenticated()
         url = f"{self._client.api_url}sponds/{self.uid}"
         async with self._client.clientsession.delete(
             url, headers=self._client.auth_headers
