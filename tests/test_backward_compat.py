@@ -145,6 +145,7 @@ class TestDeprecatedWrappersStillExist:
         s.events = [Event.from_api(_MIN_EVENT_PAYLOAD, s)]
 
         with patch("aiohttp.ClientSession.post") as mock_post:
+            mock_post.return_value.__aenter__.return_value.ok = True
             mock_post.return_value.__aenter__.return_value.json = AsyncMock(
                 return_value=_MIN_EVENT_PAYLOAD
             )

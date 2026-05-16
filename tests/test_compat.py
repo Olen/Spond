@@ -138,6 +138,7 @@ class TestDictCompat:
         assert event.owners == []
         assert event.attachments == []
 
+        mock_post.return_value.__aenter__.return_value.ok = True
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             return_value=_MIN_EVENT_PAYLOAD
         )
@@ -164,6 +165,7 @@ class TestDictCompat:
         event = Event.from_api(_MIN_EVENT_PAYLOAD, s)
         assert event.description is None
 
+        mock_post.return_value.__aenter__.return_value.ok = True
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             return_value=_MIN_EVENT_PAYLOAD
         )
