@@ -10,6 +10,7 @@ repository = 'https://github.com/Olen/Spond'
 [tool.poetry.dependencies]
 python = ">=3.11"
 aiohttp = ">=3.8.5"
+pydantic = ">=2.0"
 
 [tool.poetry.group.dev.dependencies]
 # Constraint on `python` is required: pdoc's transitive `markdown2` declares

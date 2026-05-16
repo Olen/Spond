@@ -7,29 +7,176 @@ Simple, unofficial library with some example scripts to access data from the [Sp
 
 `pip install spond`
 
+### ⚠️ Upgrading to v2.0 — read this first
+
+v2.0 is the OO-rewrite release. The `get_*` methods now return typed
+Pydantic models (`Event`, `Group`, `Member`, `Post`, `Chat`, …) instead
+of raw `dict`s. **Existing code that uses dict-style access keeps
+working** through a `DeprecationWarning` shim — but a few things did
+change. Before upgrading from 1.x:
+
+- **Equality semantics changed.** `Event(uid="X") == Event(uid="X")`
+  now compares natural keys (uid-based when present) rather than every
+  field. Two instances with the same uid but different field state are
+  now considered equal. Callers depending on the old "are these
+  field-identical?" behaviour can use the new `obj.model_equals(other)`
+  escape hatch.
+- **Return types of every `Spond.get_*` method changed** from
+  `JSONDict` / `list[JSONDict]` to typed objects. Static type checkers
+  flag this; the runtime dict shim covers most code at runtime.
+- **HTTP error class changed** from bare `ValueError` to `SpondAPIError`
+  — which still inherits from `ValueError`, so `except ValueError:` is
+  unaffected. Same for the `*NotFoundError` family (still `KeyError`).
+- **Some deprecated wrappers will be removed in v3.x.**
+  `Spond.update_event()`, `Spond.change_response()`, and
+  `Spond.get_event_attendance_xlsx()` emit `DeprecationWarning` in v2.x;
+  use `Event.update()`, `Event.change_response()`, and
+  `Event.attendance_xlsx()` instead.
+
+**Pin to `< 2.0.0` if you aren't ready to upgrade yet:**
+
+```shell
+pip install "spond<2.0.0"
+```
+
+Or in `pyproject.toml`:
+```toml
+[tool.poetry.dependencies]
+spond = "<2.0.0"
+```
+
+Or `requirements.txt`:
+```
+spond<2.0.0
+```
+
+**Audit your code before upgrading** by running with deprecation
+warnings promoted to errors — every dict-style access site lights up
+so you can migrate it:
+
+```shell
+python -W error::DeprecationWarning your_script.py
+```
+
+The full migration story (semantics, write surface, exception
+hierarchy, async context manager, etc.) is in
+[`DESIGN-oo-rewrite.md`](DESIGN-oo-rewrite.md).
+
 ## Usage
 
 You need a username and password from Spond
 
 ### Example code
 
-```
+```python
 import asyncio
 from spond import spond
 
 username = 'my@mail.invalid'
 password = 'Pa55worD'
-group_id = 'C9DC791FFE63D7914D6952BE10D97B46'  # fake 
+group_id = 'C9DC791FFE63D7914D6952BE10D97B46'  # fake
 
 async def main():
-    s = spond.Spond(username=username, password=password)
-    group = await s.get_group(group_id)
-    print(group['name'])
-    await s.clientsession.close()
+    async with spond.Spond(username=username, password=password) as s:
+        group = await s.get_group(group_id)
+        print(group.name)
+        for member in group.members:
+            print(f"  {member.full_name}")
+            for guardian in member.guardians:
+                print(f"    guardian: {guardian.full_name}")
 
 asyncio.run(main())
-
 ```
+
+> **Typed objects from v2.0 onwards.** `get_groups()`, `get_event()`,
+> `get_posts()`, etc. now return typed `Group` / `Event` / `Post` objects
+> with attribute access and per-instance methods. Existing dict-style
+> access (`group["name"]`) still works with a `DeprecationWarning`
+> through the v2.x line; the shim is removed in v3.0. See
+> [`DESIGN-oo-rewrite.md`](DESIGN-oo-rewrite.md) for the full design and
+> migration story.
+
+### Working with the typed objects
+
+```python
+async with spond.Spond(username, password) as s:
+    # Read: typed instances with attribute access
+    event = await s.get_event(uid)
+    print(event.heading, event.start_time, event.duration)
+
+    # Convenience properties — synchronous, no HTTP
+    if event.is_upcoming and not event.has_responded(my_uid):
+        print("you haven't responded yet")
+
+    # Resolve response uids to typed Member/Guardian objects
+    for member in await event.accepted_members():
+        print(f"  ✓ {member.full_name}")
+
+    # Update via kwargs (returns a new instance)
+    new_event = await event.update(heading="Renamed")
+
+    # ActiveRecord-style write surface — same shape for Event and Post
+    # (requires: from spond.event import Event; from spond.post import Post)
+    new_event = Event(heading="My new event",
+                     start_time=start, end_time=end, type="EVENT",
+                     owners=[{"id": my_pid, "response": "accepted"}],
+                     recipients={"group": {"id": group_id}})
+    await new_event.save(client=s)   # POST → uid populated; cache updated
+    assert new_event.uid
+
+    new_event.description = "Some details"
+    await new_event.save()           # mutate-in-place, then re-save
+
+    await new_event.delete()         # DELETE → pruned from cache
+
+    # Posts work the same way, with `add_comment` as a bonus:
+    post = Post(uid="", type="PLAIN", group_uid=group_id,
+                title="Hello", body="Welcome.")
+    await post.save(client=s)
+    comment = await post.add_comment("First!")
+    assert comment.uid and comment.text == "First!"
+    await post.delete()
+```
+
+### Identity / equality
+
+Typed instances use natural-key equality so they behave correctly in
+sets and as dict keys:
+
+```python
+a = await s.get_event(uid)
+b = await s.get_event(uid)
+assert a == b                  # same uid → equal, even if state differs
+assert {a, b} == {a}           # dedups via __hash__
+
+# Match is a subclass of Event; same uid → same entity
+assert isinstance(match, Event)
+assert match == event_with_same_uid
+```
+
+For callers who need the old field-by-field comparison (e.g. "has the
+server state changed?"), use `model_equals(other)`.
+
+### Exception hierarchy
+
+```python
+from spond import (
+    SpondError,             # base — catch this for any SDK error
+    AuthenticationError,    # login failures
+    EventNotFoundError,     # also a KeyError, for backward compat
+    GroupNotFoundError,     # also a KeyError
+    PersonNotFoundError,    # also a KeyError
+    SpondAPIError,          # HTTP failures; also a ValueError
+)
+
+try:
+    event = await s.get_event(uid)
+except EventNotFoundError:
+    ...
+```
+
+Pre-OO `except KeyError:` / `except ValueError:` patterns continue to
+work — the typed exceptions multi-inherit from the stdlib classes.
 
 ## Key methods
 
