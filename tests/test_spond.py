@@ -400,6 +400,93 @@ class TestPostMethods:
         )
         assert len(posts) == 1
 
+
+class TestTransactionMethods:
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_transactions__happy_path(self, mock_get, mock_token) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        mock_payload = [
+            {
+                "id": "7104888678B2E5A166C8E311D5DF8674",
+                "currency": "GBP",
+                "paymentName": "Aug 2026 Membership",
+                "type": "club",
+                "paymentId": "05A872A5D89C4E3FB44113D1D0759080",
+                "payoutAccountId": "21DC04DD38E34720D6F6B93C55CF413B",
+                "total": 2000,
+                "fee": 70,
+                "refunded": 0,
+                "paidAt": "2026-08-11T16:40:06Z",
+                "status": "FULFILLED",
+                "paidByName": "User Namehere",
+                "feeChargedAsItem": False,
+            }
+        ]
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=mock_payload
+        )
+
+        tx = await s.get_transactions()
+
+        mock_get.assert_called_once_with(
+            "https://api.spond.com/club/v1/transactions",
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {mock_token}",
+            },
+            params={"max": "100"},
+        )
+        # Response must be a list/array
+        assert isinstance(tx, list)
+        assert tx == mock_payload
+        assert s.transactions == mock_payload
+
+        # Validate expected fields on the first transaction
+        t = tx[0]
+        assert t["id"] == "7104888678B2E5A166C8E311D5DF8674"
+        assert t["currency"] == "GBP"
+        assert t["paymentName"] == "Aug 2026 Membership"
+        assert t["total"] == 2000
+        assert t["fee"] == 70
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_transactions__with_group_id(self, mock_get, mock_token) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
+
+        await s.get_transactions(group_id="GID1")
+
+        mock_get.assert_called_once_with(
+            "https://api.spond.com/club/v1/transactions",
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {mock_token}",
+            },
+            params={"max": "100", "groupId": "GID1"},
+        )
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_transactions__api_error_raises(self, mock_get, mock_token) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = False
+        mock_get.return_value.__aenter__.return_value.status = 403
+        mock_get.return_value.__aenter__.return_value.text = AsyncMock(
+            return_value="Forbidden"
+        )
+
+        with pytest.raises(ValueError, match="403"):
+            await s.get_transactions()
+
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
     async def test_get_posts__custom_max(self, mock_get, mock_token) -> None:
