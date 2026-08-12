@@ -65,6 +65,33 @@ Retrieve posts from group walls.
 ### get_profile()
 Retrieve information connected to the user's account.
 
+### get_transactions()
+
+Call Spond Club's transactions API to retrieve payments/transactions for the
+authenticated account. Returns a list of transaction objects (cached on
+`self.transactions`) and accepts optional filters.
+
+Parameters
+---------
+- `max_transactions` (int, optional): Maximum number of transactions to
+    return (default 100).
+- `group_id` (str, optional): Restrict results to a specific group.
+
+Returns
+-------
+A JSON array of transaction objects. Each transaction typically contains
+fields such as `id`, `currency`, `paymentName`, `type`, `paymentId`,
+`total`, `fee`, `refunded`, `paidAt`, `status`, and `paidByName`.
+
+Example
+-------
+```python
+tx = await s.get_transactions(max_transactions=50, group_id="GID1")
+for t in tx:
+        print(t["paidAt"], t["paymentName"], t["total"])
+```
+
+
 ## Example scripts
 
 The following scripts are included in `examples/`.  Some of the scripts might require additional packages to be installed (csv, ical etc).
