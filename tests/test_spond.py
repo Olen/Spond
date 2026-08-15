@@ -113,14 +113,25 @@ class TestEventMethods:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
+    @patch("aiohttp.ClientSession.get")
     async def test_update_event__returns_api_response(
-        self, mock_post, mock_token
+        self, mock_get, mock_post, mock_token
     ) -> None:
         """`update_event()` should return the POST response, not the cached
         events list (regression test for #239)."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
-        s.events = [{"id": "ID1", "heading": "Old"}]  # cached event for _get_entity
+        # Not consumed by `_get_entity()`, which now fetches events over HTTP.
+        # Retained as the decoy for the `result is not s.events` assertion below.
+        s.events = [{"id": "ID1", "heading": "Old"}]
+
+        # `update_event()` reads the current event before POSTing the update,
+        # and that read is an HTTP GET against the singular endpoint.
+        mock_get.return_value.__aenter__.return_value.status = 200
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={"id": "ID1", "heading": "Old"}
+        )
 
         api_response = {
             "id": "ID1",
