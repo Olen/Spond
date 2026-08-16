@@ -1,5 +1,11 @@
+"""Dump each group's full JSON representation to a per-group file.
+
+Uses the v2.x typed-object surface. `group.model_dump_json(by_alias=True)`
+serialises a typed `Group` instance back to JSON in Spond's wire shape —
+the equivalent of the raw dict the pre-OO API returned.
+"""
+
 import asyncio
-import json
 from pathlib import Path
 
 from config import password, username
@@ -10,23 +16,19 @@ EXPORT_DIRPATH = Path("./exports")
 
 
 async def main() -> None:
-    s = spond.Spond(username=username, password=password)
-    groups = await s.get_groups()
+    async with spond.Spond(username=username, password=password) as s:
+        groups = await s.get_groups() or []
+
     EXPORT_DIRPATH.mkdir(exist_ok=True)
+    keepcharacters = (" ", ".", "_")
 
     for group in groups:
-        name = group["name"]
-        data = json.dumps(group, indent=4, sort_keys=True)
-        keepcharacters = (" ", ".", "_")
         base_filename = "".join(
-            c for c in name if c.isalnum() or c in keepcharacters
+            c for c in group.name if c.isalnum() or c in keepcharacters
         ).rstrip()
         json_filepath = EXPORT_DIRPATH / f"{base_filename}.json"
         print(json_filepath)
-        with json_filepath.open("w") as out_file:
-            out_file.write(data)
-
-    await s.clientsession.close()
+        json_filepath.write_text(group.model_dump_json(by_alias=True, indent=4))
 
 
 loop = asyncio.new_event_loop()

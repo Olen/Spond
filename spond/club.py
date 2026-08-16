@@ -8,12 +8,56 @@ class for this API and `spond.spond.Spond` for everything else.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from datetime import datetime
+from typing import ClassVar
 
+from pydantic import ConfigDict, Field
+
+from ._compat import DictCompatModel
 from .base import _SpondBase
 
-if TYPE_CHECKING:
-    from . import JSONDict
+
+class Transaction(DictCompatModel):
+    """A Spond Club payment/transaction record.
+
+    Returned as elements of `SpondClub.get_transactions()`. Conservatively
+    modelled around the four fields the Spond Club UI typically shows for
+    every transaction: `id`, `paidAt`, `paymentName`, `paidByName`. All
+    other fields Spond emits are preserved via `extra="allow"` and remain
+    accessible both as attributes (`transaction.someExtra`) and through the
+    dict-compat shim (`transaction["someExtra"]`) until they're explicitly
+    modelled. Only `uid` is strictly required so an API drift that drops
+    one of the other fields doesn't crash the entire `get_transactions()`
+    call.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    uid: str = Field(alias="id")
+    paid_at: datetime | None = Field(default=None, alias="paidAt")
+    payment_name: str = Field(default="", alias="paymentName")
+    paid_by_name: str = Field(default="", alias="paidByName")
+
+    def __str__(self) -> str:
+        return (
+            f"Transaction(uid={self.uid!r}, payment={self.payment_name!r}, "
+            f"paid_by={self.paid_by_name!r})"
+        )
+
+    def _natural_key(self) -> tuple | None:
+        """uid when set; otherwise (paid_at, payment_name, paid_by_name)
+        as the natural composite key Spond's UI exposes."""
+        if self.uid:
+            return ("Transaction", self.uid)
+        if self.paid_at or self.payment_name or self.paid_by_name:
+            return (
+                "Transaction",
+                None,
+                self.paid_at,
+                self.payment_name,
+                self.paid_by_name,
+            )
+        return None
 
 
 class SpondClub(_SpondBase):
@@ -32,11 +76,11 @@ class SpondClub(_SpondBase):
     from spond import club
 
     async def main():
-        sc = club.SpondClub(username="me@example.invalid", password="secret")
-        txs = await sc.get_transactions(club_id="ABCD1234...", max_items=50)
-        for t in txs:
-            print(t["paidAt"], t["paymentName"], t["paidByName"])
-        await sc.clientsession.close()
+        async with club.SpondClub(username="me@example.invalid",
+                                  password="secret") as sc:
+            txs = await sc.get_transactions(club_id="ABCD1234...", max_items=50)
+            for t in txs:
+                print(t.paid_at, t.payment_name, t.paid_by_name)
 
     asyncio.run(main())
     ```
@@ -57,12 +101,12 @@ class SpondClub(_SpondBase):
             Spond account password.
         """
         super().__init__(username, password, self._API_BASE_URL)
-        self.transactions: list[JSONDict] | None = None
+        self.transactions: list[Transaction] | None = None
 
     @_SpondBase.require_authentication
     async def get_transactions(
         self, club_id: str, skip: int | None = None, max_items: int = 100
-    ) -> list[JSONDict]:
+    ) -> list[Transaction]:
         """Retrieve transactions/payments for a Spond Club.
 
         Spond's transactions endpoint returns at most 25 records per request,
@@ -98,9 +142,10 @@ class SpondClub(_SpondBase):
 
         Returns
         -------
-        list[JSONDict]
+        list[Transaction]
             All transactions accumulated so far (across recursive page
-            fetches). Empty list if the club has no transactions.
+            fetches), as typed `Transaction` instances. Empty list if the
+            club has no transactions.
         """
         if self.transactions is None:
             self.transactions = []
@@ -111,15 +156,19 @@ class SpondClub(_SpondBase):
 
         async with self.clientsession.get(url, headers=headers, params=params) as r:
             if r.status == 200:
-                t = await r.json()
-                if len(t) == 0:
+                raw = await r.json()
+                if len(raw) == 0:
                     return self.transactions
 
-                self.transactions.extend(t)
+                # Validate the whole page first, then extend, so a mid-page
+                # validation failure can't leave `self.transactions`
+                # partially populated.
+                page = [Transaction.model_validate(t) for t in raw]
+                self.transactions.extend(page)
                 if len(self.transactions) < max_items:
                     return await self.get_transactions(
                         club_id=club_id,
-                        skip=len(t) if skip is None else skip + len(t),
+                        skip=len(raw) if skip is None else skip + len(raw),
                         max_items=max_items,
                     )
 

@@ -1,3 +1,10 @@
+"""Per-event attendance CSVs for organisers.
+
+Uses the v2.x typed-object surface throughout — attribute access,
+typed `event.responses`, the `Event.response_for(uid)` convenience
+property, and the `_resolve_uids_to_persons()`-based member helpers.
+"""
+
 import argparse
 import asyncio
 import csv
@@ -35,91 +42,55 @@ args = parser.parse_args()
 
 
 async def main() -> None:
-    session = spond.Spond(username=username, password=password)
-    events = await session.get_events(min_start=args.f, max_start=args.t)
-    EXPORT_DIRPATH.mkdir(exist_ok=True)
+    async with spond.Spond(username=username, password=password) as session:
+        events = await session.get_events(min_start=args.f, max_start=args.t)
+        EXPORT_DIRPATH.mkdir(exist_ok=True)
 
-    for e in events:
-        base_filename = _sanitise_filename(f"{e['startTimestamp']}-{e['heading']}")
-        filepath = EXPORT_DIRPATH / f"{base_filename}.csv"
-        with filepath.open("w", newline="") as csvfile:
-            spamwriter = csv.writer(
-                csvfile, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL
-            )
-
-            spamwriter.writerow(
-                ["Start", "End", "Description", "Name", "Answer", "Organizer"]
-            )
-            for o in e["owners"]:
-                name = await _derive_member_name(session, o["id"])
-                spamwriter.writerow(
-                    [
-                        e["startTimestamp"],
-                        e["endTimestamp"],
-                        e["heading"],
-                        name,
-                        o["response"],
-                        "X",
-                    ]
+        for e in events:
+            base_filename = _sanitise_filename(f"{e.start_time}-{e.heading}")
+            filepath = EXPORT_DIRPATH / f"{base_filename}.csv"
+            with filepath.open("w", newline="") as csvfile:
+                writer = csv.writer(
+                    csvfile,
+                    delimiter=",",
+                    quotechar='"',
+                    quoting=csv.QUOTE_MINIMAL,
                 )
-            if args.a is True:
-                for r in e["responses"]["acceptedIds"]:
-                    name = await _derive_member_name(session, r)
-                    spamwriter.writerow(
+                writer.writerow(
+                    ["Start", "End", "Description", "Name", "Answer", "Organizer"]
+                )
+
+                # Organisers first (event.owners is list[dict] —
+                # individual owner shape isn't a typed model in v2.x).
+                for o in e.owners:
+                    name = await _derive_member_name(session, o.get("id", ""))
+                    writer.writerow(
                         [
-                            e["startTimestamp"],
-                            e["endTimestamp"],
-                            e["heading"],
+                            e.start_time,
+                            e.end_time,
+                            e.heading,
                             name,
-                            "accepted",
-                        ]
-                    )
-                for r in e["responses"]["declinedIds"]:
-                    name = await _derive_member_name(session, r)
-                    spamwriter.writerow(
-                        [
-                            e["startTimestamp"],
-                            e["endTimestamp"],
-                            e["heading"],
-                            name,
-                            "declined",
-                        ]
-                    )
-                for r in e["responses"]["unansweredIds"]:
-                    name = await _derive_member_name(session, r)
-                    spamwriter.writerow(
-                        [
-                            e["startTimestamp"],
-                            e["endTimestamp"],
-                            e["heading"],
-                            name,
-                            "unanswered",
-                        ]
-                    )
-                for r in e["responses"]["unconfirmedIds"]:
-                    name = await _derive_member_name(session, r)
-                    spamwriter.writerow(
-                        [
-                            e["startTimestamp"],
-                            e["endTimestamp"],
-                            e["heading"],
-                            name,
-                            "unconfirmed",
-                        ]
-                    )
-                for r in e["responses"]["waitinglistIds"]:
-                    name = await _derive_member_name(session, r)
-                    spamwriter.writerow(
-                        [
-                            e["startTimestamp"],
-                            e["endTimestamp"],
-                            e["heading"],
-                            name,
-                            "waitinglist",
+                            o.get("response", ""),
+                            "X",
                         ]
                     )
 
-    await session.clientsession.close()
+                if args.a:
+                    # Each response bucket gets its own pass — using the
+                    # typed `event.responses` instead of dict subscripts.
+                    buckets = (
+                        ("accepted", e.responses.accepted_uids),
+                        ("declined", e.responses.declined_uids),
+                        ("unanswered", e.responses.unanswered_uids),
+                        ("unconfirmed", e.responses.unconfirmed_uids),
+                        ("waitinglist", e.responses.waiting_list_uids),
+                    )
+                    for status, uids in buckets:
+                        for uid in uids:
+                            name = await _derive_member_name(session, uid)
+                            writer.writerow(
+                                [e.start_time, e.end_time, e.heading, name, status]
+                            )
 
 
 async def _derive_member_name(spond_session, member_id: str) -> str:
@@ -128,7 +99,7 @@ async def _derive_member_name(spond_session, member_id: str) -> str:
         person = await spond_session.get_person(member_id)
     except KeyError:
         return member_id
-    return f"{person['firstName']} {person['lastName']}"
+    return person.full_name
 
 
 def _sanitise_filename(input_str: str) -> str:
