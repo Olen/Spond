@@ -84,10 +84,9 @@ You need a username and password from Spond
 import asyncio
 from spond import spond
 
-username = "my@mail.invalid"
-password = "Pa55worD"
-group_id = "C9DC791FFE63D7914D6952BE10D97B46"  # fake
-
+username = 'my@mail.invalid'
+password = 'Pa55worD'
+group_id = 'C9DC791FFE63D7914D6952BE10D97B46'  # fake
 
 async def main():
     async with spond.Spond(username=username, password=password) as s:
@@ -97,7 +96,6 @@ async def main():
             print(f"  {member.full_name}")
             for guardian in member.guardians:
                 print(f"    guardian: {guardian.full_name}")
-
 
 asyncio.run(main())
 ```
@@ -131,26 +129,21 @@ async with spond.Spond(username, password) as s:
 
     # ActiveRecord-style write surface — same shape for Event and Post
     # (requires: from spond.event import Event; from spond.post import Post)
-    new_event = Event(
-        heading="My new event",
-        start_time=start,
-        end_time=end,
-        type="EVENT",
-        owners=[{"id": my_pid, "response": "accepted"}],
-        recipients={"group": {"id": group_id}},
-    )
-    await new_event.save(client=s)  # POST → uid populated; cache updated
+    new_event = Event(heading="My new event",
+                     start_time=start, end_time=end, type="EVENT",
+                     owners=[{"id": my_pid, "response": "accepted"}],
+                     recipients={"group": {"id": group_id}})
+    await new_event.save(client=s)   # POST → uid populated; cache updated
     assert new_event.uid
 
     new_event.description = "Some details"
-    await new_event.save()  # mutate-in-place, then re-save
+    await new_event.save()           # mutate-in-place, then re-save
 
-    await new_event.delete()  # DELETE → pruned from cache
+    await new_event.delete()         # DELETE → pruned from cache
 
     # Posts work the same way, with `add_comment` as a bonus:
-    post = Post(
-        uid="", type="PLAIN", group_uid=group_id, title="Hello", body="Welcome."
-    )
+    post = Post(uid="", type="PLAIN", group_uid=group_id,
+                title="Hello", body="Welcome.")
     await post.save(client=s)
     comment = await post.add_comment("First!")
     assert comment.uid and comment.text == "First!"
@@ -165,8 +158,8 @@ sets and as dict keys:
 ```python
 a = await s.get_event(uid)
 b = await s.get_event(uid)
-assert a == b  # same uid → equal, even if state differs
-assert {a, b} == {a}  # dedups via __hash__
+assert a == b                  # same uid → equal, even if state differs
+assert {a, b} == {a}           # dedups via __hash__
 
 # Match is a subclass of Event; same uid → same entity
 assert isinstance(match, Event)
@@ -180,12 +173,12 @@ server state changed?"), use `model_equals(other)`.
 
 ```python
 from spond import (
-    SpondError,  # base — catch this for any SDK error
-    AuthenticationError,  # login failures
-    EventNotFoundError,  # also a KeyError, for backward compat
-    GroupNotFoundError,  # also a KeyError
-    PersonNotFoundError,  # also a KeyError
-    SpondAPIError,  # HTTP failures; also a ValueError
+    SpondError,             # base — catch this for any SDK error
+    AuthenticationError,    # login failures
+    EventNotFoundError,     # also a KeyError, for backward compat
+    GroupNotFoundError,     # also a KeyError
+    PersonNotFoundError,    # also a KeyError
+    SpondAPIError,          # HTTP failures; also a ValueError
 )
 
 try:
