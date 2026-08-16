@@ -62,6 +62,18 @@ The full migration story (semantics, write surface, exception
 hierarchy, async context manager, etc.) is in
 [`DESIGN-oo-rewrite.md`](DESIGN-oo-rewrite.md).
 
+### Requirements
+
+- Python 3.11 or later
+- `aiohttp` 3.14.3 or later
+- `pydantic` 2.0 or later
+
+The `aiohttp` floor is a security requirement rather than a feature one. Releases
+below 3.14.3 carry known advisories in the HTTP parsers, the most serious being an
+out-of-bounds read in the C response parser that an upstream server can trigger with
+a malformed chunked response ([CVE-2026-69244](https://github.com/advisories/GHSA-cq5v-8q36-5273)).
+If you pin `aiohttp` in your own project, pin it at or above 3.14.3.
+
 ## Usage
 
 You need a username and password from Spond

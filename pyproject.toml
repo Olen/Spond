@@ -9,7 +9,12 @@ repository = 'https://github.com/Olen/Spond'
 
 [tool.poetry.dependencies]
 python = ">=3.11"
-aiohttp = ">=3.8.5"
+# Floor is a security boundary, not a feature requirement: everything below
+# 3.14.3 carries known advisories in the HTTP parsers, up to and including a
+# high-severity out-of-bounds read (CVE-2026-69244). As a library we publish
+# this range to downstream installs, so it must not resolve to a vulnerable
+# aiohttp. Don't lower it without checking the advisories first.
+aiohttp = ">=3.14.3"
 pydantic = ">=2.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -18,12 +23,25 @@ pydantic = ">=2.0"
 pdoc = {version = ">=16.0.0", python = "<4"}
 pytest = ">=9.0.2"
 pytest-asyncio = ">=1.3.0"
+pytest-socket = ">=0.7.0"
 ruff = ">=0.15.0"
 
 [tool.pytest.ini_options]
 # Pinned explicitly: pytest-asyncio's default is currently unset and will
 # flip to "function" in a future release — set now so behaviour can't drift.
 asyncio_default_fixture_loop_scope = "function"
+# The suite is fully mocked and must never reach the network. Without this, a
+# gap in a mock doesn't fail — it sends a real request to api.spond.com, which
+# is slow, non-deterministic, dependent on credentials CI doesn't have, and
+# capable of passing for the wrong reason.
+#
+# `--allow-unix-socket` is required, not optional: asyncio builds its event
+# loop self-pipe with `socket.socketpair()` (AF_UNIX on Linux), so blocking
+# every socket would break the event loop and with it every async test.
+#
+# A test that genuinely needs the network must opt in explicitly with
+# `@pytest.mark.enable_socket`.
+addopts = "--disable-socket --allow-unix-socket"
 
 [tool.ruff]
 target-version = "py311"  # Ruff doesn't yet infer this from [tool.poetry.dependencies]
