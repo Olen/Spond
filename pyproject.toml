@@ -23,7 +23,9 @@ pdoc = {version = ">=16.0.0", python = "<4"}
 pytest = ">=9.0.2"
 pytest-asyncio = ">=1.3.0"
 pytest-socket = ">=0.7.0"
-ruff = ">=0.15.0"
+# Pinned exactly: CI resolves fresh, so a floating formatter changes the verdict
+# on untouched branches. Dependabot raises upgrades as their own PR.
+ruff = "==0.16.3"
 
 [tool.pytest.ini_options]
 # Pinned explicitly: pytest-asyncio's default is currently unset and will
@@ -44,6 +46,10 @@ addopts = "--disable-socket --allow-unix-socket"
 
 [tool.ruff]
 target-version = "py311"  # Ruff doesn't yet infer this from [tool.poetry.dependencies]
+
+[tool.ruff.format]
+# Docs snippets are illustrative, not compiled: keep hand-alignment readable.
+exclude = ["*.md"]
 
 [tool.ruff.lint]
 select = [
