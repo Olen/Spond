@@ -45,15 +45,22 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "🔢 Extracted version: $VERSION"
 
+      # Any pyproject.toml edit triggers this workflow, but only a version bump
+      # is a release. An unchanged version is a no-op, not a failure — so record
+      # it as an output and skip the remaining steps rather than exiting 1.
       - name: 🔍 Check if Git tag exists
         id: check_tag
         run: |
           if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-            echo "⚠️ Tag v${VERSION} already exists. Skipping release!"
-            exit 1
+            echo "⚠️ Tag v${VERSION} already exists. Nothing to release."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "🆕 No tag v${VERSION} yet. Releasing."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: "🏷️ Create new tag"
+        if: steps.check_tag.outputs.exists == 'false'
         uses: rickstaa/action-create-tag@v1
         id: "tag_create"
         with:
@@ -62,6 +69,7 @@ jobs:
           message: "✅ Tag Version v${{ env.VERSION }} created"
 
       - name: 🚀 Create GitHub Release
+        if: steps.check_tag.outputs.exists == 'false'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ env.VERSION }}
@@ -71,8 +79,10 @@ jobs:
           prerelease: false
 
       - name: 🏗️ Build package with Poetry
+        if: steps.check_tag.outputs.exists == 'false'
         run: poetry build
 
       - name: 🚀 Publish to PyPI with OpenID
+        if: steps.check_tag.outputs.exists == 'false'
         uses: pypa/gh-action-pypi-publish@release/v1
 
