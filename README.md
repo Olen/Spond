@@ -67,6 +67,14 @@ Either specify an existing `chat_id`, or both `user` and `group_uid` for a new c
 ### get_event_attendance_xlsx()
 Get Excel attendance report for a single event, available via the web client.
 
+### get_lineups(uid)
+Get the line-ups set for a match event, including each player's normalised pitch coordinates and the substitutes.
+Line-ups are created in the Spond mobile app and are not rendered by the web client.
+They carry `HOSTS_AND_ADMINS_ONLY` visibility, so they are readable only by an event's hosts and admins.
+
+### get_formations()
+Get Spond's catalogue of formation templates, used to resolve the `formationId` from `get_lineups()` to a name such as `4-4-2`.
+
 ### change_response()
 Change a member's response for an event (e.g. accept/decline)
 
@@ -87,6 +95,9 @@ Generates an ics-file of upcoming events.
 
 ### groups.py
 Generates a json-file for each group you are a member of.
+
+### lineups.py
+Prints a text pitch diagram of the line-up for each match event that has one, using the players' normalised coordinates.
 
 ### attendance.py &lt;-f from_date&gt; &lt;-t to_date&gt; [-a]
 Generates a csv-file for each event between `from_date` and `to_date` with attendance status of all organizers.  The optional parameter `-a` also includes all members that has been invited.
