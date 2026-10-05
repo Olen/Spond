@@ -1,6 +1,5 @@
 import asyncio
 import pandas as pd
-import numpy as np
 
 from config import password, username
 from spond import spond

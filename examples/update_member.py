@@ -1,6 +1,4 @@
 import asyncio
-import pandas as pd
-import numpy as np
 import pprint
 
 from config import password, username, group_id
@@ -14,7 +12,7 @@ from spond import spond
 #
 # Lots of globals as code is used in Jupyter notebook across different cells
 #
-async def get_spond_group(s):
+async def get_spond_group(s) -> None:
     global members, fieldDefs, field_id_race_plate
     global field_id_date_added, field_id_grade, field_id_racing_category
     global field_id_leave_early, field_id_ride_home, field_id_school
@@ -28,9 +26,7 @@ async def get_spond_group(s):
     roles     = result['roles']
     
     for subGroup in subGroups:
-        if subGroup['name'] == 'Social Chat':
-            subGroup_social_chat_id = subGroup['id']
-        elif subGroup['name'] == 'Marketplace':
+        if subGroup['name'] == 'Marketplace':
             subGroup_hub_id = subGroup['id']
         elif subGroup['name'] == 'Coaches':
             subGroup_coaches_id = subGroup['id']
@@ -55,9 +51,9 @@ async def get_spond_group(s):
     
     for role in roles:
         if role['name'] == 'Team Admin':
-            rold_id_team_admin = role['id']
+            rold_id_team_admin = role['id']  # noqa: F841
         elif role['name'] == 'Coach':
-            rold_id_coach = role['id']
+            rold_id_coach = role['id']   # noqa: F841
 
 
 async def main() -> None:
@@ -74,7 +70,7 @@ async def main() -> None:
             m = member
 
     # Change the racing category for member with first name Test to 1
-    if (m != None):
+    if (m is not None):
         # change value in a custom field
         member_fields = m['fields']
         member_fields[field_id_racing_category] = "1"
