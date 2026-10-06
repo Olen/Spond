@@ -8,9 +8,12 @@ flow used by the `require_authentication` decorator.
 Not intended to be instantiated directly — use a subclass.
 """
 
+from __future__ import annotations
+
 import functools
 from abc import ABC
 from collections.abc import Callable
+from typing import Self
 
 import aiohttp
 
@@ -48,8 +51,49 @@ class _SpondBase(ABC):
         self.username = username
         self.password = password
         self.api_url = api_url
-        self.clientsession = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar())
+        # Use ThreadedResolver explicitly instead of aiohttp's c-ares default:
+        # c-ares allocates a kernel resource (an "AresChannel") per resolver
+        # instance, and the OS has a hard limit on those. A long-running
+        # process or a wide test matrix that constructs many short-lived
+        # `Spond` instances would otherwise hit
+        # `pycares.AresError: Failed to initialize c-ares channel`.
+        # ThreadedResolver uses the stdlib synchronous resolver in a thread
+        # — slightly higher per-lookup overhead, no channel limit.
+        self.clientsession = aiohttp.ClientSession(
+            cookie_jar=aiohttp.CookieJar(),
+            connector=aiohttp.TCPConnector(resolver=aiohttp.ThreadedResolver()),
+        )
         self.token = None
+
+    async def __aenter__(self) -> Self:
+        """Async context-manager entry — returns self.
+
+        Enables the idiomatic `async with Spond(...) as s:` shape so the
+        underlying aiohttp session is closed cleanly on exit, even if the
+        body raises:
+
+        ```python
+        async with Spond(username, password) as s:
+            events = await s.get_events()
+        # session closed automatically here
+        ```
+
+        Replaces the older `await s.clientsession.close()` cleanup that
+        every example used to require.
+        """
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        """Async context-manager exit — close the aiohttp client session.
+
+        Checks `clientsession.closed` first so a caller who manually
+        closed the session inside the `with` block doesn't trigger a
+        second close. Any genuine `RuntimeError` from `close()` (resource
+        leak, connector failure, etc.) is allowed to propagate rather
+        than being silently swallowed — that surface signals a real bug.
+        """
+        if not self.clientsession.closed:
+            await self.clientsession.close()
 
     @property
     def auth_headers(self) -> dict:
@@ -68,15 +112,30 @@ class _SpondBase(ABC):
 
         @functools.wraps(func)
         async def wrapper(self, *args, **kwargs):
-            if not self.token:
-                try:
-                    await self.login()
-                except AuthenticationError as e:
-                    await self.clientsession.close()
-                    raise e
+            await self._ensure_authenticated()
             return await func(self, *args, **kwargs)
 
         return wrapper
+
+    async def _ensure_authenticated(self) -> None:
+        """Trigger `login()` if not yet authenticated.
+
+        Internal helper shared between the `@require_authentication`
+        decorator (which wraps `Spond.*` methods) and the per-instance
+        ActiveRecord methods on typed models (`event.save()`,
+        `post.save()`, etc.) — those route HTTP through `self._client`
+        but aren't themselves decorated, so they need to trigger the
+        lazy login themselves.
+
+        On `AuthenticationError`, closes the underlying aiohttp session
+        before re-raising — same shape as the wrapper.
+        """
+        if not self.token:
+            try:
+                await self.login()
+            except AuthenticationError:
+                await self.clientsession.close()
+                raise
 
     async def login(self) -> None:
         """Authenticate against the Spond API and store the access token on
