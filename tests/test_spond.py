@@ -112,6 +112,49 @@ class TestEventMethods:
             await s.get_event("ID1")
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("uid", ["", None])
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_event__blank_id_raises_keyerror(
+        self, mock_get, uid, mock_token
+    ) -> None:
+        """A blank `uid` would request the list endpoint `sponds/`, so it is
+        rejected before any HTTP call."""
+
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        with pytest.raises(KeyError):
+            await s.get_event(uid)
+        mock_get.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_event__logs_in_when_unauthenticated(
+        self, mock_get, mock_token
+    ) -> None:
+        """`get_event()` as the first call on a fresh client logs in first."""
+
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+
+        async def fake_login() -> None:
+            s.token = mock_token
+
+        s.login = AsyncMock(side_effect=fake_login)
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.status = 200
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=self.MOCK_EVENT
+        )
+
+        await s.get_event("ID1")
+
+        s.login.assert_awaited_once()
+        assert (
+            mock_get.call_args.kwargs["headers"]["Authorization"]
+            == f"Bearer {mock_token}"
+        )
+
+    @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
     @patch("aiohttp.ClientSession.get")
     async def test_update_event__returns_api_response(
