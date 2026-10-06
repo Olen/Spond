@@ -91,6 +91,7 @@ class Spond(_SpondBase):
         self.events: list[JSONDict] | None = None
         self.posts: list[JSONDict] | None = None
         self.messages: list[JSONDict] | None = None
+        self.transactions: list[JSONDict] | None = None
         self.profile: JSONDict | None = None
 
     async def _login_chat(self) -> None:
@@ -297,6 +298,47 @@ class Spond(_SpondBase):
                 )
             self.posts = await r.json()
             return self.posts
+
+    @_SpondBase.require_authentication
+    async def get_transactions(
+        self,
+        max_transactions: int = 100,
+        group_id: str | None = None,
+    ) -> list[JSONDict] | None:
+        """Retrieve transactions from the Spond Club API.
+
+        Parameters
+        ----------
+        max_transactions : int, optional
+            Maximum number of transactions to return. Defaults to 100.
+        group_id : str, optional
+            Filter transactions by group id.
+
+        Returns
+        -------
+        list[JSONDict] or None
+            A list of transactions, or `None` if no transactions are available.
+
+        Raises
+        ------
+        ValueError
+            If the API request fails.
+        """
+        url = "https://api.spond.com/club/v1/transactions"
+        params: dict[str, str] = {"max": str(max_transactions)}
+        if group_id:
+            params["groupId"] = group_id
+
+        async with self.clientsession.get(
+            url, headers=self.auth_headers, params=params
+        ) as r:
+            if not r.ok:
+                error_details = await r.text()
+                raise ValueError(
+                    f"Request failed with status {r.status}: {error_details}"
+                )
+            self.transactions = await r.json()
+            return self.transactions
 
     @_SpondBase.require_authentication
     async def get_messages(self, max_chats: int = 100) -> list[JSONDict] | None:
