@@ -319,6 +319,109 @@ class TestExportMethod:
         assert data == mock_binary
 
 
+class TestLineupMethods:
+    MOCK_LINEUPS: list[JSONDict] = [
+        {
+            "id": "LID1",
+            "spondId": "ID1",
+            "name": "Starting line-up",
+            "activityType": "football",
+            "visibility": "HOSTS_AND_ADMINS_ONLY",
+            "formationId": "FID1",
+            "players": [
+                {
+                    "playerName": "Player One",
+                    "membershipId": "MID1",
+                    "x": 0.5,
+                    "y": 0.9,
+                },
+                {
+                    "playerName": "Player Two",
+                    "membershipId": "MID2",
+                    "x": 0.2,
+                    "y": 0.72,
+                },
+            ],
+            "substitutes": [{"playerName": "Player Three", "membershipId": "MID3"}],
+        },
+    ]
+
+    MOCK_FORMATIONS: list[JSONDict] = [
+        {
+            "id": "FID1",
+            "name": "4-4-2",
+            "teamSize": 11,
+            "positions": [
+                {"name": "lineup_football_goalkeeper", "x": 0.5, "y": 0.9},
+                {"name": "lineup_football_left_back", "x": 0.2, "y": 0.72},
+            ],
+        },
+    ]
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_lineups__happy_path(self, mock_get, mock_token) -> None:
+        """Test that get_lineups returns the event's line-ups."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=self.MOCK_LINEUPS
+        )
+
+        lineups = await s.get_lineups(uid="ID1")
+
+        mock_url = "https://api.spond.com/core/v1/sponds/ID1/lineups"
+        mock_get.assert_called_once_with(
+            mock_url,
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {mock_token}",
+            },
+        )
+        assert lineups == self.MOCK_LINEUPS
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_lineups__no_lineup_set(self, mock_get, mock_token) -> None:
+        """Test that an event with no line-up returns an empty list."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
+
+        lineups = await s.get_lineups(uid="ID1")
+
+        assert lineups == []
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_formations__happy_path(self, mock_get, mock_token) -> None:
+        """Test that get_formations returns and caches the formation catalogue."""
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_get.return_value.__aenter__.return_value.ok = True
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=self.MOCK_FORMATIONS
+        )
+
+        formations = await s.get_formations()
+
+        mock_url = "https://api.spond.com/core/v1/lineups/formations"
+        mock_get.assert_called_once_with(
+            mock_url,
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {mock_token}",
+            },
+        )
+        assert formations == self.MOCK_FORMATIONS
+        assert s.formations == self.MOCK_FORMATIONS
+
+
 class TestPostMethods:
     MOCK_POSTS: list[JSONDict] = [
         {

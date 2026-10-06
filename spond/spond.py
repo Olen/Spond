@@ -92,6 +92,7 @@ class Spond(_SpondBase):
         self.posts: list[JSONDict] | None = None
         self.messages: list[JSONDict] | None = None
         self.profile: JSONDict | None = None
+        self.formations: list[JSONDict] | None = None
 
     async def _login_chat(self) -> None:
         """Perform the secondary handshake with Spond's chat server.
@@ -636,6 +637,71 @@ class Spond(_SpondBase):
         url = f"{self.api_url}sponds/{uid}/export"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
             return await r.read()
+
+    @_SpondBase.require_authentication
+    async def get_lineups(self, uid: str) -> list[JSONDict]:
+        """Retrieve the line-ups set for a match event.
+
+        Line-ups are created in the Spond mobile app. The web client does not
+        render them, but the data is returned by the same consumer API and
+        needs no special headers or client identification.
+
+        Each line-up carries `visibility: "HOSTS_AND_ADMINS_ONLY"`, indicating
+        that line-ups are readable only by an event's hosts and admins.
+
+        Parameters
+        ----------
+        uid : str
+            UID of the event whose line-ups to fetch.
+
+        Returns
+        -------
+        list[JSONDict]
+            One dict per line-up; an event may hold several. Each contains
+            `id`, `spondId`, `name`, `activityType`, `visibility`, `players`
+            and `substitutes`. Empty list if no line-up has been set.
+
+            Entries in `players` always carry normalised pitch coordinates
+            `x` and `y` in the range 0.0-1.0, where `y` runs from the
+            opponent's goal at 0.0 to the team's own goal at 1.0.
+
+            A slot with a player assigned to it also carries a `membershipId`
+            (matching a member `id` from `get_groups()`) and a `playerName`.
+            Both are optional: an unfilled slot in the formation omits
+            `membershipId` entirely, and its `playerName` is an empty string
+            or absent. `substitutes` entries carry `membershipId` and
+            `playerName` on the same optional basis, without coordinates.
+
+            `formationId` is present only when a formation template was
+            applied, and absent when the players were positioned freely.
+            Where present, resolve it against `get_formations()`.
+        """
+        url = f"{self.api_url}sponds/{uid}/lineups"
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+            return await r.json()
+
+    @_SpondBase.require_authentication
+    async def get_formations(self) -> list[JSONDict]:
+        """Retrieve Spond's catalogue of formation templates.
+
+        A static reference list, identical for all groups, used to resolve the
+        `formationId` from `get_lineups()` to a readable formation name. The
+        full response is cached on `self.formations`.
+
+        Returns
+        -------
+        list[JSONDict]
+            One dict per formation, each with `id`, `name` (e.g. `"4-4-2"`),
+            `teamSize`, and a `positions` list of `{name, x, y}` holding the
+            template's default coordinates.
+
+            Note that each position's `name` is a localisation key such as
+            `"lineup_football_goalkeeper"`, not a display string.
+        """
+        url = f"{self.api_url}lineups/formations"
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+            self.formations = await r.json()
+            return self.formations
 
     @_SpondBase.require_authentication
     async def change_response(self, uid: str, user: str, payload: JSONDict) -> JSONDict:
