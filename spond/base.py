@@ -11,6 +11,7 @@ Not intended to be instantiated directly — use a subclass.
 import functools
 from abc import ABC
 from collections.abc import Callable
+from typing import ClassVar
 
 import aiohttp
 
@@ -30,6 +31,9 @@ class _SpondBase(ABC):
     and inherit lazy authentication, the `auth_headers` property, the
     `require_authentication` decorator, and the `login()` flow.
     """
+
+    # Relative to `api_url`. Overridden where an API family logs in elsewhere.
+    _LOGIN_PATH: ClassVar[str] = "auth2/login"
 
     def __init__(self, username: str, password: str, api_url: str) -> None:
         """Initialise credentials and open the aiohttp session.
@@ -88,7 +92,7 @@ class _SpondBase(ABC):
         AuthenticationError
             If the server response does not include a usable access token.
         """
-        login_url = f"{self.api_url}auth2/login"
+        login_url = f"{self.api_url}{self._LOGIN_PATH}"
         data = {"email": self.username, "password": self.password}
         async with self.clientsession.post(login_url, json=data) as r:
             login_result = await r.json()
@@ -124,8 +128,14 @@ class _SpondBase(ABC):
             token = access.get("token")
             if isinstance(token, str) and token:
                 return token
+        raise _SpondBase._login_error(login_result)
+
+    @staticmethod
+    def _login_error(login_result: dict) -> AuthenticationError:
+        """Build an `AuthenticationError` carrying only the whitelisted
+        diagnostic fields from a failed login response."""
         safe = {
             k: login_result[k] for k in _SAFE_LOGIN_ERROR_FIELDS if k in login_result
         }
         diagnostic = safe or "(no recognised diagnostic fields in response)"
-        raise AuthenticationError(f"Login failed. {diagnostic}")
+        return AuthenticationError(f"Login failed. {diagnostic}")

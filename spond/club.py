@@ -19,11 +19,11 @@ if TYPE_CHECKING:
 class SpondClub(_SpondBase):
     """Async client for the Spond Club finance API.
 
-    Authentication is shared with the consumer API — the same email/password
-    credentials work, but the user must belong to at least one Spond Club
-    organisation and the `club_id` passed to each method must be one they
-    have access to. The `club_id` here is distinct from the consumer-API
-    `groupId`.
+    Uses the same email/password credentials as the consumer API, but logs
+    in separately: a consumer-API token is not accepted here. The user must
+    belong to at least one Spond Club organisation and the `club_id` passed
+    to each method must be one they have access to. The `club_id` here is
+    distinct from the consumer-API `groupId`.
 
     Example
     -------
@@ -43,6 +43,8 @@ class SpondClub(_SpondBase):
     """
 
     _API_BASE_URL: ClassVar = "https://api.spond.com/club/v1/"
+    # The club API did not move to `auth2/login` with the core API.
+    _LOGIN_PATH: ClassVar[str] = "login"
 
     def __init__(self, username: str, password: str) -> None:
         """Construct a Spond Club client.
@@ -58,6 +60,21 @@ class SpondClub(_SpondBase):
         """
         super().__init__(username, password, self._API_BASE_URL)
         self.transactions: list[JSONDict] | None = None
+
+    @staticmethod
+    def _extract_access_token(login_result: dict) -> str:
+        """Pull the token out of a club `/login` response, shaped
+        `{"loginToken": "<token>"}`.
+
+        Raises
+        ------
+        AuthenticationError
+            The response doesn't carry a usable token.
+        """
+        token = login_result.get("loginToken")
+        if isinstance(token, str) and token:
+            return token
+        raise _SpondBase._login_error(login_result)
 
     @_SpondBase.require_authentication
     async def get_transactions(

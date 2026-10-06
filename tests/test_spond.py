@@ -9,6 +9,7 @@ import pytest
 
 from spond import AuthenticationError
 from spond.base import _SpondBase
+from spond.club import SpondClub
 from spond.spond import Spond
 
 if TYPE_CHECKING:
@@ -576,6 +577,52 @@ class TestLogin:
         with pytest.raises(AuthenticationError):
             await s.login()
         assert s.token is None
+
+
+class TestClubLogin:
+    """The club API has its own login, separate from the core API's."""
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_login__happy_path(self, mock_post) -> None:
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value={"loginToken": "CLUB"}
+        )
+
+        sc = SpondClub(MOCK_USERNAME, MOCK_PASSWORD)
+        await sc.login()
+
+        mock_post.assert_called_once_with(
+            "https://api.spond.com/club/v1/login",
+            json={"email": MOCK_USERNAME, "password": MOCK_PASSWORD},
+        )
+        assert sc.token == "CLUB"
+
+    @pytest.mark.parametrize(
+        "login_result",
+        [
+            {"error": "Invalid credentials"},
+            {"loginToken": ""},
+            {"loginToken": None},
+        ],
+    )
+    def test_extract_access_token__bad_shape_raises(self, login_result) -> None:
+        with pytest.raises(AuthenticationError):
+            SpondClub._extract_access_token(login_result)
+
+    def test_extract_access_token__error_message_drops_sensitive_fields(
+        self,
+    ) -> None:
+        login_result = {
+            "token": "TWO_FA_CHALLENGE_TOKEN_VALUE",
+            "errorKey": "twoFactorRequired",
+        }
+        with pytest.raises(AuthenticationError) as exc_info:
+            SpondClub._extract_access_token(login_result)
+
+        message = str(exc_info.value)
+        assert "TWO_FA_CHALLENGE_TOKEN_VALUE" not in message
+        assert "twoFactorRequired" in message
 
 
 class TestRequireAuthenticationDecorator:
