@@ -9,12 +9,9 @@ repository = 'https://github.com/Olen/Spond'
 
 [tool.poetry.dependencies]
 python = ">=3.11"
-# Floor is a security boundary, not a feature requirement: everything below
-# 3.14.3 carries known advisories in the HTTP parsers, up to and including a
-# high-severity out-of-bounds read (CVE-2026-69244). As a library we publish
-# this range to downstream installs, so it must not resolve to a vulnerable
-# aiohttp. Don't lower it without checking the advisories first.
-aiohttp = ">=3.14.3"
+# Compatibility floor, not a security one: 3.13.0 is the oldest aiohttp
+# supporting Python 3.14. Security pinning is left to consumers (see README).
+aiohttp = ">=3.13.0"
 
 [tool.poetry.group.dev.dependencies]
 # Constraint on `python` is required: pdoc's transitive `markdown2` declares

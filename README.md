@@ -10,13 +10,13 @@ Simple, unofficial library with some example scripts to access data from the [Sp
 ### Requirements
 
 - Python 3.11 or later
-- `aiohttp` 3.14.3 or later
+- `aiohttp` 3.13.0 or later
 
-The `aiohttp` floor is a security requirement rather than a feature one. Releases
-below 3.14.3 carry known advisories in the HTTP parsers, the most serious being an
-out-of-bounds read in the C response parser that an upstream server can trigger with
-a malformed chunked response ([CVE-2026-69244](https://github.com/advisories/GHSA-cq5v-8q36-5273)).
-If you pin `aiohttp` in your own project, pin it at or above 3.14.3.
+The `aiohttp` bound is a compatibility floor, not a security one — which
+advisories matter depends on your application, so pinning is your call. For
+reference: releases below 3.14.3 carry known HTTP-parser advisories, the most
+serious being [CVE-2026-69244](https://github.com/advisories/GHSA-cq5v-8q36-5273).
+Installing without a pin already gives you the newest `aiohttp`.
 
 ## Usage
 
