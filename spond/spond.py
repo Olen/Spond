@@ -541,11 +541,10 @@ class Spond(_SpondBase):
     async def get_event(self, uid: str) -> JSONDict:
         """Look up a single event by its unique id.
 
-        Routes through the cached events list (populated by `get_events()`),
-        which means events outside the `max_events=100` default or those
-        excluded by `include_scheduled=False` may not be findable. To reach
-        those events, call `get_events()` directly with appropriate filters
-        first to populate the cache, then call this method.
+        Fetches the event directly from the API, so any event the account can
+        see is reachable, including scheduled events and those outside
+        `get_events()`'s default `max_events` window. Does not read or update
+        `self.events`.
 
         Parameters
         ----------
@@ -561,7 +560,9 @@ class Spond(_SpondBase):
         Raises
         ------
         KeyError
-            If no event with the given id is found in the cache.
+            If `uid` is blank or no event with that id exists.
+        ValueError
+            If the API returns any other error.
         """
         return await self._get_entity(self._EVENT, uid)
 
@@ -677,12 +678,12 @@ class Spond(_SpondBase):
     async def _get_entity(self, entity_type: str, uid: str) -> JSONDict:
         """Internal lookup helper shared by `get_event` and `get_group`.
 
-        Routes to the relevant cache (`self.events` or `self.groups`),
-        triggers a fetch via `get_events()` / `get_groups()` if the cache is
-        empty, then linearly scans for a matching `id`. Raises `KeyError`
+        Events are fetched directly by uid. Groups are looked up in
+        `self.groups`, triggering a fetch via `get_groups()` if the cache is
+        empty, then linearly scanned for a matching `id`. Raises `KeyError`
         cleanly (rather than `TypeError`) when the cache remains empty after
-        the fetch attempt — the underlying `get_*s()` method may legitimately
-        return `None` if the account has no events/groups available.
+        the fetch attempt — `get_groups()` may legitimately return `None` if
+        the account has no groups available.
 
         Parameters
         ----------
@@ -699,16 +700,18 @@ class Spond(_SpondBase):
         Raises
         ------
         KeyError
-            No entity with that id was found (either because the relevant
-            cache is empty or because the id doesn't appear in it).
+            No entity with that id was found.
+        ValueError
+            The event fetch failed with a non-404 API error.
         NotImplementedError
             `entity_type` is something other than `"event"` or `"group"`.
         """
         if entity_type == self._EVENT:
-            if not self.events:
-                await self.get_events()
-            entities = self.events
-        elif entity_type == self._GROUP:
+            # Direct fetch by uid, so this is not constrained by
+            # `get_events()`'s default `max_events` cap or its
+            # `include_scheduled=False` filter.
+            return await self._fetch_event_by_uid(uid)
+        if entity_type == self._GROUP:
             if not self.groups:
                 await self.get_groups()
             entities = self.groups
@@ -800,3 +803,25 @@ class Spond(_SpondBase):
             self.payments_received = await r.json()
         return self.payments_received
 
+    async def _fetch_event_by_uid(self, uid: str) -> JSONDict:
+        """Fetch a single event from the singular endpoint.
+
+        `includeComments=true` makes the response shape match a list-endpoint
+        element (the singular endpoint otherwise omits the `comments` field).
+        """
+        if not uid:
+            # `sponds/` with no uid is the list endpoint.
+            raise KeyError(f"No event with id='{uid}'.")
+        url = f"{self.api_url}sponds/{uid}"
+        params = {"includeComments": "true"}
+        async with self.clientsession.get(
+            url, headers=self.auth_headers, params=params
+        ) as r:
+            if r.status == 404:
+                raise KeyError(f"No event with id='{uid}'.")
+            if not r.ok:
+                error_details = await r.text()
+                raise ValueError(
+                    f"Request failed with status {r.status}: {error_details}"
+                )
+            return await r.json()
