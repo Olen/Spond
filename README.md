@@ -76,6 +76,18 @@ Retrieve posts from group walls.
 ### get_profile()
 Retrieve information connected to the user's account.
 
+### update_member()
+Change details about a member. First use get_groups() to get all the member details,
+find the member you what to change and make the changes, then use this method to
+update in Spond.
+
+### get_members_xlsx()
+Get the Excel member export that is downloadable from the Spond web page.
+
+### get_received_payments()
+Gets the details of the received payments that is displayed under the payments
+section of a user's profile.
+
 ## Example scripts
 
 The following scripts are included in `examples/`.  Some of the scripts might require additional packages to be installed (csv, ical etc).

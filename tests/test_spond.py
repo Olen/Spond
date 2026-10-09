@@ -224,6 +224,38 @@ class TestEventMethods:
         assert response == mock_response_data
 
 
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_update_member(self, mock_put, mock_payload, mock_token) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_response_data = {
+            "createdTime": '2022-11-02T22:06:35Z',
+            'email': "james@foo.com",
+            'firstName': 'James',
+            'lastName': 'Smith',
+            'phoneNumber': '+1655552020'
+        }
+        mock_put.return_value.__aenter__.return_value.status = 200
+        mock_put.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=mock_response_data
+        )
+
+        response = await s.update_member(group_id="GID1", member=mock_payload)
+
+        mock_url = "https://api.spond.com/core/v1/group/GID1/member"
+        mock_put.assert_called_once_with(
+            mock_url,
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {mock_token}",
+            },
+            json=mock_payload,
+        )
+        assert response == mock_response_data
+
+
 class TestGroupMethods:
     @pytest.fixture
     def mock_groups(self) -> list[JSONDict]:
@@ -361,6 +393,32 @@ class TestExportMethod:
         data = await s.get_event_attendance_xlsx(uid="ID1")
 
         mock_url = "https://api.spond.com/core/v1/sponds/ID1/export"
+        mock_get.assert_called_once_with(
+            mock_url,
+            headers={
+                "content-type": "application/json",
+                "Authorization": f"Bearer {mock_token}",
+            },
+        )
+        assert data == mock_binary
+
+
+class TestExportMembersMethod:
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.get")
+    async def test_get_export_members(self, mock_get, mock_token) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        mock_binary = b"\x68\x65\x6c\x6c\x6f\x77\x6f\x72\x6c\x64"  # helloworld
+        mock_get.return_value.__aenter__.return_value.status = 200
+        mock_get.return_value.__aenter__.return_value.read = AsyncMock(
+            return_value=mock_binary
+        )
+
+        data = await s.get_members_xlsx(group_id="GID1")
+
+        mock_url = "https://api.spond.com/core/v1/group/GID1/exportMembers"
         mock_get.assert_called_once_with(
             mock_url,
             headers={
