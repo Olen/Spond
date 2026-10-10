@@ -77,7 +77,7 @@ jobs:
 
       - name: 🏗️ Build package with Poetry
         if: steps.check_tag.outputs.exists == 'false'
-        run: poetry build
+        run: uv build
 
       - name: 🚀 Publish to PyPI with OpenID
         if: steps.check_tag.outputs.exists == 'false'

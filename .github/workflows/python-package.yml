@@ -1,4 +1,4 @@
-# Install Poetry, dependencies, run tests with a range of Python versions on Ubuntu Linux
+# Lint and test with a range of Python versions on Ubuntu Linux with uv
 
 name: Python package
 
@@ -34,6 +34,9 @@ jobs:
       uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
+
+    - name: Sync dependencies, asserting lockfile is up-to-date
+      run: uv sync --locked
 
     - name: Lint with ruff
       # By default, exit with error if rule violations, report issues.
