@@ -104,18 +104,17 @@ Demonstrates most `get...()` methods.
 
 ## API documentation
 
-The library's API documentation is generated from the docstrings in `spond/`
+The library's API documentation is generated from the docstrings in `src/spond`
 using [pdoc](https://pdoc.dev/) and published to GitHub Pages on every push
 to `main`:
 
 **[https://olen.github.io/Spond/](https://olen.github.io/Spond/)**
 
-To browse the same docs locally (useful when iterating on docstrings),
-install the dev dependencies and start the pdoc dev server:
+To browse docs locally (useful when iterating on docstrings),
+start the pdoc dev server:
 
 ```shell
-poetry install
-poetry run pdoc --docformat numpy ./spond
+uv run pdoc --docformat numpy ./spond
 ```
 
 A browser tab opens at `http://localhost:8080` with a searchable, navigable
@@ -125,7 +124,7 @@ next to each one. Pages update automatically when the docstrings change.
 To generate static HTML instead:
 
 ```shell
-poetry run pdoc --docformat numpy -o docs/ ./spond
+uv run pdoc --docformat numpy -o docs/ ./spond
 ```
 
 The `--docformat numpy` flag parses NumPy-style `Parameters`, `Returns`, and
