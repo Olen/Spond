@@ -23,24 +23,27 @@ jobs:
     steps:
     - name: Check out repository
       uses: actions/checkout@v7
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      with:
+        # Install a specific version of uv
+        version: "0.13.0"
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        virtualenvs-create: true
-        virtualenvs-in-project: true
-    - name: Install project
-      run: poetry install
+
     - name: Lint with ruff
       # By default, exit with error if rule violations, report issues.
       # Picks up config from `pyproject.toml`.
-      run: poetry run ruff check
+      run: uv run ruff check
+
     - name: Check format with ruff
       # By default, exit with error if the code is not properly formatted.
       # Picks up config from `pyproject.toml`.
-      run: poetry run ruff format --check --diff
+      run: uv run ruff format --check --diff
+
     - name: Test with pytest
-      run: poetry run pytest
+      run: uv run pytest
