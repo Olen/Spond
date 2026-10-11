@@ -171,7 +171,6 @@ class TestEventMethods:
         )
         assert response == mock_response_data
 
-
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
     async def test_update_member(self, mock_put, mock_payload, mock_token) -> None:
@@ -179,11 +178,11 @@ class TestEventMethods:
         s.token = mock_token
 
         mock_response_data = {
-            "createdTime": '2022-11-02T22:06:35Z',
-            'email': "james@foo.com",
-            'firstName': 'James',
-            'lastName': 'Smith',
-            'phoneNumber': '+1655552020'
+            "createdTime": "2022-11-02T22:06:35Z",
+            "email": "james@foo.com",
+            "firstName": "James",
+            "lastName": "Smith",
+            "phoneNumber": "+1655552020",
         }
         mock_put.return_value.__aenter__.return_value.status = 200
         mock_put.return_value.__aenter__.return_value.json = AsyncMock(

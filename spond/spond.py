@@ -731,7 +731,7 @@ class Spond(_SpondBase):
 
         Subject to authenticated user's access permissions.
 
-        First get the member data with either get_groups() or get_person(), 
+        First get the member data with either get_groups() or get_person(),
         modify some values then write back with this method.
 
         Parameters
@@ -749,7 +749,9 @@ class Spond(_SpondBase):
         """
 
         url = f"{self.api_url}group/{group_id}/member"
-        async with self.clientsession.post(url, json=member, headers=self.auth_headers) as r:
+        async with self.clientsession.post(
+            url, json=member, headers=self.auth_headers
+        ) as r:
             return await r.json()
 
     @_SpondBase.require_authentication
@@ -774,9 +776,9 @@ class Spond(_SpondBase):
 
     @_SpondBase.require_authentication
     async def get_received_payments(self, max_records: int = 100) -> JSONDict:
-        """Get the list of Received Payments. 
+        """Get the list of Received Payments.
 
-        These are the payments that can be viewed from the user's profile in Spond under the 
+        These are the payments that can be viewed from the user's profile in Spond under the
         'Payment/Received payments' option.
 
         Parameters
@@ -793,10 +795,9 @@ class Spond(_SpondBase):
         """
         url = f"{self.api_url}payments/received"
         async with self.clientsession.get(
-            url, 
+            url,
             headers=self.auth_headers,
             params={"maxCount": str(max_records)},
         ) as r:
             self.payments_received = await r.json()
         return self.payments_received
-

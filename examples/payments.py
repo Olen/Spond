@@ -4,7 +4,7 @@ import pandas as pd
 from config import password, username
 from spond import spond
 
-# Get Payment Data 
+# Get Payment Data
 
 
 async def main() -> None:
@@ -14,9 +14,9 @@ async def main() -> None:
     df = pd.DataFrame(received_payments)
     df.to_excel("payment_data.xlsx", index=False)
 
-    await s.clientsession.close() 
+    await s.clientsession.close()
+
 
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 asyncio.run(main())
-
