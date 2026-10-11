@@ -69,6 +69,7 @@ class TestEventMethods:
         )
 
         event = await s.get_event("ID1")
+        await s.clientsession.close()
 
         mock_get.assert_called_once_with(
             "https://api.spond.com/core/v1/sponds/ID1",
@@ -96,6 +97,8 @@ class TestEventMethods:
         with pytest.raises(KeyError):
             await s.get_event("UNKNOWN")
 
+        await s.clientsession.close()
+
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
     async def test_get_event__api_error_raises_valueerror(
@@ -115,6 +118,8 @@ class TestEventMethods:
         with pytest.raises(ValueError, match="500"):
             await s.get_event("ID1")
 
+        await s.clientsession.close()
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize("uid", ["", None])
     @patch("aiohttp.ClientSession.get")
@@ -129,6 +134,8 @@ class TestEventMethods:
 
         with pytest.raises(KeyError):
             await s.get_event(uid)
+
+        await s.clientsession.close()
         mock_get.assert_not_called()
 
     @pytest.mark.asyncio
@@ -151,7 +158,7 @@ class TestEventMethods:
         )
 
         await s.get_event("ID1")
-
+        await s.clientsession.close()
         s.login.assert_awaited_once()
         assert (
             mock_get.call_args.kwargs["headers"]["Authorization"]
@@ -190,6 +197,7 @@ class TestEventMethods:
         )
 
         result = await s.update_event(uid="ID1", updates={"heading": "New"})
+        await s.clientsession.close()
 
         assert result == api_response
         # The cached events list should NOT be what we returned.
@@ -217,6 +225,7 @@ class TestEventMethods:
         )
 
         response = await s.change_response(uid="ID1", user="PID3", payload=mock_payload)
+        await s.clientsession.close()
 
         mock_url = "https://api.spond.com/core/v1/sponds/ID1/responses/PID3"
         mock_put.assert_called_once_with(
@@ -255,6 +264,7 @@ class TestGroupMethods:
         s.groups = mock_groups
         s.token = mock_token
         g = await s.get_group("ID2")
+        await s.clientsession.close()
 
         assert g == {
             "id": "ID2",
@@ -274,6 +284,8 @@ class TestGroupMethods:
         with pytest.raises(KeyError):
             await s.get_group("ID3")
 
+        await s.clientsession.close()
+
     @pytest.mark.asyncio
     async def test_get_group__blank_id_raises_exception(
         self, mock_groups: list[JSONDict], mock_token: str
@@ -286,6 +298,8 @@ class TestGroupMethods:
 
         with pytest.raises(KeyError):
             await s.get_group("")
+
+        await s.clientsession.close()
 
     @pytest.mark.asyncio
     async def test_get_group__no_groups_available_raises_keyerror(
@@ -302,6 +316,8 @@ class TestGroupMethods:
 
         with pytest.raises(KeyError):
             await s.get_group("ID1")
+
+        await s.clientsession.close()
 
 
 class TestSendMessage:
@@ -325,6 +341,7 @@ class TestSendMessage:
         mock_post.return_value.json = AsyncMock(return_value=api_response)
 
         result = await s.send_message(text="hello", chat_id="CHAT1")
+        await s.clientsession.close()
 
         assert result == api_response  # was a coroutine before the fix
         mock_post.assert_called_once()
@@ -351,6 +368,8 @@ class TestSendMessage:
         with pytest.raises(ValueError, match="user and group_uid"):
             await s.send_message(text="hello", group_uid="GROUP1")
 
+        await s.clientsession.close()
+
 
 class TestExportMethod:
     @pytest.mark.asyncio
@@ -366,6 +385,7 @@ class TestExportMethod:
         )
 
         data = await s.get_event_attendance_xlsx(uid="ID1")
+        await s.clientsession.close()
 
         mock_url = "https://api.spond.com/core/v1/sponds/ID1/export"
         mock_get.assert_called_once_with(
@@ -415,6 +435,7 @@ class TestPostMethods:
         )
 
         posts = await s.get_posts()
+        await s.clientsession.close()
 
         mock_url = "https://api.spond.com/core/v1/posts/"
         mock_get.assert_called_once_with(
@@ -447,6 +468,7 @@ class TestPostMethods:
         )
 
         posts = await s.get_posts(group_id="GID1")
+        await s.clientsession.close()
 
         mock_get.assert_called_once_with(
             "https://api.spond.com/core/v1/posts/",
@@ -476,6 +498,7 @@ class TestPostMethods:
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
 
         await s.get_posts(max_posts=5)
+        await s.clientsession.close()
 
         call_params = mock_get.call_args[1]["params"]
         assert call_params["max"] == "5"
@@ -493,6 +516,7 @@ class TestPostMethods:
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
 
         await s.get_posts(include_comments=False)
+        await s.clientsession.close()
 
         call_params = mock_get.call_args[1]["params"]
         assert call_params["includeComments"] == "false"
@@ -514,6 +538,8 @@ class TestPostMethods:
 
         with pytest.raises(ValueError, match="401"):
             await s.get_posts()
+
+        await s.clientsession.close()
 
 
 class TestLogin:
@@ -579,6 +605,7 @@ class TestLogin:
 
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         await s.login()
+        await s.clientsession.close()
 
         mock_post.assert_called_once_with(
             "https://api.spond.com/core/v1/auth2/login",
@@ -596,6 +623,8 @@ class TestLogin:
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         with pytest.raises(AuthenticationError):
             await s.login()
+
+        await s.clientsession.close()
         assert s.token is None
 
 
