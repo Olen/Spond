@@ -67,7 +67,7 @@ exclude = ["*.md"]
 
 [tool.ruff.lint]
 select = [
-    "ANN201",  # Missing return type annotation for public function
+    "ANN",  # flake8-annotations
     "E",  # pycodestyle
     "F",  # Pyflakes
     "I",  # isort
@@ -75,6 +75,8 @@ select = [
     "UP",  # pyupgrade
 ]
 ignore = [
+    "ANN002",  # Missing type annotation for `*args`
+    "ANN003",  # Missing type annotation for `**kwargs`
     "E501",  # Line too long: needs code refactors first
 ]
 
@@ -82,10 +84,6 @@ ignore = [
 # In example files:
 # - Don't try to sort imports as non-existent `config` module causes issues in CI
 "examples/*" = ["I001"]
-
-# In tests:
-# - Don't enforce type annotations for now
-"**/{tests}/*" = ["ANN"]
 
 [tool.uv]
 resolution = "lowest-direct"
