@@ -1,7 +1,7 @@
 version: 2
 updates:
 
-  - package-ecosystem: "pip"  # also supports Poetry
+  - package-ecosystem: "uv"
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"

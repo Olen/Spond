@@ -31,7 +31,7 @@ class SpondClub(_SpondBase):
     import asyncio
     from spond import club
 
-    async def main():
+    async def main() -> None:
         sc = club.SpondClub(username="me@example.invalid", password="secret")
         txs = await sc.get_transactions(club_id="ABCD1234...", max_items=50)
         for t in txs:
