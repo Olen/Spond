@@ -58,9 +58,14 @@ async def main() -> None:
     for i, post in enumerate(posts):
         print(f"[{i}] {_post_summary(post)}")
 
+    # Single-event fetch (uses the singular `sponds/{uid}` endpoint)
+    print("\nGetting the first event by id...")
+    e = events[0]
+    event = await s.get_event(e["id"])
+    print(_event_summary(event))
+
     # Attendance export
     print("\nGetting attendance report for the first event...")
-    e = events[0]
     data = await s.get_event_attendance_xlsx(e["id"])
     with tempfile.NamedTemporaryFile(
         mode="wb",
