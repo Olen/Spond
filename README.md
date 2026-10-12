@@ -137,6 +137,17 @@ rather than your local checkout.
 
 ## Contributing
 
+The project uses [ruff](https://docs.astral.sh/ruff/) for formatting and linting.
+Contributors should run checks on contributed code: 
+
+```shell
+uv run ruff format
+uv run ruff check
+uv run ruff check --fix  # autofix where possible
+uv run mypy .
+```
+These checks are enforced on PRs.
+
 ### Keeping a PR up to date with `main`
 
 Add the `updateme` label to a PR targeting `main` and a GitHub Actions workflow will automatically merge `main` into the PR branch every time `main` advances. This is opt-in: PRs without the label are left alone.
