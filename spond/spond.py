@@ -92,7 +92,6 @@ class Spond(_SpondBase):
         self.posts: list[JSONDict] | None = None
         self.messages: list[JSONDict] | None = None
         self.profile: JSONDict | None = None
-        self.payments_received: list[JSONDict] | None = None
 
     async def _login_chat(self) -> None:
         """Perform the secondary handshake with Spond's chat server.
@@ -773,31 +772,3 @@ class Spond(_SpondBase):
         url = f"{self.api_url}group/{group_id}/exportMembers"
         async with self.clientsession.get(url, headers=self.auth_headers) as r:
             return await r.read()
-
-    @_SpondBase.require_authentication
-    async def get_received_payments(self, max_records: int = 100) -> JSONDict:
-        """Get the list of Received Payments.
-
-        These are the payments that can be viewed from the user's profile in Spond under the
-        'Payment/Received payments' option.
-
-        Parameters
-        ----------
-        max_records : int, optional
-            Set a limit on the number of payments returned.
-            For performance reasons, defaults to 100.
-
-        Returns
-        -------
-        JSONDict
-            Details of the payments.
-
-        """
-        url = f"{self.api_url}payments/received"
-        async with self.clientsession.get(
-            url,
-            headers=self.auth_headers,
-            params={"maxCount": str(max_records)},
-        ) as r:
-            self.payments_received = await r.json()
-        return self.payments_received
