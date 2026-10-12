@@ -14,7 +14,7 @@ from collections.abc import Callable
 
 import aiohttp
 
-from spond import AuthenticationError
+from spond import AuthenticationError, JSONDict
 
 # Fields from a login response that are safe to surface in an
 # `AuthenticationError` message. Anything outside this set (notably 2FA
@@ -49,10 +49,10 @@ class _SpondBase(ABC):
         self.password = password
         self.api_url = api_url
         self.clientsession = aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar())
-        self.token = None
+        self.token: str | None = None
 
     @property
-    def auth_headers(self) -> dict:
+    def auth_headers(self) -> dict[str, str]:
         """Headers required for authenticated requests: JSON content-type plus
         a Bearer token from `self.token`."""
         return {
@@ -61,13 +61,13 @@ class _SpondBase(ABC):
         }
 
     @staticmethod
-    def require_authentication(func: Callable):
+    def require_authentication(func: Callable) -> Callable:
         """Decorator that calls `self.login()` before invoking `func` if the
         client is not yet authenticated. On `AuthenticationError`, closes the
         underlying aiohttp session before re-raising."""
 
         @functools.wraps(func)
-        async def wrapper(self, *args, **kwargs):
+        async def wrapper(self: _SpondBase, *args, **kwargs) -> Callable:
             if not self.token:
                 try:
                     await self.login()
@@ -95,7 +95,7 @@ class _SpondBase(ABC):
         self.token = self._extract_access_token(login_result)
 
     @staticmethod
-    def _extract_access_token(login_result: dict) -> str:
+    def _extract_access_token(login_result: JSONDict) -> str:
         """Pull the access-token string out of a `/auth2/login` response.
 
         The response shape is

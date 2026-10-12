@@ -50,7 +50,7 @@ class Spond(_SpondBase):
     import asyncio
     from spond import spond
 
-    async def main():
+    async def main() -> None:
         s = spond.Spond(username="me@example.invalid", password="secret")
         groups = await s.get_groups() or []
         for g in groups:
@@ -85,8 +85,8 @@ class Spond(_SpondBase):
             currently fail — Spond's TOTP flow is not yet supported.
         """
         super().__init__(username, password, self._API_BASE_URL)
-        self._chat_url = None
-        self._auth = None
+        self._chat_url: str | None = None
+        self._auth: str | None = None
         self.groups: list[JSONDict] | None = None
         self.events: list[JSONDict] | None = None
         self.posts: list[JSONDict] | None = None
@@ -204,7 +204,8 @@ class Spond(_SpondBase):
         """
         if not self.groups:
             await self.get_groups()
-        for group in self.groups:
+
+        for group in self.groups:  # type: ignore[union-attr]
             for member in group["members"]:
                 if self._match_person(member, user):
                     return member
@@ -325,7 +326,7 @@ class Spond(_SpondBase):
         url = f"{self._chat_url}/chats/"
         async with self.clientsession.get(
             url,
-            headers={"auth": self._auth},
+            headers={"auth": self._auth},  # type: ignore[arg-type]
             params={"max": str(max_chats)},
         ) as r:
             self.messages = await r.json()
@@ -354,7 +355,11 @@ class Spond(_SpondBase):
             await self._login_chat()
         url = f"{self._chat_url}/messages"
         data = {"chatId": chat_id, "text": text, "type": "TEXT"}
-        r = await self.clientsession.post(url, json=data, headers={"auth": self._auth})
+        r = await self.clientsession.post(
+            url,
+            json=data,
+            headers={"auth": self._auth},  # type: ignore[arg-type]
+        )
         return await r.json()
 
     @_SpondBase.require_authentication
@@ -427,7 +432,11 @@ class Spond(_SpondBase):
             "recipient": user_uid,
             "groupId": group_uid,
         }
-        r = await self.clientsession.post(url, json=data, headers={"auth": self._auth})
+        r = await self.clientsession.post(
+            url,
+            json=data,
+            headers={"auth": self._auth},  # type: ignore[arg-type]
+        )
         return await r.json()
 
     @_SpondBase.require_authentication

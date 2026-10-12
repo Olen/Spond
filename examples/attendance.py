@@ -122,7 +122,7 @@ async def main() -> None:
     await session.clientsession.close()
 
 
-async def _derive_member_name(spond_session, member_id: str) -> str:
+async def _derive_member_name(spond_session: spond.Spond, member_id: str) -> str:
     """Return full name, or id if member can't be matched."""
     try:
         person = await spond_session.get_person(member_id)

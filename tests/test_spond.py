@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -12,6 +12,8 @@ from spond.base import _SpondBase
 from spond.spond import Spond
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from spond import JSONDict
 
 
@@ -21,14 +23,14 @@ MOCK_PAYLOAD = {"accepted": "false", "declineMessage": "sick cannot make it"}
 
 
 # Mock the `require_authentication` decorator to bypass authentication
-def mock_require_authentication(func):
-    async def wrapper(*args, **kwargs):
+def mock_require_authentication(func: Callable) -> Callable:
+    async def wrapper(*args, **kwargs) -> Callable:
         return await func(*args, **kwargs)
 
     return wrapper
 
 
-_SpondBase.require_authentication = mock_require_authentication(Spond.get_event)
+_SpondBase.require_authentication = mock_require_authentication(Spond.get_event)  # type: ignore[method-assign]
 
 
 @pytest.fixture
@@ -49,7 +51,9 @@ class TestEventMethods:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
-    async def test_get_event__happy_path(self, mock_get, mock_token) -> None:
+    async def test_get_event__happy_path(
+        self, mock_get: MagicMock, mock_token: str
+    ) -> None:
         """`get_event()` fetches the singular `sponds/{uid}` endpoint
         (not the list endpoint with filters), so it is not constrained
         by `get_events()`'s default `max_events` cap or
@@ -65,6 +69,7 @@ class TestEventMethods:
         )
 
         event = await s.get_event("ID1")
+        await s.clientsession.close()
 
         mock_get.assert_called_once_with(
             "https://api.spond.com/core/v1/sponds/ID1",
@@ -79,7 +84,7 @@ class TestEventMethods:
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
     async def test_get_event__not_found_raises_keyerror(
-        self, mock_get, mock_token
+        self, mock_get: MagicMock, mock_token: str
     ) -> None:
         """A 404 from the singular endpoint surfaces as KeyError."""
 
@@ -92,10 +97,12 @@ class TestEventMethods:
         with pytest.raises(KeyError):
             await s.get_event("UNKNOWN")
 
+        await s.clientsession.close()
+
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
     async def test_get_event__api_error_raises_valueerror(
-        self, mock_get, mock_token
+        self, mock_get: MagicMock, mock_token: str
     ) -> None:
         """Other non-2xx responses surface as ValueError with the status."""
 
@@ -111,11 +118,13 @@ class TestEventMethods:
         with pytest.raises(ValueError, match="500"):
             await s.get_event("ID1")
 
+        await s.clientsession.close()
+
     @pytest.mark.asyncio
     @pytest.mark.parametrize("uid", ["", None])
     @patch("aiohttp.ClientSession.get")
     async def test_get_event__blank_id_raises_keyerror(
-        self, mock_get, uid, mock_token
+        self, mock_get: MagicMock, uid: str, mock_token: str
     ) -> None:
         """A blank `uid` would request the list endpoint `sponds/`, so it is
         rejected before any HTTP call."""
@@ -125,12 +134,14 @@ class TestEventMethods:
 
         with pytest.raises(KeyError):
             await s.get_event(uid)
+
+        await s.clientsession.close()
         mock_get.assert_not_called()
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
     async def test_get_event__logs_in_when_unauthenticated(
-        self, mock_get, mock_token
+        self, mock_get: MagicMock, mock_token: str
     ) -> None:
         """`get_event()` as the first call on a fresh client logs in first."""
 
@@ -139,7 +150,7 @@ class TestEventMethods:
         async def fake_login() -> None:
             s.token = mock_token
 
-        s.login = AsyncMock(side_effect=fake_login)
+        s.login = AsyncMock(side_effect=fake_login)  # type: ignore[method-assign]
         mock_get.return_value.__aenter__.return_value.ok = True
         mock_get.return_value.__aenter__.return_value.status = 200
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(
@@ -147,7 +158,7 @@ class TestEventMethods:
         )
 
         await s.get_event("ID1")
-
+        await s.clientsession.close()
         s.login.assert_awaited_once()
         assert (
             mock_get.call_args.kwargs["headers"]["Authorization"]
@@ -158,7 +169,7 @@ class TestEventMethods:
     @patch("aiohttp.ClientSession.post")
     @patch("aiohttp.ClientSession.get")
     async def test_update_event__returns_api_response(
-        self, mock_get, mock_post, mock_token
+        self, mock_get: MagicMock, mock_post: MagicMock, mock_token: str
     ) -> None:
         """`update_event()` should return the POST response, not the cached
         events list (regression test for #239)."""
@@ -186,6 +197,7 @@ class TestEventMethods:
         )
 
         result = await s.update_event(uid="ID1", updates={"heading": "New"})
+        await s.clientsession.close()
 
         assert result == api_response
         # The cached events list should NOT be what we returned.
@@ -193,7 +205,9 @@ class TestEventMethods:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.put")
-    async def test_change_response(self, mock_put, mock_payload, mock_token) -> None:
+    async def test_change_response(
+        self, mock_put: MagicMock, mock_payload: JSONDict, mock_token: str
+    ) -> None:
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
 
@@ -211,6 +225,7 @@ class TestEventMethods:
         )
 
         response = await s.change_response(uid="ID1", user="PID3", payload=mock_payload)
+        await s.clientsession.close()
 
         mock_url = "https://api.spond.com/core/v1/sponds/ID1/responses/PID3"
         mock_put.assert_called_once_with(
@@ -241,7 +256,7 @@ class TestGroupMethods:
 
     @pytest.mark.asyncio
     async def test_get_group__happy_path(
-        self, mock_groups: list[JSONDict], mock_token
+        self, mock_groups: list[JSONDict], mock_token: str
     ) -> None:
         """Test that a valid `id` returns the matching group."""
 
@@ -249,6 +264,7 @@ class TestGroupMethods:
         s.groups = mock_groups
         s.token = mock_token
         g = await s.get_group("ID2")
+        await s.clientsession.close()
 
         assert g == {
             "id": "ID2",
@@ -257,7 +273,7 @@ class TestGroupMethods:
 
     @pytest.mark.asyncio
     async def test_get_group__no_match_raises_exception(
-        self, mock_groups: list[JSONDict], mock_token
+        self, mock_groups: list[JSONDict], mock_token: str
     ) -> None:
         """Test that a non-matched `id` raises KeyError."""
 
@@ -268,9 +284,11 @@ class TestGroupMethods:
         with pytest.raises(KeyError):
             await s.get_group("ID3")
 
+        await s.clientsession.close()
+
     @pytest.mark.asyncio
     async def test_get_group__blank_id_raises_exception(
-        self, mock_groups: list[JSONDict], mock_token
+        self, mock_groups: list[JSONDict], mock_token: str
     ) -> None:
         """Test that a blank `id` raises KeyError."""
 
@@ -281,9 +299,11 @@ class TestGroupMethods:
         with pytest.raises(KeyError):
             await s.get_group("")
 
+        await s.clientsession.close()
+
     @pytest.mark.asyncio
     async def test_get_group__no_groups_available_raises_keyerror(
-        self, mock_token
+        self, mock_token: str
     ) -> None:
         """`get_groups()` is documented to return None when no groups exist;
         `get_group()` should surface this as KeyError, not TypeError."""
@@ -291,10 +311,13 @@ class TestGroupMethods:
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
         s.groups = None
-        s.get_groups = AsyncMock()  # leaves self.groups as None
+        s.get_groups = AsyncMock()  # type: ignore[method-assign]
+        # leaves self.groups as None
 
         with pytest.raises(KeyError):
             await s.get_group("ID1")
+
+        await s.clientsession.close()
 
 
 class TestSendMessage:
@@ -303,7 +326,7 @@ class TestSendMessage:
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post", new_callable=AsyncMock)
     async def test_send_message__continues_chat_when_chat_id_given(
-        self, mock_post, mock_token
+        self, mock_post: MagicMock, mock_token: str
     ) -> None:
         """With `chat_id`, the call should route through `_continue_chat()`
         and properly await it (regression: the await was missing)."""
@@ -318,6 +341,7 @@ class TestSendMessage:
         mock_post.return_value.json = AsyncMock(return_value=api_response)
 
         result = await s.send_message(text="hello", chat_id="CHAT1")
+        await s.clientsession.close()
 
         assert result == api_response  # was a coroutine before the fix
         mock_post.assert_called_once()
@@ -326,7 +350,7 @@ class TestSendMessage:
 
     @pytest.mark.asyncio
     async def test_send_message__missing_args_raises_valueerror(
-        self, mock_token
+        self, mock_token: str
     ) -> None:
         """Without `chat_id` and without both `user` and `group_uid`, the
         call should raise rather than silently return a sentinel dict."""
@@ -344,11 +368,13 @@ class TestSendMessage:
         with pytest.raises(ValueError, match="user and group_uid"):
             await s.send_message(text="hello", group_uid="GROUP1")
 
+        await s.clientsession.close()
+
 
 class TestExportMethod:
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
-    async def test_get_export(self, mock_get, mock_token) -> None:
+    async def test_get_export(self, mock_get: MagicMock, mock_token: str) -> None:
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
 
@@ -359,6 +385,7 @@ class TestExportMethod:
         )
 
         data = await s.get_event_attendance_xlsx(uid="ID1")
+        await s.clientsession.close()
 
         mock_url = "https://api.spond.com/core/v1/sponds/ID1/export"
         mock_get.assert_called_once_with(
@@ -395,7 +422,9 @@ class TestPostMethods:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
-    async def test_get_posts__happy_path(self, mock_get, mock_token) -> None:
+    async def test_get_posts__happy_path(
+        self, mock_get: MagicMock, mock_token: str
+    ) -> None:
         """Test that get_posts returns posts from the API."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
@@ -406,6 +435,7 @@ class TestPostMethods:
         )
 
         posts = await s.get_posts()
+        await s.clientsession.close()
 
         mock_url = "https://api.spond.com/core/v1/posts/"
         mock_get.assert_called_once_with(
@@ -425,7 +455,9 @@ class TestPostMethods:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
-    async def test_get_posts__with_group_id(self, mock_get, mock_token) -> None:
+    async def test_get_posts__with_group_id(
+        self, mock_get: MagicMock, mock_token: str
+    ) -> None:
         """Test that group_id is passed as a query parameter."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
@@ -436,6 +468,7 @@ class TestPostMethods:
         )
 
         posts = await s.get_posts(group_id="GID1")
+        await s.clientsession.close()
 
         mock_get.assert_called_once_with(
             "https://api.spond.com/core/v1/posts/",
@@ -454,7 +487,9 @@ class TestPostMethods:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
-    async def test_get_posts__custom_max(self, mock_get, mock_token) -> None:
+    async def test_get_posts__custom_max(
+        self, mock_get: MagicMock, mock_token: str
+    ) -> None:
         """Test that max_posts parameter is respected."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
@@ -463,13 +498,16 @@ class TestPostMethods:
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
 
         await s.get_posts(max_posts=5)
+        await s.clientsession.close()
 
         call_params = mock_get.call_args[1]["params"]
         assert call_params["max"] == "5"
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
-    async def test_get_posts__no_comments(self, mock_get, mock_token) -> None:
+    async def test_get_posts__no_comments(
+        self, mock_get: MagicMock, mock_token: str
+    ) -> None:
         """Test that include_comments=False is passed correctly."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
@@ -478,13 +516,16 @@ class TestPostMethods:
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=[])
 
         await s.get_posts(include_comments=False)
+        await s.clientsession.close()
 
         call_params = mock_get.call_args[1]["params"]
         assert call_params["includeComments"] == "false"
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.get")
-    async def test_get_posts__api_error_raises(self, mock_get, mock_token) -> None:
+    async def test_get_posts__api_error_raises(
+        self, mock_get: MagicMock, mock_token: str
+    ) -> None:
         """Test that a failed API response raises ValueError."""
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         s.token = mock_token
@@ -498,6 +539,8 @@ class TestPostMethods:
         with pytest.raises(ValueError, match="401"):
             await s.get_posts()
 
+        await s.clientsession.close()
+
 
 class TestLogin:
     @pytest.mark.parametrize(
@@ -509,7 +552,9 @@ class TestLogin:
             ),
         ],
     )
-    def test_extract_access_token__happy_path(self, login_result, expected) -> None:
+    def test_extract_access_token__happy_path(
+        self, login_result: JSONDict, expected: str
+    ) -> None:
         assert _SpondBase._extract_access_token(login_result) == expected
 
     @pytest.mark.parametrize(
@@ -522,7 +567,9 @@ class TestLogin:
             {"accessToken": {"token": None}},
         ],
     )
-    def test_extract_access_token__bad_shape_raises(self, login_result) -> None:
+    def test_extract_access_token__bad_shape_raises(
+        self, login_result: JSONDict
+    ) -> None:
         with pytest.raises(AuthenticationError):
             _SpondBase._extract_access_token(login_result)
 
@@ -546,7 +593,7 @@ class TestLogin:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
-    async def test_login__happy_path(self, mock_post) -> None:
+    async def test_login__happy_path(self, mock_post: MagicMock) -> None:
         mock_response = {
             "accessToken": {"token": "ABC", "expiration": "2026-05-14T12:00:00Z"},
             "refreshToken": {"token": "REF", "expiration": "2026-08-11T12:00:00Z"},
@@ -558,6 +605,7 @@ class TestLogin:
 
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         await s.login()
+        await s.clientsession.close()
 
         mock_post.assert_called_once_with(
             "https://api.spond.com/core/v1/auth2/login",
@@ -567,7 +615,7 @@ class TestLogin:
 
     @pytest.mark.asyncio
     @patch("aiohttp.ClientSession.post")
-    async def test_login__error_response_raises(self, mock_post) -> None:
+    async def test_login__error_response_raises(self, mock_post: MagicMock) -> None:
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
             return_value={"error": "Invalid credentials"}
         )
@@ -575,6 +623,8 @@ class TestLogin:
         s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
         with pytest.raises(AuthenticationError):
             await s.login()
+
+        await s.clientsession.close()
         assert s.token is None
 
 
