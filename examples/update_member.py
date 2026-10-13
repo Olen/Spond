@@ -8,7 +8,7 @@ from spond import spond
 
 
 #
-# This is an example of reading the Spond group data and extacting the ids
+# This is an example of reading the Spond group data and extracting the ids
 # for the custom subgroups, fields and roles
 #
 # Lots of globals as code is used in Jupyter notebook across different cells
