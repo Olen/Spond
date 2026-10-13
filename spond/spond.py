@@ -749,3 +749,52 @@ class Spond(_SpondBase):
                     f"Request failed with status {r.status}: {error_details}"
                 )
             return await r.json()
+
+    @_SpondBase.require_authentication
+    async def update_member(self, group_id: str, member: JSONDict) -> JSONDict:
+        """Update member details.
+
+        Subject to authenticated user's access permissions.
+
+        First get the member data with either get_groups() or get_person(),
+        modify some values then write back with this method.
+
+        Parameters
+        ----------
+        group_id : str
+            Group ID of the member
+        member : JSONDict
+            Member data to update
+
+        Returns
+        -------
+        JSONDict
+             The response from the Spond server which is the Updated memberi
+             data on success or an error message on failure.
+        """
+
+        url = f"{self.api_url}group/{group_id}/member"
+        async with self.clientsession.post(
+            url, json=member, headers=self.auth_headers
+        ) as r:
+            return await r.json()
+
+    @_SpondBase.require_authentication
+    async def get_members_xlsx(self, group_id: str) -> bytes:
+        """Get Excel spreadsheet with member details
+
+        An Excel spreadsheet with all member data can be downloaded from the Spond website.
+        This fetches that same Excel file.
+
+        Parameters
+        ----------
+        group_id : str
+            Group ID of the members
+
+        Returns:
+        -------
+            bytes: XLSX binary data
+        """
+        url = f"{self.api_url}group/{group_id}/exportMembers"
+        async with self.clientsession.get(url, headers=self.auth_headers) as r:
+            return await r.read()
