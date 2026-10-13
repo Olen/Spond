@@ -78,7 +78,7 @@ Retrieve information connected to the user's account.
 
 ### update_member()
 Change details about a member. First use get_groups() to get all the member details,
-find the member you what to change and make the changes, then use this method to
+find the member you want to change and make the changes, then use this method to
 update in Spond.
 
 ### get_members_xlsx()
