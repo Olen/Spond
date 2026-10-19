@@ -35,10 +35,10 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: 🔍 Extract version from Poetry
+      - name: 🔍 Extract version with uv
         id: get_version
         run: |
-          VERSION=$(poetry version -s)
+          VERSION=$(uv version --short)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "🔢 Extracted version: $VERSION"
 
@@ -75,7 +75,7 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: 🏗️ Build package with Poetry
+      - name: 🏗️ Build package with uv
         if: steps.check_tag.outputs.exists == 'false'
         run: uv build
 
