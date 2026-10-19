@@ -114,7 +114,7 @@ To browse docs locally (useful when iterating on docstrings),
 start the pdoc dev server:
 
 ```shell
-uv run pdoc --docformat numpy ./spond
+uv run pdoc --docformat numpy spond
 ```
 
 A browser tab opens at `http://localhost:8080` with a searchable, navigable
@@ -124,16 +124,12 @@ next to each one. Pages update automatically when the docstrings change.
 To generate static HTML instead:
 
 ```shell
-uv run pdoc --docformat numpy -o docs/ ./spond
+uv run pdoc --docformat numpy -o docs/ spond
 ```
 
 The `--docformat numpy` flag parses NumPy-style `Parameters`, `Returns`, and
 `Raises` sections as structured lists — omit it and the param list renders as
 one flat paragraph.
-
-The leading `./` is important when developing inside the repo — without it,
-pdoc would document the *installed* `spond` package from `site-packages`
-rather than your local checkout.
 
 ## Contributing
 
