@@ -10,13 +10,7 @@ Simple, unofficial library with some example scripts to access data from the [Sp
 ### Requirements
 
 - Python 3.11 or later
-- `aiohttp` 3.13.0 or later
-
-The `aiohttp` bound is a compatibility floor, not a security one — which
-advisories matter depends on your application, so pinning is your call. For
-reference: releases below 3.14.3 carry known HTTP-parser advisories, the most
-serious being [CVE-2026-69244](https://github.com/advisories/GHSA-cq5v-8q36-5273).
-Installing without a pin already gives you the newest `aiohttp`.
+- `aiohttp` 3.14.4 or later
 
 ## Usage
 
