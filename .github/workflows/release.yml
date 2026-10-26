@@ -24,24 +24,21 @@ jobs:
         with:
           fetch-depth: 0  # Requried to check if a tag exists already
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          # Install a specific version of uv
+          version: "0.13.0"
+
       - name: 🐍 Set up Python
         uses: actions/setup-python@v7
         with:
           python-version: '3.x'
 
-      - name: 🎭 Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: 🏗️ Install project
-        run: poetry install
-
-      - name: 🔍 Extract version from Poetry
+      - name: 🔍 Extract version with uv
         id: get_version
         run: |
-          VERSION=$(poetry version -s)
+          VERSION=$(uv version --short)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "🔢 Extracted version: $VERSION"
 
@@ -78,9 +75,9 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: 🏗️ Build package with Poetry
+      - name: 🏗️ Build package with uv
         if: steps.check_tag.outputs.exists == 'false'
-        run: poetry build
+        run: uv build
 
       - name: 🚀 Publish to PyPI with OpenID
         if: steps.check_tag.outputs.exists == 'false'

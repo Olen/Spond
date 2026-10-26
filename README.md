@@ -10,13 +10,7 @@ Simple, unofficial library with some example scripts to access data from the [Sp
 ### Requirements
 
 - Python 3.11 or later
-- `aiohttp` 3.13.0 or later
-
-The `aiohttp` bound is a compatibility floor, not a security one — which
-advisories matter depends on your application, so pinning is your call. For
-reference: releases below 3.14.3 carry known HTTP-parser advisories, the most
-serious being [CVE-2026-69244](https://github.com/advisories/GHSA-cq5v-8q36-5273).
-Installing without a pin already gives you the newest `aiohttp`.
+- `aiohttp` 3.14.4 or later
 
 ## Usage
 
@@ -104,18 +98,17 @@ Demonstrates most `get...()` methods.
 
 ## API documentation
 
-The library's API documentation is generated from the docstrings in `spond/`
+The library's API documentation is generated from the docstrings in `src/spond`
 using [pdoc](https://pdoc.dev/) and published to GitHub Pages on every push
 to `main`:
 
 **[https://olen.github.io/Spond/](https://olen.github.io/Spond/)**
 
-To browse the same docs locally (useful when iterating on docstrings),
-install the dev dependencies and start the pdoc dev server:
+To browse docs locally (useful when iterating on docstrings),
+start the pdoc dev server:
 
 ```shell
-poetry install
-poetry run pdoc --docformat numpy ./spond
+uv run pdoc --docformat numpy spond
 ```
 
 A browser tab opens at `http://localhost:8080` with a searchable, navigable
@@ -125,16 +118,12 @@ next to each one. Pages update automatically when the docstrings change.
 To generate static HTML instead:
 
 ```shell
-poetry run pdoc --docformat numpy -o docs/ ./spond
+uv run pdoc --docformat numpy -o docs/ spond
 ```
 
 The `--docformat numpy` flag parses NumPy-style `Parameters`, `Returns`, and
 `Raises` sections as structured lists — omit it and the param list renders as
 one flat paragraph.
-
-The leading `./` is important when developing inside the repo — without it,
-pdoc would document the *installed* `spond` package from `site-packages`
-rather than your local checkout.
 
 ## Contributing
 
