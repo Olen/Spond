@@ -9,6 +9,7 @@ events, posts, and chats. For the separate Spond Club finance API, see
 
 from __future__ import annotations
 
+from datetime import UTC
 from typing import TYPE_CHECKING, ClassVar
 
 from . import JSONDict
@@ -299,6 +300,99 @@ class Spond(_SpondBase):
             return self.posts
 
     @_SpondBase.require_authentication
+    async def create_post(
+        self,
+        group_id: str,
+        title: str,
+        body: str,
+        comments_disabled: bool = False,
+    ) -> JSONDict:
+        """Publish a new post on a group wall.
+
+        The post is visible to all members of the group, and members are
+        notified as they would be for a post created in the Spond app.
+
+        Parameters
+        ----------
+        group_id : str
+            UID of the group whose wall to post on.
+        title : str
+            Post title.
+        body : str
+            Post text.
+        comments_disabled : bool, optional
+            Prevent members from commenting on the post. Defaults to False.
+
+        Returns
+        -------
+        JSONDict
+            The created post as returned by the Spond API, including its new
+            `id`.
+
+        Raises
+        ------
+        ValueError
+            Raised when the request to the API fails.
+        """
+        url = f"{self.api_url}posts"
+        data: JSONDict = {
+            "type": "PLAIN",
+            "groupId": group_id,
+            "visibility": "ALL",
+            "commentsDisabled": comments_disabled,
+            "attachments": [],
+            "title": title,
+            "body": body,
+            "media": [],
+        }
+        return await self._post_json(url, data)
+
+    @_SpondBase.require_authentication
+    async def create_post_comment(self, post_id: str, text: str) -> JSONDict:
+        """Add a comment to a group wall post.
+
+        Parameters
+        ----------
+        post_id : str
+            UID of the post to comment on, e.g. an `id` from `get_posts()` or
+            `create_post()`.
+        text : str
+            Comment text.
+
+        Returns
+        -------
+        JSONDict
+            The created comment as returned by the Spond API, with keys `id`,
+            `fromProfileId`, `timestamp`, `text` and `reactions`.
+
+        Raises
+        ------
+        ValueError
+            Raised when the request to the API fails.
+        """
+        url = f"{self.api_url}posts/{post_id}/comments"
+        data: JSONDict = {"text": text, "notifications": {"mentions": []}}
+        return await self._post_json(url, data)
+
+    async def _post_json(self, url: str, data: JSONDict) -> JSONDict:
+        """POST `data` as JSON to `url` and return the decoded response.
+
+        Raises
+        ------
+        ValueError
+            Raised when the request to the API fails.
+        """
+        async with self.clientsession.post(
+            url, json=data, headers=self.auth_headers
+        ) as r:
+            if not r.ok:
+                error_details = await r.text()
+                raise ValueError(
+                    f"Request failed with status {r.status}: {error_details}"
+                )
+            return await r.json()
+
+    @_SpondBase.require_authentication
     async def get_messages(self, max_chats: int = 100) -> list[JSONDict] | None:
         """Retrieve recent chats (one-to-one and group conversations).
 
@@ -564,6 +658,103 @@ class Spond(_SpondBase):
             If the API returns any other error.
         """
         return await self._get_entity(self._EVENT, uid)
+
+    @_SpondBase.require_authentication
+    async def create_event(
+        self,
+        group_id: str,
+        heading: str,
+        start: datetime,
+        end: datetime | None = None,
+        description: str = "",
+        member_ids: list[str] | None = None,
+        comments_disabled: bool = False,
+    ) -> JSONDict:
+        """Create a new event in a group and invite its members.
+
+        Invitations are sent immediately, and the authenticated user is set as
+        the event's organiser.
+
+        Parameters
+        ----------
+        group_id : str
+            UID of the group the event belongs to.
+        heading : str
+            Event title.
+        start : datetime
+            Start time. Must be timezone-aware, so the time sent to Spond is
+            unambiguous.
+        end : datetime, optional
+            End time. Must be timezone-aware. If omitted, the event is
+            open-ended.
+        description : str, optional
+            Event description.
+        member_ids : list[str], optional
+            Member ids to invite (as in `group["members"][i]["id"]`). If
+            omitted, every member of the group is invited.
+        comments_disabled : bool, optional
+            Prevent invitees from commenting on the event. Defaults to False.
+
+        Returns
+        -------
+        JSONDict
+            The created event as returned by the Spond API, including its new
+            `id`.
+
+        Raises
+        ------
+        ValueError
+            Raised when `start` or `end` is timezone-naive, or when the request
+            to the API fails.
+        KeyError
+            Raised when `member_ids` is omitted and no group with `group_id`
+            is found.
+        """
+        for name, value in (("start", start), ("end", end)):
+            if value is not None and value.utcoffset() is None:
+                raise ValueError(f"`{name}` must be a timezone-aware datetime.")
+
+        if member_ids is None:
+            group = await self.get_group(group_id)
+            member_ids = [member["id"] for member in group["members"]]
+        if self.profile is None:
+            await self.get_profile()
+
+        data: JSONDict = {
+            "heading": heading,
+            "description": description,
+            "spondType": "event",
+            "type": "EVENT",
+            "startTimestamp": self._to_api_timestamp(start),
+            "openEnded": end is None,
+            "commentsDisabled": comments_disabled,
+            "maxAccepted": 0,
+            "rsvpDate": None,
+            "location": None,
+            "owners": [{"id": self.profile["id"]}],
+            "visibility": "INVITEES",
+            "participantsHidden": False,
+            "autoReminderType": "DISABLED",
+            "matchInfo": None,
+            "autoAccept": False,
+            "attachments": [],
+            "tasks": {"openTasks": [], "assignedTasks": []},
+            "recipients": {
+                "groupMembers": member_ids,
+                "group": {"id": group_id},
+            },
+        }
+        if end is not None:
+            data["endTimestamp"] = self._to_api_timestamp(end)
+
+        return await self._post_json(f"{self.api_url}sponds", data)
+
+    @staticmethod
+    def _to_api_timestamp(value: datetime) -> str:
+        """Format a timezone-aware datetime as a UTC timestamp for the API,
+        e.g. `2026-11-16T15:00:00.000Z`."""
+        utc = value.astimezone(UTC)
+        return utc.strftime("%Y-%m-%dT%H:%M:%S.") + f"{utc.microsecond // 1000:03d}Z"
 
     @_SpondBase.require_authentication
     async def update_event(self, uid: str, updates: JSONDict) -> JSONDict:

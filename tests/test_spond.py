@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
@@ -497,6 +498,129 @@ class TestPostMethods:
 
         with pytest.raises(ValueError, match="401"):
             await s.get_posts()
+
+
+class TestCreateMethods:
+    MOCK_HEADERS = {
+        "content-type": "application/json",
+        "Authorization": f"Bearer {MOCK_TOKEN}",
+    }
+
+    @staticmethod
+    def _mock_post_response(mock_post, response: JSONDict, ok: bool = True) -> None:
+        mock_post.return_value.__aenter__.return_value.ok = ok
+        mock_post.return_value.__aenter__.return_value.status = 200 if ok else 400
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=response
+        )
+        mock_post.return_value.__aenter__.return_value.text = AsyncMock(
+            return_value="Bad request"
+        )
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_create_post__happy_path(self, mock_post, mock_token) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        self._mock_post_response(mock_post, {"id": "POST1"})
+
+        result = await s.create_post("GID1", "Title", "Body")
+
+        mock_post.assert_called_once_with(
+            "https://api.spond.com/core/v1/posts",
+            json={
+                "type": "PLAIN",
+                "groupId": "GID1",
+                "visibility": "ALL",
+                "commentsDisabled": False,
+                "attachments": [],
+                "title": "Title",
+                "body": "Body",
+                "media": [],
+            },
+            headers=self.MOCK_HEADERS,
+        )
+        assert result == {"id": "POST1"}
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_create_post__api_error_raises(self, mock_post, mock_token) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        self._mock_post_response(mock_post, {}, ok=False)
+
+        with pytest.raises(ValueError, match="400"):
+            await s.create_post("GID1", "Title", "Body")
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_create_post_comment__happy_path(self, mock_post, mock_token) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        self._mock_post_response(mock_post, {"id": "C1", "text": "Hi"})
+
+        result = await s.create_post_comment("POST1", "Hi")
+
+        mock_post.assert_called_once_with(
+            "https://api.spond.com/core/v1/posts/POST1/comments",
+            json={"text": "Hi", "notifications": {"mentions": []}},
+            headers=self.MOCK_HEADERS,
+        )
+        assert result == {"id": "C1", "text": "Hi"}
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_create_event__invites_all_members_by_default(
+        self, mock_post, mock_token
+    ) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        s.profile = {"id": "PROFILE1"}
+        s.groups = [{"id": "GID1", "members": [{"id": "M1"}, {"id": "M2"}]}]
+        self._mock_post_response(mock_post, {"id": "EVENT1"})
+
+        start = datetime(2026, 11, 16, 16, 0, tzinfo=timezone(timedelta(hours=1)))
+        result = await s.create_event("GID1", "Training", start)
+
+        payload = mock_post.call_args.kwargs["json"]
+        assert mock_post.call_args.args == ("https://api.spond.com/core/v1/sponds",)
+        assert payload["heading"] == "Training"
+        assert payload["startTimestamp"] == "2026-11-16T15:00:00.000Z"
+        assert payload["openEnded"] is True
+        assert "endTimestamp" not in payload
+        assert payload["owners"] == [{"id": "PROFILE1"}]
+        assert payload["recipients"] == {
+            "groupMembers": ["M1", "M2"],
+            "group": {"id": "GID1"},
+        }
+        assert result == {"id": "EVENT1"}
+
+    @pytest.mark.asyncio
+    @patch("aiohttp.ClientSession.post")
+    async def test_create_event__with_end_and_selected_members(
+        self, mock_post, mock_token
+    ) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+        s.profile = {"id": "PROFILE1"}
+        self._mock_post_response(mock_post, {"id": "EVENT1"})
+
+        start = datetime(2026, 11, 16, 15, 0, tzinfo=UTC)
+        end = datetime(2026, 11, 16, 16, 30, tzinfo=UTC)
+        await s.create_event("GID1", "Training", start, end=end, member_ids=["M2"])
+
+        payload = mock_post.call_args.kwargs["json"]
+        assert payload["openEnded"] is False
+        assert payload["endTimestamp"] == "2026-11-16T16:30:00.000Z"
+        assert payload["recipients"]["groupMembers"] == ["M2"]
+
+    @pytest.mark.asyncio
+    async def test_create_event__naive_datetime_raises(self, mock_token) -> None:
+        s = Spond(MOCK_USERNAME, MOCK_PASSWORD)
+        s.token = mock_token
+
+        with pytest.raises(ValueError, match="timezone-aware"):
+            await s.create_event("GID1", "Training", datetime(2026, 11, 16, 15, 0))
 
 
 class TestLogin:
